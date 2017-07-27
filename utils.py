@@ -5,7 +5,7 @@ import orca
 from urbansim.developer import developer
 
 
-def profit_to_prob_function(df):
+def profit_to_prob_function(df1):
 
     """
     Execute development feasibility on all parcels
@@ -19,10 +19,16 @@ def profit_to_prob_function(df):
     -------
     Adds a series with profit function
     """
-    df['random'] = np.random.normal(.5, .1, df.shape[0])
-    df['random_prob'] = (df.random / df.random.sum())
-    df = df.drop(['random'], 1)
-    return df['random_prob']
+    df1['random'] = np.random.normal(.5, .05, df1.shape[0])
+    # df1['distance_to_coast_normal'] = ((df1.distance_to_coast.max() - df1.distance_to_coast ) / (df1.distance_to_coast.max() - df1.distance_to_coast.min() ))
+    # df1['random'] = (df1['random'] * df1['distance_to_coast_normal'])
+
+    df1['random_prob'] = (df1.random / df1.random.sum())
+
+    df1.drop('random', axis=1, inplace=True)
+    # df1.drop('distance_to_coast_normal', axis=1, inplace=True)
+
+    return df1['random_prob']
 
 
 def run_feasibility(parcels):
@@ -42,6 +48,7 @@ def run_feasibility(parcels):
     print("Computing feasibility")
     parcels = parcels.to_frame()
     feasible_parcels = parcels.loc[parcels['capacity'] > parcels['residential_units']]
+    print (feasible_parcels)
     orca.add_table("feasibility", feasible_parcels)
 
 
@@ -121,7 +128,8 @@ def run_developer(forms, parcels, agents, buildings, supply_fname,
     '''
 
     choices = np.random.choice(df.index.values, size=min(len(df.index), target_units),
-                               replace=False, p=p)
+                               replace=False, p=p.tolist())
+    print (choices)
     df['net_units'] = (df.capacity - df.residential_units)
     tot_units = df.net_units.loc[choices].values.cumsum()
     ind = int(np.searchsorted(tot_units, target_units, side="left")) + 1
