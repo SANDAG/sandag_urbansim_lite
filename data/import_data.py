@@ -9,21 +9,15 @@ mssql_engine = create_engine(db_connection_string)
 
 parcels_sql = '''
          SELECT p.parcel_id
-              ,p.[development_type_id] as building_type_id
-              ,coalesce(cast(c.sr14_cap as int), 0) + coalesce(sum(b.residential_units), 0) * 2 as capacity
+			  ,p.[development_type_id] as building_type_id
+              ,coalesce(cast(c.sr14_cap as int), 0) + coalesce(sum(b.residential_units), 0) as capacity
               ,coalesce(sum(b.residential_units), 0) as residential_units
-              ,[land_value]/ [parcel_acres] as land_value_per_acre
             FROM [spacecore].[urbansim].[parcels] as p
               LEFT JOIN urbansim.buildings as b
               ON b.parcel_id = p.parcel_id
               LEFT JOIN staging.sr14_capacity as c
               ON c.parcel_id = p.parcel_id
-              GROUP BY  p.[parcel_id], p.[development_type_id], c.sr14_cap, [land_value]/ [parcel_acres] '''
-
-parcels_distance_to_coast_sql = '''
-SELECT parcel_id, distance_to_coast
-  FROM urbansim.parcels;
-'''
+              GROUP BY  p.[parcel_id], p.[development_type_id], c.sr14_cap'''
 
 households_sql = '''
           SELECT yr as year, sum(households) as hh
@@ -43,11 +37,6 @@ buildings_sql = '''SELECT building_id, parcel_id,
 households_df = pd.read_sql(households_sql, postgres_engine, index_col='year')
 buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
 parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
-parcels_distance_to_coast_df = pd.read_sql(parcels_distance_to_coast_sql, postgres_engine, index_col='parcel_id')
-print len(parcels_df)
-parcels_df = parcels_df.join(parcels_distance_to_coast_df)
-parcels_df = parcels_df.fillna(1000)
-print len(parcels_df)
 
 
 with pd.HDFStore('urbansim.h5', mode='w') as store:
