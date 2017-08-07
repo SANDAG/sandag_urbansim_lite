@@ -5,7 +5,7 @@ import orca
 from urbansim.developer import developer
 
 
-def profit_to_prob_function(df1):
+def profit_to_prob_function(df1, var_list=['distance_to_coast']):
 
     """
     Execute development feasibility on all parcels
@@ -14,19 +14,22 @@ def profit_to_prob_function(df1):
     ----------
     df : DataFrame Wrapper
         The data frame wrapper for the parcel data
-
+    var_list : array
+        List of variables to be used to determine the probability of being picked
     Returns
     -------
     Adds a series with profit function
     """
-    df1['random'] = np.random.normal(.5, .05, df1.shape[0])
-    df1['distance_to_coast_normal'] = ((df1.distance_to_coast.max() - df1.distance_to_coast) / (df1.distance_to_coast.max() - df1.distance_to_coast.min() ))
-    df1['random'] = (df1['random'] * df1['distance_to_coast_normal'])
+    for x in var_list:
+        df1['random'] = np.random.normal(.5, .05, df1.shape[0])
+        df1[x + '_normal'] = ((df1[x].max() - df1[x]) / (df1[x].max() - df1[x].min()))
 
-    df1['random_prob'] = (df1.random / df1.random.sum())
+        df1['random'] = (df1['random'] * df1[x + '_normal'])
+
+        df1['random_prob'] = (df1.random / df1.random.sum())
+        df1.drop(x + '_normal', axis=1, inplace=True)
 
     df1.drop('random', axis=1, inplace=True)
-    df1.drop('distance_to_coast_normal', axis=1, inplace=True)
 
     return df1['random_prob']
 
