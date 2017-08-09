@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<title>SanDE Simulation</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <script language="JavaScript">
+    function showInput() {
+        document.getElementById('display').innerHTML ='Running simulation with Demographic Scenario ID: ' +
+                    document.getElementById("dem_id").value + ' Economic Scenario ID: ' +
+                    document.getElementById("econ_id").value + ' , from ' +   document.getElementById("start_y").value +
+                    ' to ' +   document.getElementById("end_y").value;
+    }
+  </script>
+
+<body class="page_bg"> >
+
+<!-- Navbar (sit on top) -->
+<div class="w3-top">
+  <div class="w3-bar w3-white w3-wide w3-padding w3-card-2">
+      <img src="https://www.sdmts.com/sites/default/files/sandag_logo.png" alt="Test Image" width="150" height="75"
+      <a href= "#home" class="w3-bar-item w3-button"> Urbansim Lite</a>
+
+    <!-- Float links to the rigef. Hide them on small screens -->
+    <div class="w3-right w3-hide-small">
+      <a href="#Demographic Results" class="w3-bar-item w3-button">Residential Development Trends</a>
+    </div>
+  </div>
+</div>
+
+<body>
+<div class="w3-content w3-padding" style="max-width:5000px">
+
+  <!-- Project Section -->
+
+        <div class="w3-container w3-padding-32" id="Residential Development Trends">
+
+    <div class="w3-row-padding">
+                              <br><br>
+
+            <h3 class="w3-border-bottom w3-border-light-grey w3-padding-16">Residential Development Trends</h3>
+                              <br>
+		 <h3 class="w3-padding-12">(Select below the jurisdiction)</h3>
+		                              <br>
+
+		<form action="/">
+<select name="feature_name">
+	{% for feature in feature_names %}
+		{% if feature == current_feature_name %}
+			<option selected value="{{ feature }}">{{ feature }}</option>
+		{% else %}
+			<option value="{{ feature }}">{{ feature }}</option>
+		{% endif %}
+	{% endfor %}
+</select>
+<input type="submit">
+</form>
+		</div>
+			</div>
+<div id={{ chartID|safe }} class="chart" style="height: 200px; width: 1000px"></div>
+		<script>
+			var chart_id = {{ chartID|safe }}
+			var series = {{ series|safe }}
+			var title = {{ title|safe }}
+			var xAxis = {{ xAxis|safe }}
+			var yAxis = {{ yAxis|safe }}
+			var chart = {{ chart|safe }}
+		</script>
+			<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+			<script src="http://code.highcharts.com/highcharts.js"></script>
+            <script src="https://code.highcharts.com/modules/exporting.js"></script>
+			<script src="../static/js/main.js"></script></div>
+
+</body>
+</html>
