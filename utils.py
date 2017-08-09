@@ -20,17 +20,17 @@ def profit_to_prob_function(df1, var_list=['distance_to_coast']):
     -------
     Adds a series with profit function
     """
+    df1['random'] = np.random.normal(.5, .05, df1.shape[0])
+
     for x in var_list:
-        df1['random'] = np.random.normal(.5, .05, df1.shape[0])
-        df1[x + '_normal'] = ((df1[x].max() - df1[x]) / (df1[x].max() - df1[x].min()))
+            df1[x + '_normal'] = ((df1[x].max() - df1[x]) / (df1[x].max() - df1[x].min()))
 
-        df1['random'] = (df1['random'] * df1[x + '_normal'])
+            df1['random'] = (df1['random'] * df1[x + '_normal'])
 
-        df1['random_prob'] = (df1.random / df1.random.sum())
-        df1.drop(x + '_normal', axis=1, inplace=True)
+            df1.drop(x + '_normal', axis=1, inplace=True)
 
+    df1['random_prob'] = (df1.random / df1.random.sum())
     df1.drop('random', axis=1, inplace=True)
-
     return df1['random_prob']
 
 
