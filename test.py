@@ -14,7 +14,7 @@ results_sql = '''  SELECT
  ,g.name as jurisdiction
  ,SUM(CASE WHEN run_id = 4 THEN [residential_units] ELSE 0 END) as "Random"
  ,SUM(CASE WHEN run_id = 1 THEN [residential_units] ELSE 0 END) as "Distance To Coast"
-  FROM [spacecore].[dbo].[buildings_output] as b
+  FROM [spacecore].[staging].[urbansim_lite_output] as b
   LEFT JOIN [spacecore].[urbansim].[parcels] as p
   ON p.parcel_id = b.parcel_id
   LEFT JOIN (SELECT [name]
