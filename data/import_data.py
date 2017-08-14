@@ -1,3 +1,4 @@
+from __future__ import print_function
 from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
 import pandas as pd
@@ -37,17 +38,17 @@ buildings_sql = '''SELECT building_id, parcel_id,
                           COALESCE(development_type_id,0) as building_type_id,
                           COALESCE(residential_units, 0) as residential_units,
                           COALESCE(year_built, 0) year_built
-                     FROM urbansim.buildings'''
+                     FROM [urbansim].[urbansim].[building]'''
 
 
 households_df = pd.read_sql(households_sql, postgres_engine, index_col='year')
 buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
 parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
 parcels_distance_to_coast_df = pd.read_sql(parcels_distance_to_coast_sql, postgres_engine, index_col='parcel_id')
-print len(parcels_df)
+print(len(parcels_df))
 parcels_df = parcels_df.join(parcels_distance_to_coast_df)
 parcels_df = parcels_df.fillna(1000)
-print len(parcels_df)
+print(len(parcels_df))
 
 
 with pd.HDFStore('urbansim.h5', mode='w') as store:
