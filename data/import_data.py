@@ -13,13 +13,13 @@ parcels_sql = '''
               ,p.[development_type_id] as building_type_id
               ,coalesce(cast(c.sr14_cap as int), 0) + coalesce(sum(b.residential_units), 0) * 2 as capacity
               ,coalesce(sum(b.residential_units), 0) as residential_units
-              ,[land_value]/ [parcel_acres] as land_value_per_acre
-            FROM [spacecore].[urbansim].[parcels] as p
-              LEFT JOIN urbansim.buildings as b
+             -- ,[land_value]/ [parcel_acres] as land_value_per_acre
+            FROM [urbansim].[urbansim].[parcel] as p
+              LEFT JOIN [urbansim].[urbansim].[building] as b
               ON b.parcel_id = p.parcel_id
               LEFT JOIN staging.sr14_capacity as c
               ON c.parcel_id = p.parcel_id
-              GROUP BY  p.[parcel_id], p.[development_type_id], c.sr14_cap, [land_value]/ [parcel_acres] '''
+              GROUP BY  p.[parcel_id], c.sr14_cap, p.[development_type_id] '''
 
 parcels_distance_to_coast_sql = '''
 SELECT parcel_id, distance_to_coast
