@@ -4,26 +4,23 @@ from flask import render_template
 from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
 import pandas as pd
-from db import sql
+# from db import sql
 from pysandag import database
 db_connection_string = database.get_connection_string('data\config.yml', 'mssql_db')
 sql_in_engine = create_engine(db_connection_string)
 
-results_sql = '''  SELECT
-  b.[year_built] as year
- ,g.name as jurisdiction
- ,SUM(CASE WHEN run_id = 4 THEN [residential_units] ELSE 0 END) as "Random"
+results_sql = '''   SELECT
+  b.[year_built] as year,
+  ref.name as jurisdiction,
+  SUM(CASE WHEN run_id = 4 THEN [residential_units] ELSE 0 END) as "Random"
  ,SUM(CASE WHEN run_id = 1 THEN [residential_units] ELSE 0 END) as "Distance To Coast"
   FROM [spacecore].[staging].[urbansim_lite_output] as b
   LEFT JOIN [spacecore].[urbansim].[parcels] as p
   ON p.parcel_id = b.parcel_id
-  LEFT JOIN (SELECT [name]
-      ,[shape]
-  FROM [data_cafe].[ref].[geography_zone]
-  WHERE geography_type_id = 150) as g
-  on p.shape.STIntersects(g.shape) = 1
-  GROUP by b.[year_built], g.name
-  ORDER by b.[year_built], g.name '''
+  LEFT JOIN [spacecore].[ref].[jurisdiction] ref
+  on ref.jurisdiction_id = p.jurisdiction_id
+  GROUP by b.[year_built], ref.name
+  ORDER by b.[year_built], ref.name '''
 
 results_df = pd.read_sql(results_sql, sql_in_engine, index_col=None)
 feature_names = results_df.jurisdiction.unique()
