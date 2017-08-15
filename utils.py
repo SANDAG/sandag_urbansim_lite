@@ -50,7 +50,7 @@ def run_feasibility(parcels):
 
     print("Computing feasibility")
     parcels = parcels.to_frame()
-    feasible_parcels = parcels.loc[parcels['capacity'] > parcels['residential_units']]
+    feasible_parcels = parcels.loc[parcels['total_cap'] > parcels['residential_units']]
     print (feasible_parcels)
     orca.add_table("feasibility", feasible_parcels)
 
@@ -117,7 +117,7 @@ def run_developer(forms, parcels, agents, buildings, supply_fname,
     print("{:,} feasible buildings before running developer"
           .format(len(dev.feasibility)))
     df = feasibility.to_frame()
-    p = profit_to_prob_function(df)
+    p = profit_to_prob_function(df, var_list=[])
 
     '''
         Do not pick or develop if there are no feasible parcels
@@ -133,7 +133,7 @@ def run_developer(forms, parcels, agents, buildings, supply_fname,
     choices = np.random.choice(df.index.values, size=min(len(df.index), target_units),
                                replace=False, p=p.tolist())
     print (choices)
-    df['net_units'] = (df.capacity - df.residential_units)
+    df['net_units'] = (df.total_cap - df.residential_units)
     tot_units = df.net_units.loc[choices].values.cumsum()
     ind = int(np.searchsorted(tot_units, target_units, side="left")) + 1
     build_idx = choices[:ind]
