@@ -26,6 +26,7 @@ parcels_sql = '''
         ,COALESCE(b.residential_units, 0) as residential_units
         ,sr13_cap
         ,c.sr14_cap as sr14_cap
+        ,distance_to_coast
         -- ,land_value/ parcel_acres as land_value_per_acre
     FROM urbansim.urbansim.parcel AS p
     LEFT JOIN (SELECT parcel_id, SUM(residential_units) AS residential_units FROM urbansim.urbansim.building GROUP BY parcel_id) AS b
@@ -35,13 +36,6 @@ parcels_sql = '''
     LEFT JOIN temp AS t
         ON t.ludu2015_parcel_id = p.parcel_id
     WHERE sr13_cap > 0 OR sr14_cap > 0
-'''
-
-parcels_distance_to_coast_sql = '''
-    SELECT
-        parcel_id
-        ,distance_to_coast
-    FROM urbansim.urbansim.parcel;
 '''
 
 households_sql = '''
@@ -69,9 +63,7 @@ buildings_sql = '''
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
 buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
 parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
-parcels_distance_to_coast_df = pd.read_sql(parcels_distance_to_coast_sql, mssql_engine, index_col='parcel_id')
 print(len(parcels_df))
-parcels_df = parcels_df.join(parcels_distance_to_coast_df)
 parcels_df = parcels_df.fillna(1000)
 print(len(parcels_df))
 
