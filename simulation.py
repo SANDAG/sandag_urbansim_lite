@@ -17,4 +17,4 @@ buildings = buildings.reset_index(drop=False)
 buildings = buildings.loc[(buildings['building_id'] > 2889578)]
 buildings['run_id'] = 5
 buildings['run_desc'] = 'random'
-buildings.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='staging', if_exists='append', index=False)
+buildings.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='staging', if_exists='replace', index=False)
