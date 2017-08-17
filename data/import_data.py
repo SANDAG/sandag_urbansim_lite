@@ -31,7 +31,7 @@ parcels_sql = '''
     FROM urbansim.urbansim.parcel AS p
     LEFT JOIN (SELECT parcel_id, SUM(residential_units) AS residential_units FROM urbansim.urbansim.building GROUP BY parcel_id) AS b
         ON b.parcel_id = p.parcel_id
-    LEFT JOIN staging.sr14_capacity AS c
+    LEFT JOIN spacecore.staging.sr14_capacity AS c
         ON c.parcel_id = p.parcel_id
     LEFT JOIN temp AS t
         ON t.ludu2015_parcel_id = p.parcel_id

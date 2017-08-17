@@ -117,7 +117,8 @@ def run_developer(forms, parcels, agents, buildings, supply_fname,
     print("{:,} feasible buildings before running developer"
           .format(len(dev.feasibility)))
     df = feasibility.to_frame()
-    p = profit_to_prob_function(df, var_list=[])
+    p = profit_to_prob_function(df, var_list=[]) #random
+#    p = profit_to_prob_function(df) #distance to coast
 
     '''
         Do not pick or develop if there are no feasible parcels
