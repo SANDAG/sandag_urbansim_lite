@@ -69,6 +69,12 @@ print(len(parcels_df))
 
 
 with pd.HDFStore('urbansim.h5', mode='w') as store:
-    store.put('households', households_df)
-    store.put('buildings', buildings_df)
-    store.put('parcels', parcels_df)
+    store.put('households',households_df,format='table')
+    store.put('buildings',buildings_df,format='table')
+    store.put('parcels',parcels_df,format='table')
+
+# notes on pd.HDFStore:
+# DataFrame column names are unicode, e.g. households_df.columns -> Index([u'hh'], dtype='object')
+# for fixed format cannot store unicode in a HDFStore in python 2. (works correctly in python 3 however).
+# workaround is setting format='table' which does work correctly in python 2.
+# see https://github.com/pandas-dev/pandas/issues/12016
