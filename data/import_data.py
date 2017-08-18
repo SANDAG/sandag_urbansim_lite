@@ -55,7 +55,7 @@ buildings_sql = '''
         ,parcel_id
         ,COALESCE(development_type_id,0) AS building_type_id
         ,COALESCE(residential_units, 0) AS residential_units
-        ,COALESCE(year_built, 0) AS year_built
+        ,COALESCE(year_built, 0) AS year_built, 0 as random_prob, 0 as random
     FROM urbansim.urbansim.building
 '''
 

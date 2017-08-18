@@ -30,9 +30,10 @@ def profit_to_prob_function(df1, var_list=['distance_to_coast']):
             df1.drop(x + '_normal', axis=1, inplace=True)
 
     df1['random_prob'] = (df1.random / df1.random.sum())
-    df1.drop('random', axis=1, inplace=True)
-    return df1['random_prob']
-
+#    df1.drop('random', axis=1, inplace=True)
+ #   return df1['random_prob']
+    print ('the length is: ',len(df1))
+    return df1
 
 def run_feasibility(parcels):
     """
@@ -119,6 +120,7 @@ def run_developer(forms, parcels, agents, buildings, supply_fname,
     df = feasibility.to_frame()
     p = profit_to_prob_function(df, var_list=[]) #random
 #    p = profit_to_prob_function(df) #distance to coast
+    p1 = p['random_prob']
 
     '''
         Do not pick or develop if there are no feasible parcels
@@ -131,8 +133,10 @@ def run_developer(forms, parcels, agents, buildings, supply_fname,
         Pick parcels to for new buildings
     '''
 
-    choices = np.random.choice(df.index.values, size=min(len(df.index), target_units),
-                               replace=False, p=p.tolist())
+#    choices = np.random.choice(df.index.values, size=min(len(df.index), target_units),
+ #                              replace=False, p=p.tolist())
+    choices = np.random.choice(p.index.values, size=min(len(p.index), target_units),
+                               replace=False, p=p1.tolist())
     print (choices)
     df['net_units'] = (df.total_cap - df.residential_units)
     tot_units = df.net_units.loc[choices].values.cumsum()
@@ -148,7 +152,7 @@ def run_developer(forms, parcels, agents, buildings, supply_fname,
     '''
 
     new_buildings["residential_units"] = (new_buildings["net_units"])
-    new_buildings = new_buildings.drop(['random_prob'], 1)
+#   new_buildings = new_buildings.drop(['random_prob'], 1)
 
     parcels = parcels.to_frame()
     parcels = parcels.join(new_buildings[['net_units']])

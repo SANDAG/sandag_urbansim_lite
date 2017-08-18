@@ -12,12 +12,12 @@ sql_in_engine = create_engine(db_connection_string)
 results_sql = '''   SELECT
   b.[year_built] as year,
   ref.name as jurisdiction,
-  SUM(CASE WHEN run_id = 3 THEN [residential_units] ELSE 0 END) as "Random"
- ,SUM(CASE WHEN run_id = 5 THEN [residential_units] ELSE 0 END) as "Distance To Coast"
-  FROM [spacecore].[staging].[urbansim_lite_output] as b
-  LEFT JOIN [spacecore].[urbansim].[parcels] as p
+  SUM(CASE WHEN run_id = 1 THEN [residential_units] ELSE 0 END) as "Random"
+ ,SUM(CASE WHEN run_id = 2 THEN [residential_units] ELSE 0 END) as "Distance To Coast"
+  FROM [urbansim].[urbansim].[urbansim_lite_output] as b
+  LEFT JOIN [urbansim].[urbansim].[parcel] as p
   ON p.parcel_id = b.parcel_id
-  LEFT JOIN [spacecore].[ref].[jurisdiction] ref
+  LEFT JOIN [urbansim].[ref].[jurisdiction] ref
   on ref.jurisdiction_id = p.jurisdiction_id
   GROUP by b.[year_built], ref.name
   ORDER by b.[year_built], ref.name '''
