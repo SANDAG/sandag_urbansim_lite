@@ -51,6 +51,7 @@ def run_feasibility(parcels):
 
     print("Computing feasibility")
     parcels = parcels.to_frame()
+    parcels.loc[parcels['distance_to_coast'] > 50000, 'distance_to_coast'] = 50000
     feasible_parcels = parcels.loc[parcels['total_cap'] > parcels['residential_units']]
     print (feasible_parcels)
     orca.add_table("feasibility", feasible_parcels)
