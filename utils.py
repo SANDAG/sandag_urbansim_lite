@@ -154,7 +154,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
 
         dj = {'year': [year], 'jurisdiction': [jur_name], 'target_units_for_jur': [units],
-              'target_units_for_region': [target_units], 'total_units_built_for_jur': [new_units]}
+              'target_units_for_region': [target_units], 'units_picked': [new_units]}
 
         jur_df = pd.DataFrame(data=dj)
         units_per_jur = units_per_jur.append(jur_df)
@@ -162,7 +162,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
     dj = {'year': [year], 'jurisdiction': ['total'],
           'target_units_for_jur': [units_per_jur.target_units_for_jur.sum()],
-          'target_units_for_region': [target_units], 'total_units_built_for_jur': [units_per_jur.total_units_built_for_jur.sum()]}
+          'target_units_for_region': [target_units], 'units_picked': [units_per_jur.units_picked.sum()]}
 
     jur_df = pd.DataFrame(data=dj)
     units_per_jur = units_per_jur.append(jur_df)
