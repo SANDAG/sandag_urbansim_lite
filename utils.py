@@ -159,10 +159,48 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         jur_df = pd.DataFrame(data=dj)
         units_per_jur = units_per_jur.append(jur_df)
 
+    remaining_units = target_units - units_per_jur.units_picked.sum()
+
+    if remaining_units:
+        new_buildings['additional_res_units'] = new_buildings['net_units']
+        df_remaining = df.join(new_buildings[['additional_res_units']])
+        df_remaining.additional_res_units = df_remaining.additional_res_units.fillna(0)
+        df_remaining['residential_units'] = df_remaining['residential_units'] + df_remaining['additional_res_units']
+        df_remaining['net_units'] = (df_remaining.additional_units - df_remaining.residential_units)
+        df_remaining.net_units = df_remaining.net_units.astype(int)
+
+        one_row_per_unit = df_remaining.loc[np.repeat(df_remaining.index.values, df_remaining.net_units)].copy()
+        one_row_per_unit.reset_index(drop=False,inplace=True)
+        one_row_per_unit['net_units'] = 1
+        if len(one_row_per_unit) < remaining_units:
+            print("WARNING THERE WERE NOT ENOUGH PROFITABLE UNITS TO",
+                  "MATCH DEMAND FOR IN YEAR ",year)
+            choices = one_row_per_unit.index.values
+        else:
+            choices = np.random.choice(one_row_per_unit.index.values, size=min(len(one_row_per_unit.index), remaining_units),
+                                       replace=False, p=None)
+        random_choice_parcels =  one_row_per_unit.loc[choices]
+        # group by parcel id  - one bldg per parcel with multiple units
+        new_bldgs = pd.DataFrame({'count': random_choice_parcels.groupby(["parcel_id","jurisdiction_id", "additional_units","residential_units", "bldgs", "total_cap"]).size()}).reset_index()
+        new_bldgs.rename(columns = {'count': 'net_units'},inplace=True)
+        new_bldgs.set_index('parcel_id',inplace=True)
+
+        new_units = new_bldgs.net_units.sum()
+
+        new_buildings = new_buildings.append(new_bldgs)
+
+
+        dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [0],
+              'target_units_for_region': [target_units], 'units_picked': [new_units]}
+
+        jur_df = pd.DataFrame(data=dj)
+        units_per_jur = units_per_jur.append(jur_df)
+
 
     dj = {'year': [year], 'jurisdiction': ['total'],
           'target_units_for_jur': [units_per_jur.target_units_for_jur.sum()],
           'target_units_for_region': [target_units], 'units_picked': [units_per_jur.units_picked.sum()]}
+
 
     jur_df = pd.DataFrame(data=dj)
     units_per_jur = units_per_jur.append(jur_df)

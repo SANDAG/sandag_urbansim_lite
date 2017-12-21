@@ -22,10 +22,11 @@ buildings = buildings.loc[(buildings['year_built'] > 2016)]
 
 run_id_sql = '''
 SELECT max(run_id)
-  FROM [urbansim].[urbansim].[urbansim_lite_output]
+  FROM [urbansim].[urbansim].[urbansim_lite_output_units]
 '''
 run_id_df = pd.read_sql(run_id_sql, mssql_engine)
 run_id = run_id_df.iloc[0][0]
+
 
 buildings['run_id'] = run_id + 1
 
@@ -34,4 +35,4 @@ buildings.to_csv('data/buildings.csv')
 units_by_jur = orca.get_table('uj').to_frame()
 
 units_by_jur.to_csv('data/units_by_jur.csv')
-# buildings.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', if_exists='append', index=False)
+# buildings.to_sql(name='urbansim_lite_output_units', con=mssql_engine, schema='urbansim', if_exists='append', index=False)
