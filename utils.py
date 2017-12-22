@@ -151,7 +151,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         new_units = new_bldgs.net_units.sum()
 
         new_buildings = new_buildings.append(new_bldgs)
-
+        new_buildings.index = new_buildings.index.astype(int)
 
         dj = {'year': [year], 'jurisdiction': [jur_name], 'target_units_for_jur': [units],
               'target_units_for_region': [target_units], 'units_picked': [new_units]}
@@ -159,16 +159,23 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         jur_df = pd.DataFrame(data=dj)
         units_per_jur = units_per_jur.append(jur_df)
 
+    parcels = parcels.to_frame()
+    parcels = parcels.join(new_buildings[['net_units']])
+    parcels.net_units  = parcels.net_units.fillna(0)
+    parcels['residential_units'] = parcels['residential_units'] + parcels['net_units']
+    parcels = parcels.drop(['net_units'], 1)
+
     remaining_units = target_units - units_per_jur.units_picked.sum()
 
     if remaining_units:
-        new_buildings['additional_res_units'] = new_buildings['net_units']
-        df_remaining = df.join(new_buildings[['additional_res_units']])
-        df_remaining.additional_res_units = df_remaining.additional_res_units.fillna(0)
-        df_remaining['residential_units'] = df_remaining['residential_units'] + df_remaining['additional_res_units']
-        df_remaining['net_units'] = (df_remaining.additional_units - df_remaining.residential_units)
-        df_remaining.net_units = df_remaining.net_units.astype(int)
 
+        df = df.drop(['net_units'], 1)
+        df_remaining = df.join(new_buildings[['net_units']])
+        df_remaining.net_units = df_remaining.net_units.fillna(0)
+        df_remaining['residential_units'] = df_remaining['residential_units'] + df_remaining['net_units']
+        df_remaining['net_units'] = df_remaining.total_cap - df_remaining.residential_units
+        df_remaining.net_units = df_remaining.net_units.astype(int)
+        df_remaining = df_remaining.loc[df_remaining.net_units != 0]
         one_row_per_unit = df_remaining.loc[np.repeat(df_remaining.index.values, df_remaining.net_units)].copy()
         one_row_per_unit.reset_index(drop=False,inplace=True)
         one_row_per_unit['net_units'] = 1
@@ -184,11 +191,14 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         new_bldgs = pd.DataFrame({'count': random_choice_parcels.groupby(["parcel_id","jurisdiction_id", "additional_units","residential_units", "bldgs", "total_cap"]).size()}).reset_index()
         new_bldgs.rename(columns = {'count': 'net_units'},inplace=True)
         new_bldgs.set_index('parcel_id',inplace=True)
-
+        parcels = parcels.join(new_bldgs[['net_units']])
+        parcels.net_units = parcels.net_units.fillna(0)
+        parcels['residential_units'] = parcels['residential_units'] + parcels['net_units']
+        parcels = parcels.drop(['net_units'], 1)
         new_units = new_bldgs.net_units.sum()
 
-        new_buildings = new_buildings.append(new_bldgs)
-
+        #new_buildings = new_buildings.append(new_bldgs)
+        #new_buildings.index = new_buildings.index.astype(int)
 
         dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [0],
               'target_units_for_region': [target_units], 'units_picked': [new_units]}
@@ -213,12 +223,12 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     '''
         Join parcels with parcels that have new units on parcel_id (add net units column)
     '''
-    parcels = parcels.to_frame()
-    parcels = parcels.join(new_buildings[['net_units']])
-
-    parcels.net_units  = parcels.net_units.fillna(0)
-    parcels['residential_units'] = parcels['residential_units'] + parcels['net_units']
-    parcels = parcels.drop(['net_units'], 1)
+    # parcels = parcels.to_frame()
+    # parcels = parcels.join(new_buildings[['net_units']])
+    #
+    # parcels.net_units  = parcels.net_units.fillna(0)
+    # parcels['residential_units'] = parcels['residential_units'] + parcels['net_units']
+    # parcels = parcels.drop(['net_units'], 1)
     orca.add_table("parcels", parcels)
 
     new_buildings = new_buildings.reset_index()
