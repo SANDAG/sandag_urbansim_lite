@@ -50,4 +50,6 @@ desktop.ini
 *.yml
 .coverage
 *.h5
+*.csv
+*.xlsx
 pysandag-master/
