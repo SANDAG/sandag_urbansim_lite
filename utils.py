@@ -34,8 +34,7 @@ def run_feasibility(parcels):
     """
 
     print("Computing feasibility")
-    parcels = parcels.to_frame()
-    # feasible parcels have capacity for additional units
+    parcels = orca.get_table('parcels').to_frame()
     feasible_parcels = parcels.loc[parcels['total_cap'] > parcels['residential_units']]
     orca.add_table("feasibility", feasible_parcels)
 
@@ -94,8 +93,11 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
     # subtract scheduled dev capacity
     target_units = target_units - df.loc[df['site_id'].notnull()].additional_units.sum()
-
     df = df.loc[df['site_id'].isnull()].copy()
+
+    if len(df.loc[df.index.get_duplicates()]):
+        print('error: duplicate parcel ids:')
+        print(df.loc[df.index.get_duplicates()])
 
     print('year is: ', year)
     print('target_units for region: ', target_units)
@@ -112,73 +114,74 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     '''
         Pick parcels to for new buildings
     '''
-
+    # initialize dataframes for i/o tracking
     new_buildings= pd.DataFrame()
     units_per_jur = pd.DataFrame()
     units_per_j = pd.DataFrame()
 
-    jur_list = jurs['jurisdiction_id'].tolist()
-    df['net_units'] = (df.total_cap - df.residential_units)
-    df.net_units = df.net_units.astype(int)
+    df['available_units_to_build'] = (df.total_cap - df.residential_units)
+    df.available_units_to_build = df.available_units_to_build.astype(int)
 
-    for jur in jur_list:
-        units = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
+    for jur in jurs['jurisdiction_id'].tolist():
+        target_units_for_jur = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
         jur_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
-        print("Jurisdiction %d %s target units: %d" % (jur,jur_name,units))
+        print("Jurisdiction %d %s target units: %d" % (jur,jur_name,target_units_for_jur))
 
         df_jur = df.loc[df['jurisdiction_id'] == jur].copy()
 
-        one_row_per_unit = df_jur.loc[np.repeat(df_jur.index.values, df_jur.net_units)].copy()
+        one_row_per_unit = df_jur.loc[np.repeat(df_jur.index.values, df_jur.available_units_to_build)].copy()
         one_row_per_unit.reset_index(drop=False,inplace=True)
-        one_row_per_unit['net_units'] = 1
+        del one_row_per_unit['available_units_to_build']
 
-        if len(one_row_per_unit) < units:
+        if len(one_row_per_unit) < target_units_for_jur:
             print("WARNING THERE WERE NOT ENOUGH PROFITABLE UNITS TO",
                   "MATCH DEMAND FOR ", jur_name,"IN YEAR ",year)
             choices = one_row_per_unit.index.values
         elif target_units <= 0:
             choices = []
         else:
-            choices = np.random.choice(one_row_per_unit.index.values, size=min(len(one_row_per_unit.index), units),
+            choices = np.random.choice(one_row_per_unit.index.values,
+                                       size=min(len(one_row_per_unit.index),
+                                                target_units_for_jur),
                                        replace=False, p=None)
 
-        random_choice_parcels =  one_row_per_unit.loc[choices]
-        # group by parcel id  - one bldg per parcel with multiple units
-        new_bldgs = pd.DataFrame({'count': random_choice_parcels.groupby(["parcel_id","jurisdiction_id", "additional_units","residential_units", "bldgs", "total_cap"]).size()}).reset_index()
-        new_bldgs.rename(columns = {'count': 'net_units'},inplace=True)
+        parcels_picked = one_row_per_unit.loc[choices]
+
+        # group by parcel id since more than one units may be picked on a parcel
+        new_bldgs = pd.DataFrame({'units_built': parcels_picked.
+                                 groupby(["parcel_id","jurisdiction_id",
+                                          "additional_units","residential_units",
+                                          "bldgs", "total_cap"]).size()}).reset_index()
+        # new_bldgs.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
+
         new_bldgs.set_index('parcel_id',inplace=True)
 
-        new_units = new_bldgs.net_units.sum()
+        new_units = new_bldgs.units_built.sum()
 
         new_buildings = new_buildings.append(new_bldgs)
         new_buildings.index = new_buildings.index.astype(int)
 
-        dj = {'year': [year], 'jurisdiction': [jur_name], 'target_units_for_jur': [units],
+        # count units for debugging
+        dj = {'year': [year], 'jurisdiction': [jur_name], 'target_units_for_jur': [target_units_for_jur],
               'target_units_for_region': [target_units], 'units_picked': [new_units]}
 
         jur_df = pd.DataFrame(data=dj)
         units_per_jur = units_per_jur.append(jur_df)
 
-    parcels = parcels.to_frame()
-    parcels = parcels.join(new_buildings[['net_units']])
-    parcels.net_units  = parcels.net_units.fillna(0)
-    parcels['residential_units'] = parcels['residential_units'] + parcels['net_units']
-    parcels = parcels.drop(['net_units'], 1)
-
     remaining_units = target_units - units_per_jur.units_picked.sum()
 
     if remaining_units:
 
-        df = df.drop(['net_units'], 1)
-        df_remaining = df.join(new_buildings[['net_units']])
-        df_remaining.net_units = df_remaining.net_units.fillna(0)
-        df_remaining['residential_units'] = df_remaining['residential_units'] + df_remaining['net_units']
-        df_remaining['net_units'] = df_remaining.total_cap - df_remaining.residential_units
-        df_remaining.net_units = df_remaining.net_units.astype(int)
-        df_remaining = df_remaining.loc[df_remaining.net_units != 0]
-        one_row_per_unit = df_remaining.loc[np.repeat(df_remaining.index.values, df_remaining.net_units)].copy()
+        df = df.drop(['available_units_to_build'], 1)
+        df_remaining = df.join(new_buildings[['units_built']])
+        df_remaining.units_built = df_remaining.units_built.fillna(0)
+        df_remaining['available_units_to_build'] = df_remaining.total_cap - df_remaining.residential_units - df_remaining.units_built
+        df_remaining.available_units_to_build = df_remaining.available_units_to_build.astype(int)
+        df_remaining = df_remaining.loc[df_remaining.available_units_to_build != 0]
+        one_row_per_unit = df_remaining.loc[np.repeat(df_remaining.index.values, df_remaining.available_units_to_build)].copy()
         one_row_per_unit.reset_index(drop=False,inplace=True)
-        one_row_per_unit['net_units'] = 1
+        del one_row_per_unit['available_units_to_build']
+
         if len(one_row_per_unit) < remaining_units:
             print("WARNING THERE WERE NOT ENOUGH PROFITABLE UNITS TO",
                   "MATCH DEMAND FOR IN YEAR ",year)
@@ -186,31 +189,48 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         else:
             choices = np.random.choice(one_row_per_unit.index.values, size=min(len(one_row_per_unit.index), remaining_units),
                                        replace=False, p=None)
-        random_choice_parcels =  one_row_per_unit.loc[choices]
+        parcels_picked =  one_row_per_unit.loc[choices]
         # group by parcel id  - one bldg per parcel with multiple units
-        new_bldgs = pd.DataFrame({'count': random_choice_parcels.groupby(["parcel_id","jurisdiction_id", "additional_units","residential_units", "bldgs", "total_cap"]).size()}).reset_index()
-        new_bldgs.rename(columns = {'count': 'net_units'},inplace=True)
+        new_bldgs = pd.DataFrame({'units_built': parcels_picked.
+                                 groupby(["parcel_id","jurisdiction_id",
+                                          "additional_units","residential_units",
+                                          "bldgs", "total_cap"]).size()}).reset_index()
+
         new_bldgs.set_index('parcel_id',inplace=True)
-        parcels = parcels.join(new_bldgs[['net_units']])
-        parcels.net_units = parcels.net_units.fillna(0)
-        parcels['residential_units'] = parcels['residential_units'] + parcels['net_units']
-        parcels = parcels.drop(['net_units'], 1)
-        new_units = new_bldgs.net_units.sum()
-
-        #new_buildings = new_buildings.append(new_bldgs)
-        #new_buildings.index = new_buildings.index.astype(int)
-
-        dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [0],
+        new_units = new_bldgs.units_built.sum()
+        # count units for debugging
+        dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [remaining_units],
               'target_units_for_region': [target_units], 'units_picked': [new_units]}
 
         jur_df = pd.DataFrame(data=dj)
         units_per_jur = units_per_jur.append(jur_df)
 
+        bldgs_append = new_buildings.append(new_bldgs)
 
+        # sum units built over parcel id
+        new_buildings = pd.DataFrame({'total_units_built': bldgs_append.
+                                            groupby(["parcel_id", "jurisdiction_id",
+                                                     "additional_units", "residential_units",
+                                                     "bldgs", "total_cap"]).units_built.sum()}).reset_index()
+        new_buildings.set_index('parcel_id', inplace=True)
+        new_buildings.index = new_buildings.index.astype(int)
+        new_buildings.rename(columns={'total_units_built': 'units_built'}, inplace=True)
+
+    '''
+        Join parcels with parcels that have new units on parcel_id (add net units column)
+    '''
+
+    parcels = parcels.to_frame()
+    parcels = parcels.join(new_buildings[['units_built']])
+    parcels.units_built = parcels.units_built.fillna(0)
+    parcels['residential_units'] = parcels['residential_units'] + parcels['units_built']
+    parcels = parcels.drop(['units_built'], 1)
+    orca.add_table("parcels", parcels)
+
+    # count units for debugging
     dj = {'year': [year], 'jurisdiction': ['total'],
           'target_units_for_jur': [units_per_jur.target_units_for_jur.sum()],
           'target_units_for_region': [target_units], 'units_picked': [units_per_jur.units_picked.sum()]}
-
 
     jur_df = pd.DataFrame(data=dj)
     units_per_jur = units_per_jur.append(jur_df)
@@ -220,19 +240,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     uj = uj.append(units_per_j)
     orca.add_table("uj", uj)
 
-    '''
-        Join parcels with parcels that have new units on parcel_id (add net units column)
-    '''
-    # parcels = parcels.to_frame()
-    # parcels = parcels.join(new_buildings[['net_units']])
-    #
-    # parcels.net_units  = parcels.net_units.fillna(0)
-    # parcels['residential_units'] = parcels['residential_units'] + parcels['net_units']
-    # parcels = parcels.drop(['net_units'], 1)
-    orca.add_table("parcels", parcels)
-
     new_buildings = new_buildings.reset_index()
-    new_buildings['residential_units'] = new_buildings['net_units']
+    new_buildings['residential_units'] = new_buildings['units_built']
     # temporarily assign building type id
     new_buildings['building_type_id'] = 21
     if year is not None:
