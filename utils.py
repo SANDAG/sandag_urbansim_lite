@@ -198,14 +198,26 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
         new_bldgs.set_index('parcel_id',inplace=True)
         new_units = new_bldgs.units_built.sum()
+        units_by_jur = pd.DataFrame({'units_picked_remaining': new_bldgs.
+                                 groupby(["jurisdiction_id"]).units_built.sum()}).reset_index()
+
+        units_remaining_by_jur = units_by_jur.merge(jurs, on='jurisdiction_id')
+
         # count units for debugging
-        dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [remaining_units],
+        dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [0],
               'target_units_for_region': [target_units], 'units_picked': [new_units]}
 
         jur_df = pd.DataFrame(data=dj)
         units_per_jur = units_per_jur.append(jur_df)
 
+        units_per_jur = units_per_jur.merge(units_remaining_by_jur, left_on='jurisdiction', right_on='name', how='left')
+
+        units_per_jur.units_picked_remaining = units_per_jur.units_picked_remaining.fillna(0)
+        del units_per_jur['name']
+        del units_per_jur['jurisdiction_id']
         bldgs_append = new_buildings.append(new_bldgs)
+
+        # bldgs_append.reset_index(inplace=True)
 
         # sum units built over parcel id
         new_buildings = pd.DataFrame({'total_units_built': bldgs_append.
@@ -227,9 +239,11 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     parcels = parcels.drop(['units_built'], 1)
     orca.add_table("parcels", parcels)
 
+    target_unit_sum = units_per_jur.loc[units_per_jur.jurisdiction!='all'].target_units_for_jur.sum()
+
     # count units for debugging
     dj = {'year': [year], 'jurisdiction': ['total'],
-          'target_units_for_jur': [units_per_jur.target_units_for_jur.sum()],
+          'target_units_for_jur': [target_unit_sum],
           'target_units_for_region': [target_units], 'units_picked': [units_per_jur.units_picked.sum()]}
 
     jur_df = pd.DataFrame(data=dj)
