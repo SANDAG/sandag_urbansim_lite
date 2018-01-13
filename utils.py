@@ -140,6 +140,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         elif target_units <= 0:
             choices = []
         else:
+            np.random.seed(1)
             choices = np.random.choice(one_row_per_unit.index.values,
                                        size=min(len(one_row_per_unit.index),
                                                 target_units_for_jur),
