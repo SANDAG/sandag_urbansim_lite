@@ -2,6 +2,8 @@ from __future__ import print_function
 
 import numpy as np
 import orca
+from sqlalchemy import create_engine
+from pysandag.database import get_connection_string
 from urbansim.developer import developer
 import pandas as pd
 
@@ -233,12 +235,19 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         Join parcels with parcels that have new units on parcel_id (add net units column)
     '''
 
+    db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
+    mssql_engine = create_engine(db_connection_string)
+
     parcels = parcels.to_frame()
     parcels = parcels.join(new_buildings[['units_built']])
     parcels.units_built = parcels.units_built.fillna(0)
     parcels['residential_units'] = parcels['residential_units'] + parcels['units_built']
     parcels = parcels.drop(['units_built'], 1)
     orca.add_table("parcels", parcels)
+    parcels['year'] = year
+
+    #parcels.to_sql(name='urbansim_lite_output_parcels', con=mssql_engine, schema='urbansim', if_exists='append',
+    #                 index=False) #no run ID -> appending to database
 
     target_unit_sum = units_per_jur.loc[units_per_jur.jurisdiction!='all'].target_units_for_jur.sum()
 
