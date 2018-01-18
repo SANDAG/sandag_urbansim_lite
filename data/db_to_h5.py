@@ -12,7 +12,8 @@ parcels_sql = '''
   SELECT parcels.parcel_id, parcels.jurisdiction_id, parcels.site_id,
          parcels.capacity AS additional_units, 
          COALESCE(bldgs_by_parcel.residential_units,0) AS residential_units,
-         COALESCE(bldgs_by_parcel.num_of_bldgs,0) AS bldgs
+         COALESCE(bldgs_by_parcel.num_of_bldgs,0) AS bldgs,
+         0 as partial_build
   FROM urbansim.urbansim.parcel parcels
   LEFT JOIN bldgs_by_parcel 
   ON bldgs_by_parcel.parcel_id = parcels.parcel_id

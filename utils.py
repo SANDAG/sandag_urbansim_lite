@@ -131,38 +131,51 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
         df_jur = df.loc[df['jurisdiction_id'] == jur].copy()
 
-        one_row_per_unit = df_jur.loc[np.repeat(df_jur.index.values, df_jur.available_units_to_build)].copy()
-        one_row_per_unit.reset_index(drop=False,inplace=True)
-        del one_row_per_unit['available_units_to_build']
 
-        if len(one_row_per_unit) < target_units_for_jur:
+        if df_jur.available_units_to_build.sum() < target_units_for_jur:
             print("WARNING THERE WERE NOT ENOUGH PROFITABLE UNITS TO",
                   "MATCH DEMAND FOR ", jur_name,"IN YEAR ",year)
-            choices = one_row_per_unit.index.values
-        elif target_units <= 0:
-            choices = []
-        else:
-            np.random.seed(1)
-            choices = np.random.choice(one_row_per_unit.index.values,
-                                       size=min(len(one_row_per_unit.index),
-                                                target_units_for_jur),
-                                       replace=False, p=None)
+            if len(df_jur):
+                # df_jur.reset_index(drop=False,inplace=True)
+                # one_row_per_unit = df_jur.reindex(df_jur.index.repeat(df_jur.available_units_to_build)).reset_index(drop=True)
+                # del one_row_per_unit['available_units_to_build']
+                # parcels_picked = one_row_per_unit.reset_index(drop=False)
+                new_bldgs = df_jur.copy()
+                new_bldgs['units_built'] = new_bldgs['available_units_to_build']
 
-        parcels_picked = one_row_per_unit.loc[choices]
+                new_bldgs.drop(['site_id', 'year', 'available_units_to_build'], axis=1, inplace=True)
+
+                new_units = new_bldgs.units_built.sum()
+
+                new_buildings = new_buildings.append(new_bldgs)
+                new_buildings.index = new_buildings.index.astype(int)
+            else: new_units = 0
+            # parcels_picked.reset_index(drop=False, inplace=True)
+        elif target_units <= 0:
+            new_units = 0
+        else:
+            df_jur2 = df_jur.sample(frac=1, random_state=50).reset_index(drop=False)
+            # print(df_jur.loc[df_jur.partial_build >0])
+            one_row_per_unit = df_jur2.reindex(df_jur2.index.repeat(df_jur2.available_units_to_build)).reset_index(drop=True)
+            # if len(df_jur.loc[df_jur.partial_build >0]):
+            #     one_row_per_unit.drop([df_jur.loc[df_jur.partial_build>0].index.values[0]],inplace=True)
+
+            del one_row_per_unit['available_units_to_build']
+            parcels_picked = one_row_per_unit.head(target_units_for_jur)
 
         # group by parcel id since more than one units may be picked on a parcel
-        new_bldgs = pd.DataFrame({'units_built': parcels_picked.
-                                 groupby(["parcel_id","jurisdiction_id",
-                                          "additional_units","residential_units",
-                                          "bldgs", "total_cap"]).size()}).reset_index()
-        # new_bldgs.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
+            new_bldgs = pd.DataFrame({'units_built': parcels_picked.
+                                     groupby(["parcel_id","jurisdiction_id",
+                                              "additional_units","residential_units",
+                                              "bldgs", "total_cap"]).size()}).reset_index()
+            # new_bldgs.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
 
-        new_bldgs.set_index('parcel_id',inplace=True)
+            new_bldgs.set_index('parcel_id',inplace=True)
 
-        new_units = new_bldgs.units_built.sum()
+            new_units = new_bldgs.units_built.sum()
 
-        new_buildings = new_buildings.append(new_bldgs)
-        new_buildings.index = new_buildings.index.astype(int)
+            new_buildings = new_buildings.append(new_bldgs)
+            new_buildings.index = new_buildings.index.astype(int)
 
         # count units for debugging
         dj = {'year': [year], 'jurisdiction': [jur_name], 'target_units_for_jur': [target_units_for_jur],
@@ -239,10 +252,15 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     mssql_engine = create_engine(db_connection_string)
 
     parcels = parcels.to_frame()
-    parcels = parcels.join(new_buildings[['units_built']])
+    new_buildings['units_not_built'] = new_buildings.total_cap - new_buildings.units_built - new_buildings.residential_units
+    parcels = parcels.join(new_buildings[['units_built','units_not_built']])
     parcels.units_built = parcels.units_built.fillna(0)
+    parcels.units_not_built = parcels.units_not_built.fillna(0)
+    parcels.partial_build = parcels['units_not_built']
     parcels['residential_units'] = parcels['residential_units'] + parcels['units_built']
-    parcels = parcels.drop(['units_built'], 1)
+    parcels = parcels.drop(['units_built','units_not_built'], 1)
+
+
     orca.add_table("parcels", parcels)
     parcels['year'] = year
 
