@@ -154,11 +154,20 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         elif target_units <= 0:
             new_units = 0
         else:
-            df_jur2 = df_jur.sample(frac=1, random_state=50).reset_index(drop=False)
-            # print(df_jur.loc[df_jur.partial_build >0])
-            one_row_per_unit = df_jur2.reindex(df_jur2.index.repeat(df_jur2.available_units_to_build)).reset_index(drop=True)
-            # if len(df_jur.loc[df_jur.partial_build >0]):
-            #     one_row_per_unit.drop([df_jur.loc[df_jur.partial_build>0].index.values[0]],inplace=True)
+            # shuffle order of parcels
+            df_jur_random_order = df_jur.sample(frac=1, random_state=50).reset_index(drop=False)
+
+            # get partial built parcels from previous year of simulation - not all capacity used
+            partial_built_parcel = df_jur_random_order.loc[df_jur_random_order.partial_build > 0]
+
+            # drop parcels that are partially developed
+            df_jur_random_order  = df_jur_random_order[~df_jur_random_order['parcel_id'].isin( partial_built_parcel.parcel_id.values.tolist() )]
+
+            #add partially built parcels to the top of the list to be developed first.
+            partial_then_random = pd.concat([partial_built_parcel,df_jur_random_order])
+
+            one_row_per_unit = partial_then_random.reindex(partial_then_random.index.repeat(partial_then_random.available_units_to_build)).reset_index(drop=True)
+
 
             del one_row_per_unit['available_units_to_build']
             parcels_picked = one_row_per_unit.head(target_units_for_jur)
