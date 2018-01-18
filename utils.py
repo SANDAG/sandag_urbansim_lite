@@ -136,17 +136,10 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
             print("WARNING THERE WERE NOT ENOUGH PROFITABLE UNITS TO",
                   "MATCH DEMAND FOR ", jur_name,"IN YEAR ",year)
             if len(df_jur):
-                # df_jur.reset_index(drop=False,inplace=True)
-                # one_row_per_unit = df_jur.reindex(df_jur.index.repeat(df_jur.available_units_to_build)).reset_index(drop=True)
-                # del one_row_per_unit['available_units_to_build']
-                # parcels_picked = one_row_per_unit.reset_index(drop=False)
                 new_bldgs = df_jur.copy()
                 new_bldgs['units_built'] = new_bldgs['available_units_to_build']
-
                 new_bldgs.drop(['site_id', 'year', 'available_units_to_build'], axis=1, inplace=True)
-
                 new_units = new_bldgs.units_built.sum()
-
                 new_buildings = new_buildings.append(new_bldgs)
                 new_buildings.index = new_buildings.index.astype(int)
             else: new_units = 0
@@ -198,31 +191,60 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     if remaining_units:
 
         df = df.drop(['available_units_to_build'], 1)
-        df_remaining = df.join(new_buildings[['units_built']])
-        df_remaining.units_built = df_remaining.units_built.fillna(0)
-        df_remaining['available_units_to_build'] = df_remaining.total_cap - df_remaining.residential_units - df_remaining.units_built
-        df_remaining.available_units_to_build = df_remaining.available_units_to_build.astype(int)
-        df_remaining = df_remaining.loc[df_remaining.available_units_to_build != 0]
-        one_row_per_unit = df_remaining.loc[np.repeat(df_remaining.index.values, df_remaining.available_units_to_build)].copy()
-        one_row_per_unit.reset_index(drop=False,inplace=True)
-        del one_row_per_unit['available_units_to_build']
+        df_updated = df.join(new_buildings[['units_built']])
+        df_updated.units_built = df_updated.units_built.fillna(0)
+        df_updated['available_units_to_build'] = df_updated.total_cap - df_updated.residential_units - df_updated.units_built
 
-        if len(one_row_per_unit) < remaining_units:
+        df_updated.available_units_to_build = df_updated.available_units_to_build.astype(int)
+        df_updated = df_updated.loc[df_updated.available_units_to_build != 0]
+
+        if df_updated.available_units_to_build.sum() < remaining_units:
             print("WARNING THERE WERE NOT ENOUGH PROFITABLE UNITS TO",
                   "MATCH DEMAND FOR IN YEAR ",year)
-            choices = one_row_per_unit.index.values
+            if len(df_updated):
+                new_bldgs = df_updated.copy()
+                new_bldgs['units_built'] = new_bldgs['available_units_to_build']
+                new_bldgs.drop(['site_id', 'year', 'available_units_to_build'], axis=1, inplace=True)
+                new_units = new_bldgs.units_built.sum()
+                new_buildings = new_buildings.append(new_bldgs)
+                new_buildings.index = new_buildings.index.astype(int)
+            else:
+                new_units = 0
         else:
-            choices = np.random.choice(one_row_per_unit.index.values, size=min(len(one_row_per_unit.index), remaining_units),
-                                       replace=False, p=None)
-        parcels_picked =  one_row_per_unit.loc[choices]
-        # group by parcel id  - one bldg per parcel with multiple units
-        new_bldgs = pd.DataFrame({'units_built': parcels_picked.
-                                 groupby(["parcel_id","jurisdiction_id",
-                                          "additional_units","residential_units",
-                                          "bldgs", "total_cap"]).size()}).reset_index()
+            df_updated['partial_build'] = df_updated.units_built
+            df_random_order = df_updated.sample(frac=1, random_state=50).reset_index(drop=False)
 
-        new_bldgs.set_index('parcel_id',inplace=True)
-        new_units = new_bldgs.units_built.sum()
+            # get partial built parcels from current year of simulation - not all capacity used
+            partial_built_parcel = df_updated.loc[df_updated['partial_build'] > 0].reset_index()
+
+            # drop parcels that are partially developed
+            df_random_order = df_random_order[
+                ~df_random_order['parcel_id'].isin(partial_built_parcel.parcel_id.values.tolist())]
+
+            # add partially built parcels to the top of the list to be developed first.
+            partial_then_random = pd.concat([partial_built_parcel, df_random_order])
+            partial_then_random.set_index('parcel_id', inplace=True)
+            one_row_per_unit = partial_then_random.loc[
+                np.repeat(partial_then_random.index.values, partial_then_random.available_units_to_build)].copy()
+            one_row_per_unit.reset_index(drop=False, inplace=True)
+            del one_row_per_unit['available_units_to_build']
+            parcels_picked = one_row_per_unit.head(target_units_for_jur)
+
+            # group by parcel id since more than one units may be picked on a parcel
+            new_bldgs = pd.DataFrame({'units_built': parcels_picked.
+                                     groupby(["parcel_id", "jurisdiction_id",
+                                              "additional_units", "residential_units",
+                                              "bldgs", "total_cap"]).size()}).reset_index()
+            # new_bldgs.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
+
+            new_bldgs.set_index('parcel_id', inplace=True)
+
+            new_units = new_bldgs.units_built.sum()
+
+            new_buildings = new_buildings.append(new_bldgs)
+            new_buildings.index = new_buildings.index.astype(int)
+
+
         units_by_jur = pd.DataFrame({'units_picked_remaining': new_bldgs.
                                  groupby(["jurisdiction_id"]).units_built.sum()}).reset_index()
 
