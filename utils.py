@@ -146,9 +146,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
                 new_units_df = new_units_df.append(new_bldgs)
                 new_units_df.index = new_units_df.index.astype(int)
             else: new_units_count = 0
-            # parcels_picked.reset_index(drop=False, inplace=True)
-        elif target_units <= 0:
-            new_units_count = 0
+        elif target_units_for_jur <= 0: new_units_count = 0
         else:
             # shuffle order of parcels
             df_jur_random_order = df_jur.sample(frac=1, random_state=50).reset_index(drop=False)
@@ -211,8 +209,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
                 new_units_count = new_bldgs.units_built.sum()
                 new_units_df = new_units_df.append(new_bldgs)
                 new_units_df.index = new_units_df.index.astype(int)
-            else:
-                new_units_count = 0
+            else: new_units_count = 0
+        elif remaining_units <= 0: new_units_count = 0
         else:
             df_updated['partial_build'] = df_updated.units_built
             df_random_order = df_updated.sample(frac=1, random_state=50).reset_index(drop=False)
