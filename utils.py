@@ -322,7 +322,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     new_units_df = new_units_df.reset_index()
     new_units_df['residential_units'] = new_units_df['units_built']
     # temporarily assign building type id
-    new_units_df['building_type_id'] = 21
+    new_units_df['building_type_id'] = ''
     if year is not None:
         new_units_df["year_built"] = year
 
