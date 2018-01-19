@@ -198,6 +198,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
         df_updated.remaining_capacity = df_updated.remaining_capacity.astype(int)
         df_updated = df_updated.loc[df_updated.remaining_capacity != 0]
+        df_updated['partial_build'] = df_updated.units_built
 
         if df_updated.remaining_capacity.sum() < remaining_units:
             print("WARNING THERE WERE NOT ENOUGH PROFITABLE UNITS TO",
@@ -212,11 +213,11 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
             else: new_units_count = 0
         elif remaining_units <= 0: new_units_count = 0
         else:
-            df_updated['partial_build'] = df_updated.units_built
+            # shuffle order of parcels
             df_random_order = df_updated.sample(frac=1, random_state=50).reset_index(drop=False)
 
             # get partial built parcels from current year of simulation - not all capacity used
-            partial_built_parcel = df_updated.loc[df_updated['partial_build'] > 0].reset_index()
+            partial_built_parcel = df_random_order.loc[df_random_order['partial_build'] > 0]
 
             # drop parcels that are partially developed
             df_random_order = df_random_order[
@@ -224,10 +225,10 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
             # add partially built parcels to the top of the list to be developed first.
             partial_then_random = pd.concat([partial_built_parcel, df_random_order])
-            partial_then_random.set_index('parcel_id', inplace=True)
-            one_row_per_unit = partial_then_random.loc[
-                np.repeat(partial_then_random.index.values, partial_then_random.remaining_capacity)].copy()
-            one_row_per_unit.reset_index(drop=False, inplace=True)
+
+            one_row_per_unit = partial_then_random.reindex(
+                partial_then_random.index.repeat(partial_then_random.remaining_capacity)).reset_index(drop=True)
+
             del one_row_per_unit['remaining_capacity']
             parcels_picked = one_row_per_unit.head(target_units_for_jur)
 
