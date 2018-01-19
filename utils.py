@@ -187,6 +187,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         jur_df = pd.DataFrame(data=dj)
         units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
 
+    count_units_picked_remaining = 0
     remaining_units = target_units - units_per_jurisdiction.units_picked.sum()
 
     if remaining_units:
@@ -230,7 +231,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
                 partial_then_random.index.repeat(partial_then_random.remaining_capacity)).reset_index(drop=True)
 
             del one_row_per_unit['remaining_capacity']
-            parcels_picked = one_row_per_unit.head(target_units_for_jur)
+            parcels_picked = one_row_per_unit.head(remaining_units)
 
             # group by parcel id since more than one units may be picked on a parcel
             new_bldgs = pd.DataFrame({'units_built': parcels_picked.
@@ -252,16 +253,17 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
         units_remaining_by_jur = units_by_jur.merge(jurs, on='jurisdiction_id')
 
-        # count units for debugging
-        dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [0],
-              'target_units_for_region': [target_units], 'units_picked': [new_units_count]}
-
-        jur_df = pd.DataFrame(data=dj)
-        units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
+        # # count units for debugging
+        # dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [0],
+        #       'target_units_for_region': [target_units], 'units_picked': [new_units_count]}
+        #
+        # jur_df = pd.DataFrame(data=dj)
+        # units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
 
         units_per_jurisdiction = units_per_jurisdiction.merge(units_remaining_by_jur, left_on='jurisdiction', right_on='name', how='left')
 
         units_per_jurisdiction.units_picked_remaining = units_per_jurisdiction.units_picked_remaining.fillna(0)
+        count_units_picked_remaining = units_per_jurisdiction.units_picked_remaining.sum()
         del units_per_jurisdiction['name']
         del units_per_jurisdiction['jurisdiction_id']
         bldgs_append = new_units_df.append(new_bldgs)
@@ -305,7 +307,9 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     # count units for debugging
     dj = {'year': [year], 'jurisdiction': ['total'],
           'target_units_for_jur': [target_unit_sum],
-          'target_units_for_region': [target_units], 'units_picked': [units_per_jurisdiction.units_picked.sum()]}
+          'target_units_for_region': [target_units],
+          'units_picked': [units_per_jurisdiction.units_picked.sum()],
+          'units_picked_remaining': [count_units_picked_remaining]}
 
     jur_df = pd.DataFrame(data=dj)
     units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
