@@ -29,8 +29,7 @@ SELECT max(run_id)
 run_id_df = pd.read_sql(run_id_sql, mssql_engine)
 run_id = run_id_df.iloc[0][0]
 
-
-
+buildings_out['run_id'] = run_id + 1
 
 buildings_out.to_csv('data/buildings.csv')
 
