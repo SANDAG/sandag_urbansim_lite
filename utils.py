@@ -43,7 +43,7 @@ def run_feasibility(parcels):
 
 def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions, supply_fname,
                   total_units, feasibility, year=None,
-                  target_vacancy=.1, form_to_btype_callback=None,
+                  target_vacancy=.03, form_to_btype_callback=None,
                   add_more_columns_callback=None, max_parcel_size=200000,
                   residential=True, bldg_sqft_per_job=400.0):
     """
@@ -84,26 +84,29 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
     control_totals_by_year =  control_totals.loc[control_totals.yr == year].copy()
 
+    # target units is num of households minus existing residential units
+    # note: num of households is first adjusted by vacancy rate using:  num of households/(1-vacancy rate)
+    # target vacancy from call to run_developer in models
+    print('year is: ', year)
+
+    print("Agents are households. Agent spaces are dwelling units")
     target_units = dev.\
         compute_units_to_build(agents.to_frame().hh.get_value(year),
                                buildings[supply_fname].sum(),
                                target_vacancy)
 
-    print("{:,} feasible buildings before running developer"
-          .format(len(dev.feasibility)))
     df = feasibility.to_frame()
-
-    # subtract scheduled dev capacity
     target_units = target_units - df.loc[df['site_id'].notnull()].additional_units.sum()
+
+    print("Target of new units = {:,} after scheduled developments are built".format(target_units))
+
+    # remove scheduled developments from feasibility table
     df = df.loc[df['site_id'].isnull()].copy()
 
-    if len(df.loc[df.index.get_duplicates()]):
-        print('error: duplicate parcel ids:')
-        print(df.loc[df.index.get_duplicates()])
+    print("{:,} feasible parcels before running developer (excludes sched dev)"
+          .format(len(df)))
 
-    print('year is: ', year)
-    print('target_units for region: ', target_units)
-
+    # allocate target to each jurisdiction based on database table
     subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
 
     '''
