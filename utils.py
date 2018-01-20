@@ -299,9 +299,19 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     orca.add_table("parcels", parcels)
     parcels['year'] = year
 
-    #parcels.to_sql(name='urbansim_lite_output_parcels', con=mssql_engine, schema='urbansim', if_exists='append',
-    #                 index=False) #no run ID -> appending to database
+    #This creates a new file of parcel info for each year
+    yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
+    parcels.to_csv(yname)
+    '''
+    #This loop can write the all the parcels for each year as one (very large) .csv file.
+    if year == 2020:
+        parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv')
+    else:
+        parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv', mode='a', header=False)
 
+    parcels.to_sql(name='urbansim_lite_output_parcels', con=mssql_engine, schema='urbansim', if_exists='replace',
+                     index=True) #no run ID -> appending to database
+    '''
     target_unit_sum = units_per_jurisdiction.loc[units_per_jurisdiction.jurisdiction!='all'].target_units_for_jur.sum()
 
     # count units for debugging
