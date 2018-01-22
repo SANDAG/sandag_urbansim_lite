@@ -6,11 +6,13 @@ mssql_engine = create_engine(db_connection_string)
 
 conn = mssql_engine.connect()
 tran = conn.begin()
+
 try:
     conn.execute(
         """
+        TRUNCATE TABLE urbansim.urbansim.urbansim_lite_output_parcels
         BULK INSERT urbansim.urbansim.urbansim_lite_output_parcels
-        FROM "\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_2020.csv"
+        FROM "\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels.csv"
         WITH (
         FIRSTROW = 2,
         FIELDTERMINATOR = ',',
