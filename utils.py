@@ -197,7 +197,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     count_units_picked_remaining = 0
     remaining_units = target_units - units_per_jurisdiction.units_picked.sum()
 
-    if remaining_units:
+    if remaining_units > 0:
 
         df = df.drop(['remaining_capacity'], 1)
         df_updated = df.join(new_units_df[['units_built']])
