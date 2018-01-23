@@ -21,6 +21,13 @@ def largest_remainder_allocation(df, k):
     return df
 
 
+def initialize_tables():
+    units_per_j = pd.DataFrame()
+    orca.add_table("uj", units_per_j)
+    new_units_df = pd.DataFrame()
+    orca.add_table('new_units', new_units_df)
+
+
 def run_feasibility(parcels):
     """
     Execute development feasibility on all parcels

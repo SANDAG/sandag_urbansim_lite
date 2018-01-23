@@ -4,8 +4,8 @@ from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
 import pandas as pd
 
-units_per_j = pd.DataFrame()
-orca.add_table("uj", units_per_j)
+
+utils.initialize_tables()
 
 orca.run([
     "feasibility",
