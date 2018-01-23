@@ -266,18 +266,20 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         count_units_picked_remaining = units_per_jurisdiction.units_picked_remaining.sum()
         del units_per_jurisdiction['name']
         del units_per_jurisdiction['jurisdiction_id']
-        bldgs_append = new_units_df.append(new_bldgs)
+        # bldgs_append = new_units_df.append(new_bldgs)
 
         # bldgs_append.reset_index(inplace=True)
 
-        # sum units built over parcel id
-        new_units_df = pd.DataFrame({'total_units_built': bldgs_append.
-                                            groupby(["parcel_id", "jurisdiction_id",
-                                                     "additional_units", "residential_units",
-                                                     "bldgs", "total_cap"]).units_built.sum()}).reset_index()
-        new_units_df.set_index('parcel_id', inplace=True)
-        new_units_df.index = new_units_df.index.astype(int)
-        new_units_df.rename(columns={'total_units_built': 'units_built'}, inplace=True)
+    # sum units built over parcel id
+    # need grouping here because if remaining units picked from parcels that had partial build
+    # so some parcel ids in the dataframe twice
+    new_units_grouped = pd.DataFrame({'total_units_built': new_units_df.
+                                        groupby(["parcel_id", "jurisdiction_id",
+                                                 "additional_units", "residential_units",
+                                                 "bldgs", "total_cap"]).units_built.sum()}).reset_index()
+    new_units_grouped.set_index('parcel_id', inplace=True)
+    new_units_grouped.index = new_units_grouped.index.astype(int)
+    new_units_grouped.rename(columns={'total_units_built': 'units_built'}, inplace=True)
 
     '''
         Join parcels with parcels that have new units on parcel_id (add net units column)
@@ -287,8 +289,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     mssql_engine = create_engine(db_connection_string)
 
     parcels = parcels.to_frame()
-    new_units_df['units_not_built'] = new_units_df.total_cap - new_units_df.units_built - new_units_df.residential_units
-    parcels = parcels.join(new_units_df[['units_built','units_not_built']])
+    new_units_grouped['units_not_built'] = new_units_grouped.total_cap - new_units_grouped.units_built - new_units_grouped.residential_units
+    parcels = parcels.join(new_units_grouped[['units_built','units_not_built']])
     parcels.units_built = parcels.units_built.fillna(0)
     parcels.units_not_built = parcels.units_not_built.fillna(0)
     parcels.partial_build = parcels['units_not_built']
@@ -329,22 +331,22 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     uj = uj.append(units_summary)
     orca.add_table("uj", uj)
 
-    new_units_df = new_units_df.reset_index()
-    new_units_df['residential_units'] = new_units_df['units_built']
+    new_units_grouped = new_units_grouped.reset_index()
+    new_units_grouped['residential_units'] = new_units_grouped['units_built']
     # temporarily assign building type id
-    new_units_df['building_type_id'] = ''
+    new_units_grouped['building_type_id'] = ''
     if year is not None:
-        new_units_df["year_built"] = year
+        new_units_grouped["year_built"] = year
 
     print("Adding {:,} buildings with {:,} {}"
-          .format(len(new_units_df),
-                  int(new_units_df[supply_fname].sum()),
+          .format(len(new_units_grouped),
+                  int(new_units_grouped[supply_fname].sum()),
                   supply_fname))
     '''
         Merge old building with the new buildings
     '''
 
     all_buildings = dev.merge(buildings.to_frame(buildings.local_columns),
-                              new_units_df[buildings.local_columns])
+                              new_units_grouped[buildings.local_columns])
 
     orca.add_table("buildings", all_buildings)
