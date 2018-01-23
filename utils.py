@@ -309,8 +309,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     parcels['year'] = year
 
     #This creates a new file of parcel info for each year
-    yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
-    parcels.to_csv(yname)
+    #yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
+    #parcels.to_csv(yname)
     '''
     #This loop can write the all the parcels for each year as one (very large) .csv file.
     if year == 2020:
