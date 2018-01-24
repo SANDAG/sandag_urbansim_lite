@@ -280,80 +280,84 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     # sum units built over parcel id
     # need grouping here because if remaining units picked from parcels that had partial build
     # so some parcel ids in the dataframe twice
-    new_units_grouped = pd.DataFrame({'total_units_built': new_units_df.
-                                        groupby(["parcel_id", "jurisdiction_id",
-                                                 "additional_units", "residential_units",
-                                                 "bldgs", "total_cap"]).units_built.sum()}).reset_index()
-    new_units_grouped.set_index('parcel_id', inplace=True)
-    new_units_grouped.index = new_units_grouped.index.astype(int)
-    new_units_grouped.rename(columns={'total_units_built': 'units_built'}, inplace=True)
-
-    '''
-        Join parcels with parcels that have new units on parcel_id (add net units column)
-    '''
-
-    db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
-    mssql_engine = create_engine(db_connection_string)
-
-    parcels = parcels.to_frame()
-    new_units_grouped['units_not_built'] = new_units_grouped.total_cap - new_units_grouped.units_built - new_units_grouped.residential_units
-    parcels = parcels.join(new_units_grouped[['units_built','units_not_built']])
-    parcels.units_built = parcels.units_built.fillna(0)
-    parcels.units_not_built = parcels.units_not_built.fillna(0)
-    parcels.partial_build = parcels['units_not_built']
-    parcels['residential_units'] = parcels['residential_units'] + parcels['units_built']
-    parcels = parcels.drop(['units_built','units_not_built'], 1)
 
 
-    orca.add_table("parcels", parcels)
-    parcels['year'] = year
+    # in case region wide targets less than zero
+    if len(new_units_df) > 0:
+        new_units_grouped = pd.DataFrame({'total_units_built': new_units_df.
+                                            groupby(["parcel_id", "jurisdiction_id",
+                                                     "additional_units", "residential_units",
+                                                     "bldgs", "total_cap"]).units_built.sum()}).reset_index()
+        new_units_grouped.set_index('parcel_id', inplace=True)
+        new_units_grouped.index = new_units_grouped.index.astype(int)
+        new_units_grouped.rename(columns={'total_units_built': 'units_built'}, inplace=True)
 
-    #This creates a new file of parcel info for each year
-    #yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
-    #parcels.to_csv(yname)
-    '''
-    #This loop can write the all the parcels for each year as one (very large) .csv file.
-    if year == 2020:
-        parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv')
-    else:
-        parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv', mode='a', header=False)
+        '''
+            Join parcels with parcels that have new units on parcel_id (add net units column)
+        '''
 
-    parcels.to_sql(name='urbansim_lite_output_parcels', con=mssql_engine, schema='urbansim', if_exists='replace',
-                     index=True) #no run ID -> appending to database
-    '''
-    target_unit_sum = units_per_jurisdiction.loc[units_per_jurisdiction.jurisdiction!='all'].target_units_for_jur.sum()
+        db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
+        mssql_engine = create_engine(db_connection_string)
 
-    # count units for debugging
-    dj = {'year': [year], 'jurisdiction': ['total'],
-          'target_units_for_jur': [target_unit_sum],
-          'target_units_for_region': [target_units],
-          'units_picked': [units_per_jurisdiction.units_picked.sum()],
-          'units_picked_remaining': [count_units_picked_remaining]}
+        parcels = parcels.to_frame()
+        new_units_grouped['units_not_built'] = new_units_grouped.total_cap - new_units_grouped.units_built - new_units_grouped.residential_units
+        parcels = parcels.join(new_units_grouped[['units_built','units_not_built']])
+        parcels.units_built = parcels.units_built.fillna(0)
+        parcels.units_not_built = parcels.units_not_built.fillna(0)
+        parcels.partial_build = parcels['units_not_built']
+        parcels['residential_units'] = parcels['residential_units'] + parcels['units_built']
+        parcels = parcels.drop(['units_built','units_not_built'], 1)
 
-    jur_df = pd.DataFrame(data=dj)
-    units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
-    units_summary = units_summary.append(units_per_jurisdiction)
 
-    uj = orca.get_table('uj').to_frame()
-    uj = uj.append(units_summary)
-    orca.add_table("uj", uj)
+        orca.add_table("parcels", parcels)
+        parcels['year'] = year
 
-    new_units_grouped = new_units_grouped.reset_index()
-    new_units_grouped['residential_units'] = new_units_grouped['units_built']
-    # temporarily assign building type id
-    new_units_grouped['building_type_id'] = ''
-    if year is not None:
-        new_units_grouped["year_built"] = year
+        #This creates a new file of parcel info for each year
+        #yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
+        #parcels.to_csv(yname)
+        '''
+        #This loop can write the all the parcels for each year as one (very large) .csv file.
+        if year == 2020:
+            parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv')
+        else:
+            parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv', mode='a', header=False)
+    
+        parcels.to_sql(name='urbansim_lite_output_parcels', con=mssql_engine, schema='urbansim', if_exists='replace',
+                         index=True) #no run ID -> appending to database
+        '''
+        target_unit_sum = units_per_jurisdiction.loc[units_per_jurisdiction.jurisdiction!='all'].target_units_for_jur.sum()
 
-    print("Adding {:,} buildings with {:,} {}"
-          .format(len(new_units_grouped),
-                  int(new_units_grouped[supply_fname].sum()),
-                  supply_fname))
-    '''
-        Merge old building with the new buildings
-    '''
+        # count units for debugging
+        dj = {'year': [year], 'jurisdiction': ['total'],
+              'target_units_for_jur': [target_unit_sum],
+              'target_units_for_region': [target_units],
+              'units_picked': [units_per_jurisdiction.units_picked.sum()],
+              'units_picked_remaining': [count_units_picked_remaining]}
 
-    all_buildings = dev.merge(buildings.to_frame(buildings.local_columns),
-                              new_units_grouped[buildings.local_columns])
+        jur_df = pd.DataFrame(data=dj)
+        units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
+        units_summary = units_summary.append(units_per_jurisdiction)
 
-    orca.add_table("buildings", all_buildings)
+        uj = orca.get_table('uj').to_frame()
+        uj = uj.append(units_summary)
+        orca.add_table("uj", uj)
+
+        new_units_grouped = new_units_grouped.reset_index()
+        new_units_grouped['residential_units'] = new_units_grouped['units_built']
+        # temporarily assign building type id
+        new_units_grouped['building_type_id'] = ''
+        if year is not None:
+            new_units_grouped["year_built"] = year
+
+        print("Adding {:,} buildings with {:,} {}"
+              .format(len(new_units_grouped),
+                      int(new_units_grouped[supply_fname].sum()),
+                      supply_fname))
+        '''
+            Merge old building with the new buildings
+        '''
+
+        all_buildings = dev.merge(buildings.to_frame(buildings.local_columns),
+                                  new_units_grouped[buildings.local_columns])
+
+        orca.add_table("buildings", all_buildings)
