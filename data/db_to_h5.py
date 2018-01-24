@@ -63,8 +63,16 @@ jurisdictions_sql = '''
   FROM urbansim.ref.jurisdiction
 '''
 
+dev_control = '''
+SELECT [parcel_id]
+      ,[earliest_dev_year]
+      ,[scenario]
+  FROM [urbansim].[urbansim].[urbansim_lite_dev_control]
+'''
+
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
 buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
+devyear_df = pd.read_sql(dev_control, mssql_engine, index_col='parcel_id')
 parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
 parcels_df['total_cap'] = parcels_df['additional_units'] + parcels_df['residential_units']
 regional_controls_df = pd.read_sql(regional_capacity_controls_sql, mssql_engine)
@@ -79,3 +87,4 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('buildings', buildings_df, format='table')
     store.put('regional_controls', regional_controls_df, format='table')
     store.put('jurisdictions', jurisdictions_df, format='table')
+    store.put('devyear', devyear_df, format='table')

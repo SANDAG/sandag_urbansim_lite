@@ -28,7 +28,7 @@ def initialize_tables():
     orca.add_table('new_units', new_units_df)
 
 
-def run_feasibility(parcels):
+def run_feasibility(parcels, year=None):
     """
     Execute development feasibility on all parcels
 
@@ -44,7 +44,10 @@ def run_feasibility(parcels):
 
     print("Computing feasibility")
     parcels = orca.get_table('parcels').to_frame()
+    devyear = orca.get_table('devyear').to_frame()
+    parcels = parcels.join(devyear)
     feasible_parcels = parcels.loc[parcels['total_cap'] > parcels['residential_units']]
+    feasible_parcels = feasible_parcels.loc[feasible_parcels['earliest_dev_year'] < year]
     orca.add_table("feasibility", feasible_parcels)
 
 

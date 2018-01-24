@@ -36,3 +36,8 @@ def regional_controls(store):
 def jurisdictions(store):
     df = store['jurisdictions']
     return df
+
+@orca.table('devyear', cache=True)
+def devyear(store):
+    df = store['devyear']
+    return df

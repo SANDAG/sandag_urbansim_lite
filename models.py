@@ -9,8 +9,8 @@ def year(iter_var):
 
 
 @orca.step('feasibility')
-def feasibility(parcels):
-    utils.run_feasibility(parcels)
+def feasibility(parcels, year):
+    utils.run_feasibility(parcels, year)
 
 
 @orca.step('residential_developer')
