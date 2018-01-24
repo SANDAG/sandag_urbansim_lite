@@ -47,7 +47,10 @@ def run_feasibility(parcels, year=None):
     devyear = orca.get_table('devyear').to_frame()
     parcels = parcels.join(devyear)
     feasible_parcels = parcels.loc[parcels['total_cap'] > parcels['residential_units']]
+    # Restrict feasibility to specific years, based on scenario (TBD)
     feasible_parcels = feasible_parcels.loc[feasible_parcels['earliest_dev_year'] < year]
+    # remove scheduled developments from feasibility table
+    feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
     orca.add_table("feasibility", feasible_parcels)
 
 
@@ -110,9 +113,6 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
     print("Target of new units = {:,} after scheduled developments are built".format(target_units))
 
-    # remove scheduled developments from feasibility table
-    df = df.loc[df['site_id'].isnull()].copy()
-
     print("{:,} feasible parcels before running developer (excludes sched dev)"
           .format(len(df)))
 
@@ -151,7 +151,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
             if len(df_jur):
                 new_bldgs = df_jur.copy()
                 new_bldgs['units_built'] = new_bldgs['remaining_capacity']
-                new_bldgs.drop(['site_id', 'year', 'remaining_capacity'], axis=1, inplace=True)
+                new_bldgs.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True) #Year no longer in DF
                 new_units_count = new_bldgs.units_built.sum()
                 new_units_df = new_units_df.append(new_bldgs)
                 new_units_df.index = new_units_df.index.astype(int)
