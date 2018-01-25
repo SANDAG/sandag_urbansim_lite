@@ -90,8 +90,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     Writes the result back to the buildings table (returns nothing)
     """
 
+    parcels = parcels.to_frame()
     dev = developer.Developer(feasibility.to_frame())
-
     control_totals = reg_controls.to_frame()
     jurs = jurisdictions.to_frame()
 
@@ -109,7 +109,9 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
                                target_vacancy)
 
     df = feasibility.to_frame()
-    target_units = target_units - df.loc[df['site_id'].notnull()].additional_units.sum()
+
+    num_of_sched_dev = parcels.loc[~parcels['site_id'].isnull()].additional_units.sum()
+    target_units = target_units - num_of_sched_dev
 
     print("Target of new units = {:,} after scheduled developments are built".format(target_units))
 
@@ -302,7 +304,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
         mssql_engine = create_engine(db_connection_string)
 
-        parcels = parcels.to_frame()
+
         new_units_grouped['units_not_built'] = new_units_grouped.total_cap - new_units_grouped.units_built - new_units_grouped.residential_units
         parcels = parcels.join(new_units_grouped[['units_built','units_not_built']])
         parcels.units_built = parcels.units_built.fillna(0)
