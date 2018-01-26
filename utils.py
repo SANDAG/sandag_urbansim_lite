@@ -12,10 +12,9 @@ def largest_remainder_allocation(df, k):
     ratios = df.control.values
     frac, results = np.modf(k * ratios)
     remainder = int(k - results.sum()) # how many left
-
     indices = np.argsort(frac)[::-1]
-    results[indices[0:remainder]] += 1 # add one to the ones with the highest decimal.
-
+    if remainder > 0:
+        results[indices[0:remainder]] += 1 # add one to the ones with the highest decimal.
     df['targets'] = results.astype(int).tolist()
 
     return df
