@@ -20,6 +20,7 @@ parcels_sql = '''
   WHERE parcels.capacity > 0
 '''
 
+## Household controls (agents)
 households_sql = '''
   SELECT yr AS year,
          sum(hh) AS hh
@@ -46,6 +47,7 @@ buildings_sql = '''
   FROM urbansim.urbansim.building
 '''
 
+# Dwelling unit controls
 regional_capacity_controls_sql = '''
   SELECT residential_control_id
         ,scenario
@@ -64,9 +66,9 @@ jurisdictions_sql = '''
 '''
 
 dev_control = '''
-SELECT [parcel_id]
-      ,[earliest_dev_year]
-      ,[scenario]
+SELECT parcel_id
+      ,phase
+      ,scenario
   FROM [urbansim].[urbansim].[urbansim_lite_dev_control]
 '''
 

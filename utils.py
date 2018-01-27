@@ -44,7 +44,7 @@ def run_feasibility(parcels, year=None):
     parcels = parcels.join(devyear)
     feasible_parcels = parcels.loc[parcels['max_res_units'] > parcels['residential_units']]
     # Restrict feasibility to specific years, based on scenario (TBD)
-    feasible_parcels = feasible_parcels.loc[feasible_parcels['earliest_dev_year'] < year]
+    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase'] < year]
     # remove scheduled developments from feasibility table
     feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
     orca.add_table("feasibility", feasible_parcels)
@@ -106,11 +106,12 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         Used to update residential units at the parcel level
     agents : DataFrame Wrapper
         Used to compute the current demand for units/floorspace in the area
+         (households)
     buildings : DataFrame Wrapper
         Used to compute the current supply of units/floorspace in the area
     supply_fname : string
         Identifies the column in buildings which indicates the supply of
-        units/floorspace
+        units/floorspace ("residential units")
     total_units : Series
         Passed directly to dev.pick - total current residential_units /
         job_spaces
