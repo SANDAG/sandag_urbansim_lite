@@ -257,14 +257,13 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
         mssql_engine = create_engine(db_connection_string)
 
-
-        new_units_grouped['units_not_built'] = new_units_grouped.max_res_units - new_units_grouped.residential_units_sim_yr - new_units_grouped.residential_units
-        parcels = parcels.join(new_units_grouped[['residential_units_sim_yr','units_not_built']])
+        parcels = parcels.drop(['partial_build'], 1)
+        new_units_grouped['partial_build'] = new_units_grouped.max_res_units - new_units_grouped.residential_units_sim_yr - new_units_grouped.residential_units
+        parcels = parcels.join(new_units_grouped[['residential_units_sim_yr','partial_build']])
         parcels.residential_units_sim_yr = parcels.residential_units_sim_yr.fillna(0)
-        parcels.units_not_built = parcels.units_not_built.fillna(0)
-        parcels.partial_build = parcels['units_not_built']
+        parcels.partial_build = parcels.partial_build.fillna(0)
         parcels['residential_units'] = parcels['residential_units'] + parcels['residential_units_sim_yr']
-        parcels = parcels.drop(['residential_units_sim_yr','units_not_built'], 1)
+        parcels = parcels.drop(['residential_units_sim_yr'], 1)
         orca.add_table("parcels", parcels)
 
         #This creates a new file of parcel info for each year
