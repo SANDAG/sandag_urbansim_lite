@@ -82,7 +82,7 @@ def parcel_picker(df_area, area_units, jur_name, year):
         parcels_picked = one_row_per_unit.head(area_units)
 
         # group by parcel id since more than one units may be picked on a parcel
-        new_bldgs = pd.DataFrame({'units_built': parcels_picked.groupby(["parcel_id", "jurisdiction_id","additional_units", "residential_units","bldgs", "total_cap"]).size()}).reset_index()
+        new_bldgs = pd.DataFrame({'units_built': parcels_picked.groupby(["parcel_id", "jurisdiction_id","capacity", "residential_units","bldgs", "total_cap"]).size()}).reset_index()
         # new_bldgs_df.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
 
         new_bldgs.set_index('parcel_id', inplace=True)
@@ -147,7 +147,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
     df = feasibility.to_frame()
 
-    num_of_sched_dev = parcels.loc[~parcels['site_id'].isnull()].additional_units.sum()
+    num_of_sched_dev = parcels.loc[~parcels['site_id'].isnull()].capacity.sum()
     target_units = target_units - num_of_sched_dev
 
     print("Target of new units = {:,} after scheduled developments are built".format(target_units))
@@ -243,7 +243,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     if len(new_units_df) > 0:
         new_units_grouped = pd.DataFrame({'total_units_built': new_units_df.
                                             groupby(["parcel_id", "jurisdiction_id",
-                                                     "additional_units", "residential_units",
+                                                     "capacity", "residential_units",
                                                      "bldgs", "total_cap"]).units_built.sum()}).reset_index()
         new_units_grouped.set_index('parcel_id', inplace=True)
         new_units_grouped.index = new_units_grouped.index.astype(int)

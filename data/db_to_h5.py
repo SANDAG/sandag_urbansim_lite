@@ -10,7 +10,7 @@ parcels_sql = '''
                                   count(building_id) AS num_of_bldgs
                            FROM   urbansim.urbansim.building GROUP BY parcel_id)
   SELECT parcels.parcel_id, parcels.jurisdiction_id, parcels.site_id,
-         parcels.capacity AS additional_units, 
+         parcels.capacity, 
          COALESCE(bldgs_by_parcel.residential_units,0) AS residential_units,
          COALESCE(bldgs_by_parcel.num_of_bldgs,0) AS bldgs,
          0 as partial_build
@@ -74,7 +74,7 @@ households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
 buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
 devyear_df = pd.read_sql(dev_control, mssql_engine, index_col='parcel_id')
 parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
-parcels_df['total_cap'] = parcels_df['additional_units'] + parcels_df['residential_units']
+parcels_df['total_cap'] = parcels_df['capacity'] + parcels_df['residential_units']
 regional_controls_df = pd.read_sql(regional_capacity_controls_sql, mssql_engine)
 regional_controls_df['control_type'] = regional_controls_df['control_type'].astype(str)
 regional_controls_df['geo'] = regional_controls_df['geo'].astype(str)
