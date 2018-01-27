@@ -138,7 +138,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     # note: num of households is first adjusted by vacancy rate using:  num of households/(1-vacancy rate)
     # target vacancy from call to run_developer in models
 
-    print("Agents are households. Agent spaces are dwelling units")
+    print("\n Agents are households. Agent spaces are dwelling units")
     # current vacancy = 1 - num_agents / float(num_units)
     target_units = dev.\
         compute_units_to_build(agents.to_frame().hh.get_value(year),
