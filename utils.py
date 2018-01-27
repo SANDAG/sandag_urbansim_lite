@@ -42,7 +42,7 @@ def run_feasibility(parcels, year=None):
     parcels = orca.get_table('parcels').to_frame()
     devyear = orca.get_table('devyear').to_frame()
     parcels = parcels.join(devyear)
-    feasible_parcels = parcels.loc[parcels['total_cap'] > parcels['residential_units']]
+    feasible_parcels = parcels.loc[parcels['max_res_units'] > parcels['residential_units']]
     # Restrict feasibility to specific years, based on scenario (TBD)
     feasible_parcels = feasible_parcels.loc[feasible_parcels['earliest_dev_year'] < year]
     # remove scheduled developments from feasibility table
@@ -82,7 +82,7 @@ def parcel_picker(df_area, area_units, jur_name, year):
         parcels_picked = one_row_per_unit.head(area_units)
 
         # group by parcel id since more than one units may be picked on a parcel
-        new_bldgs = pd.DataFrame({'units_built': parcels_picked.groupby(["parcel_id", "jurisdiction_id","capacity", "residential_units","bldgs", "total_cap"]).size()}).reset_index()
+        new_bldgs = pd.DataFrame({'units_built': parcels_picked.groupby(["parcel_id", "jurisdiction_id","capacity", "residential_units","bldgs", "max_res_units"]).size()}).reset_index()
         # new_bldgs_df.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
 
         new_bldgs.set_index('parcel_id', inplace=True)
@@ -173,7 +173,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     units_per_jurisdiction = pd.DataFrame()
     units_summary = pd.DataFrame()
 
-    df['remaining_capacity'] = (df.total_cap - df.residential_units)
+    df['remaining_capacity'] = (df.max_res_units - df.residential_units)
     df.remaining_capacity = df.remaining_capacity.astype(int)
 
     for jur in jurs['jurisdiction_id'].tolist():
@@ -202,7 +202,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         df = df.drop(['remaining_capacity'], 1)
         df_updated = df.join(new_units_df[['units_built']])
         df_updated.units_built = df_updated.units_built.fillna(0)
-        df_updated['remaining_capacity'] = df_updated.total_cap - df_updated.residential_units - df_updated.units_built
+        df_updated['remaining_capacity'] = df_updated.max_res_units - df_updated.residential_units - df_updated.units_built
 
         df_updated.remaining_capacity = df_updated.remaining_capacity.astype(int)
         df_updated = df_updated.loc[df_updated.remaining_capacity != 0]
@@ -244,7 +244,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         new_units_grouped = pd.DataFrame({'total_units_built': new_units_df.
                                             groupby(["parcel_id", "jurisdiction_id",
                                                      "capacity", "residential_units",
-                                                     "bldgs", "total_cap"]).units_built.sum()}).reset_index()
+                                                     "bldgs", "max_res_units"]).units_built.sum()}).reset_index()
         new_units_grouped.set_index('parcel_id', inplace=True)
         new_units_grouped.index = new_units_grouped.index.astype(int)
         new_units_grouped.rename(columns={'total_units_built': 'units_built'}, inplace=True)
@@ -257,7 +257,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         mssql_engine = create_engine(db_connection_string)
 
 
-        new_units_grouped['units_not_built'] = new_units_grouped.total_cap - new_units_grouped.units_built - new_units_grouped.residential_units
+        new_units_grouped['units_not_built'] = new_units_grouped.max_res_units - new_units_grouped.units_built - new_units_grouped.residential_units
         parcels = parcels.join(new_units_grouped[['units_built','units_not_built']])
         parcels.units_built = parcels.units_built.fillna(0)
         parcels.units_not_built = parcels.units_not_built.fillna(0)
