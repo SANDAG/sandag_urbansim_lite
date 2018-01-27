@@ -82,7 +82,7 @@ def parcel_picker(df_area, area_units, jur_name, year):
         parcels_picked = one_row_per_unit.head(area_units)
 
         # group by parcel id since more than one units may be picked on a parcel
-        new_bldgs = pd.DataFrame({'units_built': parcels_picked.groupby(["parcel_id", "jurisdiction_id","capacity", "residential_units","bldgs", "max_res_units"]).size()}).reset_index()
+        new_bldgs = pd.DataFrame({'units_built': parcels_picked.groupby(["parcel_id", "jurisdiction_id","capacity_base_yr", "residential_units","bldgs", "max_res_units"]).size()}).reset_index()
         # new_bldgs_df.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
 
         new_bldgs.set_index('parcel_id', inplace=True)
@@ -145,15 +145,15 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
                                buildings[supply_fname].sum(),
                                target_vacancy)
 
-    df = feasibility.to_frame()
+    feasible_parcels_df = feasibility.to_frame()
 
-    num_of_sched_dev = parcels.loc[~parcels['site_id'].isnull()].capacity.sum()
+    num_of_sched_dev = parcels.loc[~parcels['site_id'].isnull()].capacity_base_yr.sum()
     target_units = target_units - num_of_sched_dev
 
     print("Target of new units = {:,} after scheduled developments are built".format(target_units))
 
     print("{:,} feasible parcels before running developer (excludes sched dev)"
-          .format(len(df)))
+          .format(len(feasible_parcels_df)))
 
     # allocate target to each jurisdiction based on database table
     subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
@@ -173,15 +173,15 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     units_per_jurisdiction = pd.DataFrame()
     units_summary = pd.DataFrame()
 
-    df['remaining_capacity'] = (df.max_res_units - df.residential_units)
-    df.remaining_capacity = df.remaining_capacity.astype(int)
+    feasible_parcels_df['remaining_capacity'] = (feasible_parcels_df.max_res_units - feasible_parcels_df.residential_units)
+    feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
 
     for jur in jurs['jurisdiction_id'].tolist():
         target_units_for_jur = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
         jur_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
         print("Jurisdiction %d %s target units: %d" % (jur,jur_name,target_units_for_jur))
 
-        df_jur = df.loc[df['jurisdiction_id'] == jur].copy()
+        df_jur = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
 
         new_units_count, parcels_picked, new_bldgs = parcel_picker(df_jur, target_units_for_jur, jur_name, year)
         new_units_df = new_units_df.append(new_bldgs)
@@ -199,8 +199,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
     if remaining_units > 0:
 
-        df = df.drop(['remaining_capacity'], 1)
-        df_updated = df.join(new_units_df[['units_built']])
+        feasible_parcels_df = feasible_parcels_df.drop(['remaining_capacity'], 1)
+        df_updated = feasible_parcels_df.join(new_units_df[['units_built']])
         df_updated.units_built = df_updated.units_built.fillna(0)
         df_updated['remaining_capacity'] = df_updated.max_res_units - df_updated.residential_units - df_updated.units_built
 
@@ -243,7 +243,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     if len(new_units_df) > 0:
         new_units_grouped = pd.DataFrame({'total_units_built': new_units_df.
                                             groupby(["parcel_id", "jurisdiction_id",
-                                                     "capacity", "residential_units",
+                                                     "capacity_base_yr", "residential_units",
                                                      "bldgs", "max_res_units"]).units_built.sum()}).reset_index()
         new_units_grouped.set_index('parcel_id', inplace=True)
         new_units_grouped.index = new_units_grouped.index.astype(int)
