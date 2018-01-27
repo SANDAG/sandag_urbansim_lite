@@ -56,9 +56,9 @@ def parcel_picker(df_area, area_units, jur_name, year):
         print("WARNING THERE WERE NOT ENOUGH PROFITABLE UNITS TO MATCH DEMAND FOR ", jur_name, "IN YEAR ", year)
         if len(df_area):
             new_bldgs = df_area.copy()
-            new_bldgs['units_built'] = new_bldgs['remaining_capacity']
+            new_bldgs['residential_units_sim_yr'] = new_bldgs['remaining_capacity']
             new_bldgs.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True)
-            new_units_count = new_bldgs.units_built.sum()
+            new_units_count = new_bldgs.residential_units_sim_yr.sum()
         else:
             new_units_count = 0
     elif area_units <= 0:
@@ -82,12 +82,12 @@ def parcel_picker(df_area, area_units, jur_name, year):
         parcels_picked = one_row_per_unit.head(area_units)
 
         # group by parcel id since more than one units may be picked on a parcel
-        new_bldgs = pd.DataFrame({'units_built': parcels_picked.groupby(["parcel_id", "jurisdiction_id","capacity_base_yr", "residential_units","bldgs", "max_res_units"]).size()}).reset_index()
+        new_bldgs = pd.DataFrame({'residential_units_sim_yr': parcels_picked.groupby(["parcel_id", "jurisdiction_id","capacity_base_yr", "residential_units","bldgs", "max_res_units"]).size()}).reset_index()
         # new_bldgs_df.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
 
         new_bldgs.set_index('parcel_id', inplace=True)
 
-        new_units_count = new_bldgs.units_built.sum()
+        new_units_count = new_bldgs.residential_units_sim_yr.sum()
     return new_units_count, parcels_picked, new_bldgs
 
 
@@ -200,20 +200,21 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     if remaining_units > 0:
 
         feasible_parcels_df = feasible_parcels_df.drop(['remaining_capacity'], 1)
-        df_updated = feasible_parcels_df.join(new_units_df[['units_built']])
-        df_updated.units_built = df_updated.units_built.fillna(0)
-        df_updated['remaining_capacity'] = df_updated.max_res_units - df_updated.residential_units - df_updated.units_built
+        df_updated = feasible_parcels_df.join(new_units_df[['residential_units_sim_yr']])
+        df_updated.residential_units_sim_yr = df_updated.residential_units_sim_yr.fillna(0)
+        df_updated['remaining_capacity'] = df_updated.max_res_units - df_updated.residential_units - df_updated.residential_units_sim_yr
+        # feasible_parcels = parcels.loc[parcels['max_res_units'] > parcels['residential_units']]
 
         df_updated.remaining_capacity = df_updated.remaining_capacity.astype(int)
         df_updated = df_updated.loc[df_updated.remaining_capacity != 0]
-        df_updated['partial_build'] = df_updated.units_built
+        df_updated['partial_build'] = df_updated.residential_units_sim_yr
 
         new_units_count, parcels_picked, new_bldgs = parcel_picker(df_updated, remaining_units, "", year)
         new_units_df = new_units_df.append(new_bldgs)
         # orca.add_table('new_units', new_units_df)
         new_units_df.index = new_units_df.index.astype(int)
         units_by_jur = pd.DataFrame({'units_picked_remaining': new_bldgs.
-                                 groupby(["jurisdiction_id"]).units_built.sum()}).reset_index()
+                                 groupby(["jurisdiction_id"]).residential_units_sim_yr.sum()}).reset_index()
 
         units_remaining_by_jur = units_by_jur.merge(jurs, on='jurisdiction_id')
 
@@ -244,10 +245,10 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         new_units_grouped = pd.DataFrame({'total_units_built': new_units_df.
                                             groupby(["parcel_id", "jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
-                                                     "bldgs", "max_res_units"]).units_built.sum()}).reset_index()
+                                                     "bldgs", "max_res_units"]).residential_units_sim_yr.sum()}).reset_index()
         new_units_grouped.set_index('parcel_id', inplace=True)
         new_units_grouped.index = new_units_grouped.index.astype(int)
-        new_units_grouped.rename(columns={'total_units_built': 'units_built'}, inplace=True)
+        new_units_grouped.rename(columns={'total_units_built': 'residential_units_sim_yr'}, inplace=True)
 
         '''
             Join parcels with parcels that have new units on parcel_id (add net units column)
@@ -257,13 +258,13 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         mssql_engine = create_engine(db_connection_string)
 
 
-        new_units_grouped['units_not_built'] = new_units_grouped.max_res_units - new_units_grouped.units_built - new_units_grouped.residential_units
-        parcels = parcels.join(new_units_grouped[['units_built','units_not_built']])
-        parcels.units_built = parcels.units_built.fillna(0)
+        new_units_grouped['units_not_built'] = new_units_grouped.max_res_units - new_units_grouped.residential_units_sim_yr - new_units_grouped.residential_units
+        parcels = parcels.join(new_units_grouped[['residential_units_sim_yr','units_not_built']])
+        parcels.residential_units_sim_yr = parcels.residential_units_sim_yr.fillna(0)
         parcels.units_not_built = parcels.units_not_built.fillna(0)
         parcels.partial_build = parcels['units_not_built']
-        parcels['residential_units'] = parcels['residential_units'] + parcels['units_built']
-        parcels = parcels.drop(['units_built','units_not_built'], 1)
+        parcels['residential_units'] = parcels['residential_units'] + parcels['residential_units_sim_yr']
+        parcels = parcels.drop(['residential_units_sim_yr','units_not_built'], 1)
         orca.add_table("parcels", parcels)
 
         #This creates a new file of parcel info for each year
@@ -299,7 +300,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         orca.add_table("uj", uj)
 
         new_units_grouped = new_units_grouped.reset_index()
-        new_units_grouped['residential_units'] = new_units_grouped['units_built']
+        new_units_grouped['residential_units'] = new_units_grouped['residential_units_sim_yr']
         # temporarily assign building type id
         new_units_grouped['building_type_id'] = ''
         if year is not None:
