@@ -70,6 +70,7 @@ SELECT parcel_id
       ,phase
       ,scenario
   FROM [urbansim].[urbansim].[urbansim_lite_dev_control]
+  WHERE scenario = 0
 '''
 
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')

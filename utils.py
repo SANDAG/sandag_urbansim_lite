@@ -49,46 +49,36 @@ def run_feasibility(parcels, year=None):
     feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
     orca.add_table("feasibility", feasible_parcels)
 
-def parcel_picker(df_area, area_units, jur_name, year):
-    parcels_picked = pd.DataFrame()
-    new_bldgs = pd.DataFrame()
-    if df_area.remaining_capacity.sum() < area_units:
-        print("WARNING THERE WERE NOT ENOUGH PROFITABLE UNITS TO MATCH DEMAND FOR ", jur_name, "IN YEAR ", year)
-        if len(df_area):
-            new_bldgs = df_area.copy()
-            new_bldgs['residential_units_sim_yr'] = new_bldgs['remaining_capacity']
-            new_bldgs.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True)
-            new_units_count = new_bldgs.residential_units_sim_yr.sum()
+
+def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_simulation):
+    sr14yr = pd.DataFrame()
+    if target_number_of_units > 0:
+        if parcels_to_choose.remaining_capacity.sum() < target_number_of_units:
+            print("WARNING THERE WERE NOT ENOUGH UNITS TO MATCH DEMAND FOR ", name_of_geo, "IN YEAR ", year_simulation)
+            if len(parcels_to_choose):
+                sr14yr= parcels_to_choose.copy()
+                sr14yr['residential_units_sim_yr'] = sr14yr['remaining_capacity']
+                sr14yr.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True)
         else:
-            new_units_count = 0
-    elif area_units <= 0:
-        new_units_count = 0
-    else:
-        # shuffle order of parcels
-        df_random_order = df_area.sample(frac=1, random_state=50).reset_index(drop=False)
+            # shuffle order of parcels
+            df_random_order = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
+            # get partial built parcels from <previous/current> year of simulation - not all capacity used
+            partial_built_parcel = df_random_order.loc[df_random_order.partial_build > 0]
+            # drop parcels that are partially developed
+            df_random_order = df_random_order[~df_random_order['parcel_id'].isin(partial_built_parcel.parcel_id.values.tolist())]
+            # add partially built parcels to the top of the list to be developed first.
+            partial_then_random = pd.concat([partial_built_parcel, df_random_order])
+            one_row_per_unit = partial_then_random.reindex(partial_then_random.index.repeat(partial_then_random.remaining_capacity)).reset_index(drop=True)
 
-        # get partial built parcels from <previous/current> year of simulation - not all capacity used
-        partial_built_parcel = df_random_order.loc[df_random_order.partial_build > 0]
+            del one_row_per_unit['remaining_capacity']
+            parcels_picked = one_row_per_unit.head(target_number_of_units)
 
-        # drop parcels that are partially developed
-        df_random_order = df_random_order[~df_random_order['parcel_id'].isin(partial_built_parcel.parcel_id.values.tolist())]
+            # group by parcel id since more than one units may be picked on a parcel
+            sr14yr= pd.DataFrame({'residential_units_sim_yr': parcels_picked.groupby(["parcel_id", "jurisdiction_id","capacity_base_yr", "residential_units","bldgs", "max_res_units"]).size()}).reset_index()
+            # sr14yr_df.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
 
-        # add partially built parcels to the top of the list to be developed first.
-        partial_then_random = pd.concat([partial_built_parcel, df_random_order])
-
-        one_row_per_unit = partial_then_random.reindex(partial_then_random.index.repeat(partial_then_random.remaining_capacity)).reset_index(drop=True)
-
-        del one_row_per_unit['remaining_capacity']
-        parcels_picked = one_row_per_unit.head(area_units)
-
-        # group by parcel id since more than one units may be picked on a parcel
-        new_bldgs = pd.DataFrame({'residential_units_sim_yr': parcels_picked.groupby(["parcel_id", "jurisdiction_id","capacity_base_yr", "residential_units","bldgs", "max_res_units"]).size()}).reset_index()
-        # new_bldgs_df.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
-
-        new_bldgs.set_index('parcel_id', inplace=True)
-
-        new_units_count = new_bldgs.residential_units_sim_yr.sum()
-    return new_units_count, parcels_picked, new_bldgs
+            sr14yr.set_index('parcel_id', inplace=True)
+    return sr14yr
 
 
 def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions, supply_fname,
@@ -184,13 +174,16 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
         df_jur = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
 
-        new_units_count, parcels_picked, new_bldgs = parcel_picker(df_jur, target_units_for_jur, jur_name, year)
-        new_units_df = new_units_df.append(new_bldgs)
+        sr14yr = parcel_picker(df_jur, target_units_for_jur, jur_name, year)
+        if len(sr14yr):
+            unit_count = sr14yr.residential_units_sim_yr.sum()
+        else: unit_count = 0
+        new_units_df = new_units_df.append(sr14yr)
         # orca.add_table('new_units', new_units_df)
         new_units_df.index = new_units_df.index.astype(int)
         # count units for debugging
         dj = {'year': [year], 'jurisdiction': [jur_name], 'target_units_for_jur': [target_units_for_jur],
-              'target_units_for_region': [target_units], 'units_picked': [new_units_count]}
+              'target_units_for_region': [target_units], 'units_picked': [unit_count]}
 
         jur_df = pd.DataFrame(data=dj)
         units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
@@ -210,18 +203,21 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         df_updated = df_updated.loc[df_updated.remaining_capacity != 0]
         df_updated['partial_build'] = df_updated.residential_units_sim_yr
 
-        new_units_count, parcels_picked, new_bldgs = parcel_picker(df_updated, remaining_units, "", year)
-        new_units_df = new_units_df.append(new_bldgs)
+        sr14yr= parcel_picker(df_updated, remaining_units, "", year)
+        if len(sr14yr):
+            unit_count = sr14yr.residential_units_sim_yr.sum()
+        else: unit_count = 0
+        new_units_df = new_units_df.append(sr14yr)
         # orca.add_table('new_units', new_units_df)
         new_units_df.index = new_units_df.index.astype(int)
-        units_by_jur = pd.DataFrame({'units_picked_remaining': new_bldgs.
+        units_by_jur = pd.DataFrame({'units_picked_remaining': sr14yr.
                                  groupby(["jurisdiction_id"]).residential_units_sim_yr.sum()}).reset_index()
 
         units_remaining_by_jur = units_by_jur.merge(jurs, on='jurisdiction_id')
 
         # # count units for debugging
         # dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [0],
-        #       'target_units_for_region': [target_units], 'units_picked': [new_units_count]}
+        #       'target_units_for_region': [target_units], 'units_picked': [unit_count]}
         #
         # jur_df = pd.DataFrame(data=dj)
         # units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
@@ -232,7 +228,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         count_units_picked_remaining = units_per_jurisdiction.units_picked_remaining.sum()
         del units_per_jurisdiction['name']
         del units_per_jurisdiction['jurisdiction_id']
-        # bldgs_append = new_units_df.append(new_bldgs)
+        # bldgs_append = new_units_df.append(sr14yr)
 
         # bldgs_append.reset_index(inplace=True)
 
