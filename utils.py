@@ -167,11 +167,11 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
         df_jur = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
 
-        sr14yr = parcel_picker(df_jur, target_units_for_jur, jur_name, year)
-        if len(sr14yr):
-            unit_count = sr14yr.residential_units_sim_yr.sum()
+        chosen = parcel_picker(df_jur, target_units_for_jur, jur_name, year)
+        if len(chosen):
+            unit_count = chosen.residential_units_sim_yr.sum()
         else: unit_count = 0
-        new_units_df = new_units_df.append(sr14yr)
+        new_units_df = new_units_df.append(chosen)
         # orca.add_table('new_units', new_units_df)
         new_units_df.index = new_units_df.index.astype(int)
         # count units for debugging
@@ -196,14 +196,14 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         df_updated = df_updated.loc[df_updated.remaining_capacity != 0]
         df_updated['partial_build'] = df_updated.residential_units_sim_yr
 
-        sr14yr= parcel_picker(df_updated, remaining_units, "", year)
-        if len(sr14yr):
-            unit_count = sr14yr.residential_units_sim_yr.sum()
+        chosen = parcel_picker(df_updated, remaining_units, "", year)
+        if len(chosen):
+            unit_count = chosen.residential_units_sim_yr.sum()
         else: unit_count = 0
-        new_units_df = new_units_df.append(sr14yr)
+        new_units_df = new_units_df.append(chosen)
         # orca.add_table('new_units', new_units_df)
         new_units_df.index = new_units_df.index.astype(int)
-        units_by_jur = pd.DataFrame({'units_picked_remaining': sr14yr.
+        units_by_jur = pd.DataFrame({'units_picked_remaining': chosen.
                                  groupby(["jurisdiction_id"]).residential_units_sim_yr.sum()}).reset_index()
 
         units_remaining_by_jur = units_by_jur.merge(jurs, on='jurisdiction_id')
@@ -221,7 +221,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         count_units_picked_remaining = units_per_jurisdiction.units_picked_remaining.sum()
         del units_per_jurisdiction['name']
         del units_per_jurisdiction['jurisdiction_id']
-        # bldgs_append = new_units_df.append(sr14yr)
+        # bldgs_append = new_units_df.append(chosen)
 
         # bldgs_append.reset_index(inplace=True)
 
