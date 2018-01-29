@@ -61,13 +61,13 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 parcels_picked.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True)
         else:
             # shuffle order of parcels
-            df_random_order = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
+            shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
             # get partial built parcels from <previous/current> year of simulation - not all capacity used
-            partial_built_parcel = df_random_order.loc[df_random_order.partial_build > 0]
+            previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
             # drop parcels that are partially developed
-            df_random_order = df_random_order[~df_random_order['parcel_id'].isin(partial_built_parcel.parcel_id.values.tolist())]
+            shuffled_parcels = shuffled_parcels[~shuffled_parcels['parcel_id'].isin(previously_picked.parcel_id.values.tolist())]
             # add partially built parcels to the top of the list to be developed first.
-            partial_then_random = pd.concat([partial_built_parcel, df_random_order])
+            partial_then_random = pd.concat([previously_picked, shuffled_parcels])
             one_row_per_unit = partial_then_random.reindex(partial_then_random.index.repeat(partial_then_random.remaining_capacity)).reset_index(drop=True)
 
             # del one_row_per_unit['remaining_capacity']
