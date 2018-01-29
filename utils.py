@@ -164,28 +164,15 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         target_units_for_geo = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
         geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
         print("Jurisdiction %d %s target units: %d" % (jur,geo_name,target_units_for_geo))
-
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
-
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
-        if len(chosen):
-            unit_count = chosen.residential_units_sim_yr.sum()
-        else: unit_count = 0
         sr14cap = sr14cap.append(chosen)
-        # orca.add_table('new_units', sr14cap)
-        sr14cap.index = sr14cap.index.astype(int)
-        # count units for debugging
-        dj = {'year': [year], 'jurisdiction': [geo_name], 'target_units_for_jur': [target_units_for_geo],
-              'target_units_for_region': [target_units], 'units_picked': [unit_count]}
 
-        jur_df = pd.DataFrame(data=dj)
-        units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
-
-    count_units_picked_remaining = 0
-    remaining_units = target_units - units_per_jurisdiction.units_picked.sum()
+    if len(sr14cap):
+        remaining_units = target_units - sr14cap.residential_units_sim_yr.sum()
+    else: remaining_units = target_units
 
     if remaining_units > 0:
-
         feasible_parcels_df = feasible_parcels_df.drop(['remaining_capacity'], 1)
         df_updated = feasible_parcels_df.join(sr14cap[['residential_units_sim_yr']])
         df_updated.residential_units_sim_yr = df_updated.residential_units_sim_yr.fillna(0)
@@ -197,38 +184,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         df_updated['partial_build'] = df_updated.residential_units_sim_yr
 
         chosen = parcel_picker(df_updated, remaining_units, "", year)
-        if len(chosen):
-            unit_count = chosen.residential_units_sim_yr.sum()
-        else: unit_count = 0
+
         sr14cap = sr14cap.append(chosen)
-        # orca.add_table('new_units', sr14cap)
-        sr14cap.index = sr14cap.index.astype(int)
-        units_by_jur = pd.DataFrame({'units_picked_remaining': chosen.
-                                 groupby(["jurisdiction_id"]).residential_units_sim_yr.sum()}).reset_index()
-
-        units_remaining_by_jur = units_by_jur.merge(jurs, on='jurisdiction_id')
-
-        # # count units for debugging
-        # dj = {'year': [year], 'jurisdiction': ['all'], 'target_units_for_jur': [0],
-        #       'target_units_for_region': [target_units], 'units_picked': [unit_count]}
-        #
-        # jur_df = pd.DataFrame(data=dj)
-        # units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
-
-        units_per_jurisdiction = units_per_jurisdiction.merge(units_remaining_by_jur, left_on='jurisdiction', right_on='name', how='left')
-
-        units_per_jurisdiction.units_picked_remaining = units_per_jurisdiction.units_picked_remaining.fillna(0)
-        count_units_picked_remaining = units_per_jurisdiction.units_picked_remaining.sum()
-        del units_per_jurisdiction['name']
-        del units_per_jurisdiction['jurisdiction_id']
-        # bldgs_append = sr14cap.append(chosen)
-
-        # bldgs_append.reset_index(inplace=True)
-
-    # sum units built over parcel id
-    # need grouping here because if remaining units picked from parcels that had partial build
-    # so some parcel ids in the dataframe twice
-
 
     # in case region wide targets less than zero
     if len(sr14cap) > 0:
@@ -271,22 +228,6 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
                          index=True) #no run ID -> appending to database
         '''
 
-        target_unit_sum = units_per_jurisdiction.loc[units_per_jurisdiction.jurisdiction!='all'].target_units_for_jur.sum()
-
-        # count units for debugging
-        dj = {'year': [year], 'jurisdiction': ['total'],
-              'target_units_for_jur': [target_unit_sum],
-              'target_units_for_region': [target_units],
-              'units_picked': [units_per_jurisdiction.units_picked.sum()],
-              'units_picked_remaining': [count_units_picked_remaining]}
-
-        jur_df = pd.DataFrame(data=dj)
-        units_per_jurisdiction = units_per_jurisdiction.append(jur_df)
-        units_summary = units_summary.append(units_per_jurisdiction)
-
-        uj = orca.get_table('uj').to_frame()
-        uj = uj.append(units_summary)
-        orca.add_table("uj", uj)
 
         sr14cap = sr14cap.reset_index()
         sr14cap['residential_units'] = sr14cap['residential_units_sim_yr']
