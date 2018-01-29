@@ -183,21 +183,14 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
     # in case region wide targets less than zero
     if len(sr14cap) > 0:
-        sr14cap = pd.DataFrame({'total_units_built': sr14cap.
+        sr14cap = pd.DataFrame({'residential_units_sim_yr': sr14cap.
                                             groupby(["parcel_id", "jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
                                                      "bldgs", "max_res_units"]).residential_units_sim_yr.sum()}).reset_index()
         sr14cap.set_index('parcel_id', inplace=True)
-        sr14cap.index = sr14cap.index.astype(int)
-        sr14cap.rename(columns={'total_units_built': 'residential_units_sim_yr'}, inplace=True)
-
         '''
             Join parcels with parcels that have new units on parcel_id (add net units column)
         '''
-
-        db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
-        mssql_engine = create_engine(db_connection_string)
-
         parcels = parcels.drop(['partial_build'], 1)
         sr14cap['partial_build'] = sr14cap.max_res_units - sr14cap.residential_units_sim_yr - sr14cap.residential_units
         parcels = parcels.join(sr14cap[['residential_units_sim_yr','partial_build']])
@@ -217,7 +210,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
             parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv')
         else:
             parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv', mode='a', header=False)
-    
+        db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
+        mssql_engine = create_engine(db_connection_string)
         parcels.to_sql(name='urbansim_lite_output_parcels', con=mssql_engine, schema='urbansim', if_exists='replace',
                          index=True) #no run ID -> appending to database
         '''
