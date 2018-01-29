@@ -161,13 +161,13 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
 
     for jur in jurs['jurisdiction_id'].tolist():
-        target_units_for_jur = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
-        jur_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
-        print("Jurisdiction %d %s target units: %d" % (jur,jur_name,target_units_for_jur))
+        target_units_for_geo = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
+        geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
+        print("Jurisdiction %d %s target units: %d" % (jur,geo_name,target_units_for_geo))
 
-        df_jur = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
+        parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
 
-        chosen = parcel_picker(df_jur, target_units_for_jur, jur_name, year)
+        chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
         if len(chosen):
             unit_count = chosen.residential_units_sim_yr.sum()
         else: unit_count = 0
@@ -175,7 +175,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         # orca.add_table('new_units', new_units_df)
         new_units_df.index = new_units_df.index.astype(int)
         # count units for debugging
-        dj = {'year': [year], 'jurisdiction': [jur_name], 'target_units_for_jur': [target_units_for_jur],
+        dj = {'year': [year], 'jurisdiction': [geo_name], 'target_units_for_jur': [target_units_for_geo],
               'target_units_for_region': [target_units], 'units_picked': [unit_count]}
 
         jur_df = pd.DataFrame(data=dj)
