@@ -67,7 +67,7 @@ jurisdictions_sql = '''
 
 dev_control = '''
 SELECT parcel_id
-      ,phase
+      ,phase as phase_yr_ctrl
       ,scenario
   FROM [urbansim].[urbansim].[urbansim_lite_dev_control]
   WHERE scenario = 0

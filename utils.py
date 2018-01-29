@@ -23,6 +23,8 @@ def largest_remainder_allocation(df, k):
 def initialize_tables():
     units_per_j = pd.DataFrame()
     orca.add_table("uj", units_per_j)
+    cap_results= pd.DataFrame()
+    orca.add_table('sr14cap_out',cap_results)
 
 
 def run_feasibility(parcels, year=None):
@@ -181,18 +183,16 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
         sr14cap = sr14cap.append(chosen)
 
-    # in case region wide targets less than zero
+
     if len(sr14cap) > 0:
+        # group by parcel id again if same parcel was picked
         sr14cap = pd.DataFrame({'residential_units_sim_yr': sr14cap.
                                             groupby(["parcel_id", "jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
                                                      "bldgs", "max_res_units"]).residential_units_sim_yr.sum()}).reset_index()
         sr14cap.set_index('parcel_id', inplace=True)
-        '''
-            Join parcels with parcels that have new units on parcel_id (add net units column)
-        '''
-        parcels = parcels.drop(['partial_build'], 1)
         sr14cap['partial_build'] = sr14cap.max_res_units - sr14cap.residential_units_sim_yr - sr14cap.residential_units
+        parcels = parcels.drop(['partial_build'], 1)
         parcels = parcels.join(sr14cap[['residential_units_sim_yr','partial_build']])
         parcels.residential_units_sim_yr = parcels.residential_units_sim_yr.fillna(0)
         parcels.partial_build = parcels.partial_build.fillna(0)
