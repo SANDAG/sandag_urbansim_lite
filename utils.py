@@ -56,27 +56,20 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
         if parcels_to_choose.remaining_capacity.sum() < target_number_of_units:
             print("WARNING THERE WERE NOT ENOUGH UNITS TO MATCH DEMAND FOR ", name_of_geo, "IN YEAR ", year_simulation)
             if len(parcels_to_choose):
-                parcels_picked= parcels_to_choose.copy()
+                parcels_picked= parcels_to_choose
                 parcels_picked['residential_units_sim_yr'] = parcels_picked['remaining_capacity']
                 parcels_picked.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True)
         else:
-            # shuffle order of parcels
             shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
-            # get partial built parcels from <previous/current> year of simulation - not all capacity used
             previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
-            # drop parcels that are partially developed
             shuffled_parcels = shuffled_parcels[~shuffled_parcels['parcel_id'].isin(previously_picked.parcel_id.values.tolist())]
-            # add partially built parcels to the top of the list to be developed first.
             partial_then_random = pd.concat([previously_picked, shuffled_parcels])
             one_row_per_unit = partial_then_random.reindex(partial_then_random.index.repeat(partial_then_random.remaining_capacity)).reset_index(drop=True)
-
-            # del one_row_per_unit['remaining_capacity']
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
-
-            # group by parcel id since more than one units may be picked on a parcel
-            parcels_picked= pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked .groupby(["parcel_id", "jurisdiction_id","capacity_base_yr", "residential_units","bldgs", "max_res_units"]).size()}).reset_index()
-            # parcels_picked_df.rename(columns = {'count_units_on_parcel': 'net_units'},inplace=True)
-
+            parcels_picked= pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
+                                         groupby(["parcel_id", "jurisdiction_id","capacity_base_yr",
+                                                  "residential_units","bldgs", "max_res_units"])
+                                         .size()}).reset_index()
             parcels_picked.set_index('parcel_id', inplace=True)
     return parcels_picked
 
