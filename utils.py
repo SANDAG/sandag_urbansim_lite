@@ -153,7 +153,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         Pick parcels to for new units
     '''
     # initialize dataframes for i/o tracking
-    new_units_df= pd.DataFrame()
+    sr14cap= pd.DataFrame()
     units_per_jurisdiction = pd.DataFrame()
     units_summary = pd.DataFrame()
 
@@ -171,9 +171,9 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         if len(chosen):
             unit_count = chosen.residential_units_sim_yr.sum()
         else: unit_count = 0
-        new_units_df = new_units_df.append(chosen)
-        # orca.add_table('new_units', new_units_df)
-        new_units_df.index = new_units_df.index.astype(int)
+        sr14cap = sr14cap.append(chosen)
+        # orca.add_table('new_units', sr14cap)
+        sr14cap.index = sr14cap.index.astype(int)
         # count units for debugging
         dj = {'year': [year], 'jurisdiction': [geo_name], 'target_units_for_jur': [target_units_for_geo],
               'target_units_for_region': [target_units], 'units_picked': [unit_count]}
@@ -187,7 +187,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     if remaining_units > 0:
 
         feasible_parcels_df = feasible_parcels_df.drop(['remaining_capacity'], 1)
-        df_updated = feasible_parcels_df.join(new_units_df[['residential_units_sim_yr']])
+        df_updated = feasible_parcels_df.join(sr14cap[['residential_units_sim_yr']])
         df_updated.residential_units_sim_yr = df_updated.residential_units_sim_yr.fillna(0)
         df_updated['remaining_capacity'] = df_updated.max_res_units - df_updated.residential_units - df_updated.residential_units_sim_yr
         # feasible_parcels = parcels.loc[parcels['max_res_units'] > parcels['residential_units']]
@@ -200,9 +200,9 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         if len(chosen):
             unit_count = chosen.residential_units_sim_yr.sum()
         else: unit_count = 0
-        new_units_df = new_units_df.append(chosen)
-        # orca.add_table('new_units', new_units_df)
-        new_units_df.index = new_units_df.index.astype(int)
+        sr14cap = sr14cap.append(chosen)
+        # orca.add_table('new_units', sr14cap)
+        sr14cap.index = sr14cap.index.astype(int)
         units_by_jur = pd.DataFrame({'units_picked_remaining': chosen.
                                  groupby(["jurisdiction_id"]).residential_units_sim_yr.sum()}).reset_index()
 
@@ -221,7 +221,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         count_units_picked_remaining = units_per_jurisdiction.units_picked_remaining.sum()
         del units_per_jurisdiction['name']
         del units_per_jurisdiction['jurisdiction_id']
-        # bldgs_append = new_units_df.append(chosen)
+        # bldgs_append = sr14cap.append(chosen)
 
         # bldgs_append.reset_index(inplace=True)
 
@@ -231,14 +231,14 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
 
     # in case region wide targets less than zero
-    if len(new_units_df) > 0:
-        new_units_grouped = pd.DataFrame({'total_units_built': new_units_df.
+    if len(sr14cap) > 0:
+        sr14cap = pd.DataFrame({'total_units_built': sr14cap.
                                             groupby(["parcel_id", "jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
                                                      "bldgs", "max_res_units"]).residential_units_sim_yr.sum()}).reset_index()
-        new_units_grouped.set_index('parcel_id', inplace=True)
-        new_units_grouped.index = new_units_grouped.index.astype(int)
-        new_units_grouped.rename(columns={'total_units_built': 'residential_units_sim_yr'}, inplace=True)
+        sr14cap.set_index('parcel_id', inplace=True)
+        sr14cap.index = sr14cap.index.astype(int)
+        sr14cap.rename(columns={'total_units_built': 'residential_units_sim_yr'}, inplace=True)
 
         '''
             Join parcels with parcels that have new units on parcel_id (add net units column)
@@ -248,8 +248,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         mssql_engine = create_engine(db_connection_string)
 
         parcels = parcels.drop(['partial_build'], 1)
-        new_units_grouped['partial_build'] = new_units_grouped.max_res_units - new_units_grouped.residential_units_sim_yr - new_units_grouped.residential_units
-        parcels = parcels.join(new_units_grouped[['residential_units_sim_yr','partial_build']])
+        sr14cap['partial_build'] = sr14cap.max_res_units - sr14cap.residential_units_sim_yr - sr14cap.residential_units
+        parcels = parcels.join(sr14cap[['residential_units_sim_yr','partial_build']])
         parcels.residential_units_sim_yr = parcels.residential_units_sim_yr.fillna(0)
         parcels.partial_build = parcels.partial_build.fillna(0)
         parcels['residential_units'] = parcels['residential_units'] + parcels['residential_units_sim_yr']
@@ -288,22 +288,22 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         uj = uj.append(units_summary)
         orca.add_table("uj", uj)
 
-        new_units_grouped = new_units_grouped.reset_index()
-        new_units_grouped['residential_units'] = new_units_grouped['residential_units_sim_yr']
+        sr14cap = sr14cap.reset_index()
+        sr14cap['residential_units'] = sr14cap['residential_units_sim_yr']
         # temporarily assign building type id
-        new_units_grouped['building_type_id'] = ''
+        sr14cap['building_type_id'] = ''
         if year is not None:
-            new_units_grouped["year_built"] = year
+            sr14cap["year_built"] = year
 
         print("Adding {:,} buildings with {:,} {}"
-              .format(len(new_units_grouped),
-                      int(new_units_grouped[supply_fname].sum()),
+              .format(len(sr14cap),
+                      int(sr14cap[supply_fname].sum()),
                       supply_fname))
         '''
             Merge old building with the new buildings
         '''
 
         all_buildings = dev.merge(buildings.to_frame(buildings.local_columns),
-                                  new_units_grouped[buildings.local_columns])
+                                  sr14cap[buildings.local_columns])
 
         orca.add_table("buildings", all_buildings)
