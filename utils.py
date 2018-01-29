@@ -24,6 +24,7 @@ def initialize_tables():
     units_per_j = pd.DataFrame()
     orca.add_table("uj", units_per_j)
 
+
 def run_feasibility(parcels, year=None):
     """
     Execute development feasibility on all parcels
@@ -44,7 +45,7 @@ def run_feasibility(parcels, year=None):
     parcels = parcels.join(devyear)
     feasible_parcels = parcels.loc[parcels['max_res_units'] > parcels['residential_units']]
     # Restrict feasibility to specific years, based on scenario (TBD)
-    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase'] < year]
+    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr_ctrl'] < year]
     # remove scheduled developments from feasibility table
     feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
     orca.add_table("feasibility", feasible_parcels)
@@ -153,10 +154,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         Pick parcels to for new units
     '''
     # initialize dataframes for i/o tracking
-    sr14cap= pd.DataFrame()
-    units_per_jurisdiction = pd.DataFrame()
-    units_summary = pd.DataFrame()
-
+    sr14cap = pd.DataFrame()
     feasible_parcels_df['remaining_capacity'] = (feasible_parcels_df.max_res_units - feasible_parcels_df.residential_units)
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
 
@@ -173,18 +171,14 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     else: remaining_units = target_units
 
     if remaining_units > 0:
-        feasible_parcels_df = feasible_parcels_df.drop(['remaining_capacity'], 1)
-        df_updated = feasible_parcels_df.join(sr14cap[['residential_units_sim_yr']])
-        df_updated.residential_units_sim_yr = df_updated.residential_units_sim_yr.fillna(0)
-        df_updated['remaining_capacity'] = df_updated.max_res_units - df_updated.residential_units - df_updated.residential_units_sim_yr
-        # feasible_parcels = parcels.loc[parcels['max_res_units'] > parcels['residential_units']]
-
-        df_updated.remaining_capacity = df_updated.remaining_capacity.astype(int)
-        df_updated = df_updated.loc[df_updated.remaining_capacity != 0]
-        df_updated['partial_build'] = df_updated.residential_units_sim_yr
-
-        chosen = parcel_picker(df_updated, remaining_units, "", year)
-
+        feasible_parcels_df = feasible_parcels_df.join(sr14cap[['residential_units_sim_yr']])
+        feasible_parcels_df.residential_units_sim_yr = feasible_parcels_df.residential_units_sim_yr.fillna(0)
+        feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.max_res_units - feasible_parcels_df.residential_units\
+                                                    - feasible_parcels_df.residential_units_sim_yr
+        feasible_parcels_df['remaining_capacity'] = feasible_parcels_df['remaining_capacity'].astype(int)
+        feasible_parcels_df= feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0]
+        feasible_parcels_df['partial_build'] = feasible_parcels_df.residential_units_sim_yr
+        chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
         sr14cap = sr14cap.append(chosen)
 
     # in case region wide targets less than zero
