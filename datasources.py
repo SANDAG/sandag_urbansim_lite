@@ -37,6 +37,13 @@ def jurisdictions(store):
     df = store['jurisdictions']
     return df
 
+
+@orca.table('luz', cache=True)
+def jurisdictions(store):
+    df = store['luz']
+    return df
+
+
 @orca.table('devyear', cache=True)
 def devyear(store):
     df = store['devyear']

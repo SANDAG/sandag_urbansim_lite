@@ -65,6 +65,13 @@ jurisdictions_sql = '''
   FROM urbansim.ref.jurisdiction
 '''
 
+luz_sql = '''
+ SELECT zone as luz_id
+       ,name
+  FROM [data_cafe].[ref].[geography_zone]
+  WHERE geography_type_id = 64
+'''
+
 dev_control = '''
 SELECT parcel_id
       ,phase as phase_yr_ctrl
@@ -83,6 +90,8 @@ regional_controls_df['control_type'] = regional_controls_df['control_type'].asty
 regional_controls_df['geo'] = regional_controls_df['geo'].astype(str)
 jurisdictions_df = pd.read_sql(jurisdictions_sql, mssql_engine)
 jurisdictions_df['name'] = jurisdictions_df['name'].astype(str)
+luz_df = pd.read_sql(luz_sql, mssql_engine)
+luz_df['name'] = luz_df['name'].astype(str)
 
 with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('parcels', parcels_df, format='table')
@@ -90,4 +99,5 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('buildings', buildings_df, format='table')
     store.put('regional_controls', regional_controls_df, format='table')
     store.put('jurisdictions', jurisdictions_df, format='table')
+    store.put('luz', luz_df, format='table')
     store.put('devyear', devyear_df, format='table')
