@@ -10,6 +10,7 @@ parcels_sql = '''
                                   count(building_id) AS num_of_bldgs
                            FROM   urbansim.urbansim.building GROUP BY parcel_id)
   SELECT parcels.parcel_id, parcels.jurisdiction_id, parcels.site_id,
+         parcels.luz_id,
          parcels.capacity AS capacity_base_yr, 
          COALESCE(bldgs_by_parcel.residential_units,0) AS residential_units,
          COALESCE(bldgs_by_parcel.num_of_bldgs,0) AS bldgs,
