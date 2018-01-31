@@ -77,7 +77,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
     return parcels_picked
 
 
-def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions, supply_fname,
+def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions, luz, supply_fname,
                   total_units, feasibility, year=None,
                   target_vacancy=.03, form_to_btype_callback=None,
                   add_more_columns_callback=None, max_parcel_size=200000,
@@ -118,7 +118,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     dev = developer.Developer(feasibility.to_frame())
     control_totals = reg_controls.to_frame()
     jurs = jurisdictions.to_frame()
-
+    luz = luz.to_frame()
     control_totals_by_year =  control_totals.loc[control_totals.yr == year].copy()
 
     # target units is num of households minus existing residential units
@@ -160,11 +160,11 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     feasible_parcels_df['remaining_capacity'] = (feasible_parcels_df.max_res_units - feasible_parcels_df.residential_units)
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
 
-    for luz in list(range(1,230)):
-        target_units_for_geo = subregional_targets.loc[subregional_targets['geo_id']==luz].targets.values[0]
-        geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
-        print("Jurisdiction %d %s target units: %d" % (jur,geo_name,target_units_for_geo))
-        parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
+    for luz_id in list(range(1,230)):
+        target_units_for_geo = subregional_targets.loc[subregional_targets['geo_id']==luz_id].targets.values[0]
+        geo_name = luz.loc[luz.luz_id == luz_id].name.values[0]
+        print("Luz %d %s target units: %d" % (luz_id,geo_name,target_units_for_geo))
+        parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['luz_id'] == luz_id].copy()
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
         sr14cap = sr14cap.append(chosen)
 

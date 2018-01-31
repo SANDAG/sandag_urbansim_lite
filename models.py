@@ -14,13 +14,14 @@ def feasibility(parcels, year):
 
 
 @orca.step('residential_developer')
-def residential_developer(feasibility, households, buildings, parcels, year, regional_controls, jurisdictions):
+def residential_developer(feasibility, households, buildings, parcels, year, regional_controls, jurisdictions,luz):
     utils.run_developer(forms=None,
                         parcels=parcels,
                         agents=households,
                         buildings=buildings,
                         reg_controls=regional_controls,
                         jurisdictions=jurisdictions,
+                        luz=luz,
                         supply_fname="residential_units",
                         total_units=parcels.residential_units,
                         feasibility=feasibility,
