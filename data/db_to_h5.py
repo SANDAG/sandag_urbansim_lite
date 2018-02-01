@@ -12,6 +12,7 @@ parcels_sql = '''
   SELECT parcels.parcel_id, parcels.jurisdiction_id, parcels.site_id,
          parcels.luz_id,
          parcels.capacity AS capacity_base_yr, 
+         COALESCE(bldgs_by_parcel.residential_units,0) AS base_yr_residential_units,
          COALESCE(bldgs_by_parcel.residential_units,0) AS residential_units,
          COALESCE(bldgs_by_parcel.num_of_bldgs,0) AS bldgs,
          0 as partial_build
@@ -39,14 +40,22 @@ households_sql = '''
 #   ORDER BY yr
 # '''
 
+
+
+
 buildings_sql = '''
   SELECT building_id
-        ,parcel_id
-        ,COALESCE(development_type_id,0) AS building_type_id
+        ,bldgs.parcel_id
+        ,COALESCE(bldgs.development_type_id,0) AS building_type_id
         ,COALESCE(residential_units,0) AS residential_units
         ,COALESCE(year_built,0) AS year_built
-  FROM urbansim.urbansim.building
+		,COALESCE(parcels.capacity,0)  AS capacity_base_yr
+		,COALESCE(parcels.capacity,0) AS remaining_capacity
+  FROM urbansim.urbansim.building bldgs
+  JOIN  urbansim.urbansim.parcel parcels
+  ON bldgs.parcel_id = parcels.parcel_id
 '''
+
 
 # Dwelling unit controls
 regional_capacity_controls_sql = '''

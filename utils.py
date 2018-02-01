@@ -59,9 +59,9 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
         if parcels_to_choose.remaining_capacity.sum() < target_number_of_units:
             print("WARNING THERE WERE NOT ENOUGH UNITS TO MATCH DEMAND FOR ", name_of_geo, "IN YEAR ", year_simulation)
             if len(parcels_to_choose):
-                parcels_picked= parcels_to_choose
+                parcels_picked = parcels_to_choose
                 parcels_picked['residential_units_sim_yr'] = parcels_picked['remaining_capacity']
-                parcels_picked.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True)
+                parcels_picked.drop(['site_id'], axis=1, inplace=True)
         else:
             shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
             previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
@@ -71,7 +71,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
             parcels_picked= pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
                                          groupby(["parcel_id", "jurisdiction_id","capacity_base_yr",
-                                                  "residential_units","bldgs", "max_res_units"])
+                                                  "residential_units","bldgs", "max_res_units","remaining_capacity"])
                                          .size()}).reset_index()
             parcels_picked.set_index('parcel_id', inplace=True)
     return parcels_picked
@@ -192,18 +192,27 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
                                                      "bldgs", "max_res_units"]).residential_units_sim_yr.sum()}).reset_index()
         sr14cap.set_index('parcel_id', inplace=True)
         sr14cap['partial_build'] = sr14cap.max_res_units - sr14cap.residential_units_sim_yr - sr14cap.residential_units
+        sr14cap['remaining_capacity'] =  sr14cap.max_res_units -  sr14cap.residential_units -  sr14cap.residential_units_sim_yr
         parcels = parcels.drop(['partial_build'], 1)
+
+
         parcels = parcels.join(sr14cap[['residential_units_sim_yr','partial_build']])
+
+
         parcels.residential_units_sim_yr = parcels.residential_units_sim_yr.fillna(0)
         parcels.partial_build = parcels.partial_build.fillna(0)
+        parcels['remaining_capacity'] = parcels.max_res_units - parcels.residential_units - parcels.residential_units_sim_yr
         parcels['residential_units'] = parcels['residential_units'] + parcels['residential_units_sim_yr']
         parcels = parcels.drop(['residential_units_sim_yr'], 1)
         orca.add_table("parcels", parcels)
 
         #This creates a new file of parcel info for each year
-        # parcels['year'] = year
-        #yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
-        #parcels.to_csv(yname)
+        #parcels['year'] = year
+        # yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
+        #yname = 'data\\outputs\\urbansim_lite_parcels_{}.csv'.format(year)
+
+        # parcels[['parcel_id','jurisdiction_id','luz_id','base_yr_residential_units','capacity_base_yr']].to_csv(yname)
+
         '''
         #This loop can write the all the parcels for each year as one (very large) .csv file.
         if year == 2020:
