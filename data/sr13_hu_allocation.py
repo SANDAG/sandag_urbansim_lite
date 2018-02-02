@@ -26,21 +26,9 @@ sr13_sql_match = '''
 sr13_hu_df = pd.read_sql(sr13_sql_match, mssql_engine)
 sr13_hu_df['jurisdiction'] = sr13_hu_df['jurisdiction'].astype(str)
 
-for decade in sr13_hu_df['yr_from'].tolist():
-    if
-
-
-    str(decade)_allocation = sr13_hu_df.loc[sr13_hu_df['yr_from'] == decade].hu_change.sum()
-    print(decade,"allocation is",decade_allocation) # the scalar is correct
-
-sr13_hu_df['decade_allocation_by_jur'] = sr13_hu_df.apply(sr13_hu_df.hu_change/sr13_hu_df.loc[sr13_hu_df['yr_from']].hu_change.sum()) #.hu_change / decade_allocation
-
-
-
-for jur in jurs['jurisdiction_id'].tolist():
-    target_units_for_geo = subregional_targets.loc[subregional_targets['geo_id'] == jur].targets.values[0]
-    geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
-    print("Jurisdiction %d %s target units: %d" % (jur, geo_name, target_units_for_geo))
-    parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
-    chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
-    sr14cap = sr14cap.append(chosen)
+sr13_hu_df['d_alloc'] = sr13_hu_df.hu_change
+for decade in sr13_hu_df['yr_from'].unique():
+    decade_allocation = sr13_hu_df.loc[sr13_hu_df['yr_from'] == decade].hu_change.sum()
+    print("%d allocation is %d" % (decade,decade_allocation))
+    sr13_hu_df.loc[sr13_hu_df.yr_from == decade, 'd_alloc'] = sr13_hu_df.d_alloc / decade_allocation
+print(sr13_hu_df.d_alloc.sum())
