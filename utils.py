@@ -65,14 +65,26 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
         else:
             shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
             previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
-            shuffled_parcels = shuffled_parcels[~shuffled_parcels['parcel_id'].isin(previously_picked.parcel_id.values.tolist())]
-            partial_then_random = pd.concat([previously_picked, shuffled_parcels])
-            one_row_per_unit = partial_then_random.reindex(partial_then_random.index.repeat(partial_then_random.remaining_capacity)).reset_index(drop=True)
+            shuffled_parcels['project_urgency'] = (shuffled_parcels.remaining_capacity - 250)/(2051 - year_simulation + 1)
+            if shuffled_parcels.project_urgency.max() > 500:
+                large_projects = shuffled_parcels.loc[shuffled_parcels.project_size > 500]
+                priority_parcels = pd.concat([previously_picked, large_projects])
+            else:
+                priority_parcels = pd.concat([previously_picked])
+            shuffled_parcels = shuffled_parcels[
+                ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
+            priority_then_random = pd.concat([priority_parcels, shuffled_parcels])
+            priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
+            large_build_checker = priority_then_random.remaining_capacity >= 250
+            priority_then_random.loc[large_build_checker, 'units_for_year'] = 250
+            max_build_checker = priority_then_random.partial_build >= 500
+            priority_then_random.loc[max_build_checker, 'units_for_year'] = 500
+            one_row_per_unit = priority_then_random.reindex(priority_then_random.index.repeat(priority_then_random.units_for_year)).reset_index(drop=True)
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
-            parcels_picked= pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
-                                         groupby(["parcel_id", "jurisdiction_id","capacity_base_yr",
-                                                  "residential_units","bldgs", "max_res_units"])
-                                         .size()}).reset_index()
+            parcels_picked = pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
+                                          groupby(["parcel_id", "jurisdiction_id", "capacity_base_yr",
+                                                   "residential_units", "bldgs", "max_res_units"])
+                                          .size()}).reset_index()
             parcels_picked.set_index('parcel_id', inplace=True)
     return parcels_picked
 
