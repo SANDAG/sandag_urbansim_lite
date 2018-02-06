@@ -67,7 +67,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
             shuffled_parcels['project_urgency'] = (shuffled_parcels.remaining_capacity - 250)/(2051 - year_simulation + 1)
             if shuffled_parcels.project_urgency.max() > 500:
-                large_projects = shuffled_parcels.loc[shuffled_parcels.project_size > 500]
+                large_projects = shuffled_parcels.loc[shuffled_parcels.project_urgency > 500]
                 priority_parcels = pd.concat([previously_picked, large_projects])
             else:
                 priority_parcels = pd.concat([previously_picked])
