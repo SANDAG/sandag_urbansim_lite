@@ -10,8 +10,7 @@ tran = conn.begin()
 try:
     conn.execute(
         """
-        TRUNCATE TABLE urbansim.urbansim.urbansim_lite_output_parcels
-        BULK INSERT urbansim.urbansim.urbansim_lite_output_parcels
+        BULK INSERT urbansim.urbansim.residential_control
         FROM "\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels.csv"
         WITH (
         FIRSTROW = 2,
