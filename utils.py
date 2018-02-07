@@ -65,12 +65,12 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
         else:
             shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
             previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
-            shuffled_parcels['project_urgency'] = (shuffled_parcels.remaining_capacity - 250)/(2051 - year_simulation + 1)
-            if shuffled_parcels.project_urgency.max() > 500:
-                large_projects = shuffled_parcels.loc[shuffled_parcels.project_urgency > 500]
-                priority_parcels = pd.concat([previously_picked, large_projects])
-            else:
-                priority_parcels = pd.concat([previously_picked])
+            # shuffled_parcels['project_urgency'] = (shuffled_parcels.remaining_capacity - 250)/(2051 - year_simulation + 1)
+            #if shuffled_parcels.project_urgency.max() > 500:
+            #    large_projects = shuffled_parcels.loc[shuffled_parcels.project_urgency > 500]
+            #    priority_parcels = pd.concat([previously_picked, large_projects])
+            #else:
+            priority_parcels = pd.concat([previously_picked])
             shuffled_parcels = shuffled_parcels[
                 ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
             priority_then_random = pd.concat([priority_parcels, shuffled_parcels])
