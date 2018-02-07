@@ -57,7 +57,7 @@ regional_capacity_controls_sql = '''
         ,control
         ,control_type
   FROM urbansim.urbansim.residential_control
-  WHERE scenario = 1
+  WHERE scenario = 3
 '''
 
 jurisdictions_sql = '''

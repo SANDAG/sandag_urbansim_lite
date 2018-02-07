@@ -39,11 +39,21 @@ print(sr13_hu_df.control.sum()/number_periods, "Should equal 1!")
 sr14_res_control = sr13_hu_df.reindex(sr13_hu_df.index.repeat(sr13_hu_df.yr_to - sr13_hu_df.yr_from)).reset_index(drop=True)
 sr14_res_control['scenario'] = 3
 sr14_res_control.rename(columns={'jurisdiction_id':'geo_id','yr_from': 'yr'},inplace=True)
+
+# add one to year to start at 2021 and finish 2050 (sched dev before that)
+sr14_res_control['yr'] = sr14_res_control.yr + 1
+
 while any(sr14_res_control.duplicated()):
     sr14_res_control['year_maker'] = sr14_res_control.duplicated()
     sr14_res_control.loc[sr14_res_control.year_maker == True, 'yr'] = sr14_res_control.yr + 1
 
 sr14_res_control = sr14_res_control.drop(['jurisdiction', 'hu_change', 'yr_to', 'year_maker'], axis=1)
 sr14_res_control.sort_values(by=['yr','geo_id'],inplace=True)
-#needs to be written to database
-#sr14_res_control.to_csv('data/sr14_res_control.csv')
+sr14_res_control['geo'] = 'jurisdiction'
+sr14_res_control['control_type'] = 'percentage'
+
+# to write to csv
+# sr14_res_control.to_csv('sr14_res_control.csv')
+
+# to write to database
+# sr14_res_control.to_sql(name='residential_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')

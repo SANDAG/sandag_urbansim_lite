@@ -10,7 +10,7 @@ utils.initialize_tables()
 orca.run([
     "feasibility",
     "residential_developer"
-     ], iter_vars=range(2020, 2051))
+     ], iter_vars=range(2021, 2051))
 
 
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
