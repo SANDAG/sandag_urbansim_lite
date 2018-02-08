@@ -5,6 +5,7 @@ from pysandag.database import get_connection_string
 db_connection_string = get_connection_string('config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
+# includes sched dev
 sr13_sql_match = '''
     SELECT c.jurisdiction, c.jurisdiction_id, c.yr_from, c.yr_to, c.hu_change
     FROM (SELECT a.jurisdiction, a.jurisdiction_id, a.yr_id AS yr_from, b.yr_id AS yr_to
@@ -23,7 +24,32 @@ sr13_sql_match = '''
     ON a.jurisdiction_id = b.jurisdiction_id and a.yr_id = b.yr_id-5) AS c
     ORDER BY yr_from, jurisdiction_id
 '''
-sr13_hu_df = pd.read_sql(sr13_sql_match, mssql_engine)
+
+# without sched dev
+sr13_sql_match_san_sched_dev = '''
+    SELECT '' as jurisdiction, c.City AS jurisdiction_id, c.yr_from, c.yr_to, c.hu_change
+    FROM (SELECT a.City, a.increment AS yr_from, b.increment AS yr_to
+    ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
+    FROM (SELECT y.City, x.increment, sum([hs]) AS hu
+    FROM [regional_forecast].[sr13_final].[capacity] x
+    inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
+    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050)
+    and x.site = 0 
+    GROUP BY y.City, x.increment) AS a
+    inner join 
+    (SELECT y.City, x.increment, sum([hs]) AS hu
+    FROM [regional_forecast].[sr13_final].[capacity] x
+    inner join [regional_forecast].[sr13_final].[mgra13] AS y ON x.mgra = y.mgra
+    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050) 
+    and x.site = 0
+    GROUP BY y.City, x.increment) as b
+    ON a.City = b.City and a.increment = b.increment-5) AS c
+    ORDER BY yr_from, City
+'''
+
+# choose which sql to use - with or without sched dev included
+sr13_hu_df = pd.read_sql(sr13_sql_match_san_sched_dev, mssql_engine)
+
 sr13_hu_df['jurisdiction'] = sr13_hu_df['jurisdiction'].astype(str)
 
 
@@ -37,7 +63,7 @@ for period in sr13_hu_df['yr_from'].unique():
 print(sr13_hu_df.control.sum()/number_periods, "Should equal 1!")
 
 sr14_res_control = sr13_hu_df.reindex(sr13_hu_df.index.repeat(sr13_hu_df.yr_to - sr13_hu_df.yr_from)).reset_index(drop=True)
-sr14_res_control['scenario'] = 3
+sr14_res_control['scenario'] = 4
 sr14_res_control.rename(columns={'jurisdiction_id':'geo_id','yr_from': 'yr'},inplace=True)
 
 # add one to year to start at 2021 and finish 2050 (sched dev before that)
