@@ -158,3 +158,27 @@ sr14_res_control = sr14_res_control[['scenario','yr','geo','geo_id','control','c
 
 # to write to database
 # sr14_res_control.to_sql(name='residential_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
+
+
+# add name to cpa...
+city_by_cpa = '''
+    SELECT '' as jurisdiction, c.City AS jurisdiction_id,c.CPA, c.yr_from, c.yr_to, c.hu_change
+    FROM (SELECT a.City,a.CPA, a.increment AS yr_from, b.increment AS yr_to
+    ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
+    FROM (SELECT y.CPA,y.City, x.increment, sum([hs]) AS hu
+    FROM [regional_forecast].[sr13_final].[capacity] x
+    inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
+    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050)
+    and x.site = 0 
+    GROUP BY y.CPA,y.City, x.increment) AS a
+    inner join 
+    (SELECT y.CPA,y.City, x.increment, sum([hs]) AS hu
+    FROM [regional_forecast].[sr13_final].[capacity] x
+    inner join [regional_forecast].[sr13_final].[mgra13] AS y ON x.mgra = y.mgra
+    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050) 
+    and x.site = 0
+    GROUP BY y.CPA,y.City, x.increment) as b
+    ON a.CPA = b.CPA and a.increment = b.increment-5) AS c
+	where City = 14
+    ORDER BY yr_from, City
+    '''
