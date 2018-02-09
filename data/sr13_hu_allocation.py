@@ -162,15 +162,16 @@ sr14_res_control = sr14_res_control[['scenario','yr','geo','geo_id','control','c
 
 # add name to cpa...
 city_by_cpa = '''
-    SELECT '' as jurisdiction, c.City AS jurisdiction_id,c.CPA, c.yr_from, c.yr_to, c.hu_change
-    FROM (SELECT a.City,a.CPA, a.increment AS yr_from, b.increment AS yr_to
+	SELECT '' as jurisdiction, c.name as CPA_name, c.City AS jurisdiction_id,c.CPA, c.yr_from, c.yr_to, c.hu_change
+    FROM (SELECT a.City,a.CPA,a.name, a.increment AS yr_from, b.increment AS yr_to
     ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
-    FROM (SELECT y.CPA,y.City, x.increment, sum([hs]) AS hu
+    FROM (SELECT y.CPA,g.name,y.City, x.increment, sum([hs]) AS hu
     FROM [regional_forecast].[sr13_final].[capacity] x
     inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
+	inner join data_cafe.ref.geography_zone	as g on g.zone = y.CPA
     WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050)
-    and x.site = 0 
-    GROUP BY y.CPA,y.City, x.increment) AS a
+    and x.site = 0  and  g.geography_type_id = 15 
+    GROUP BY y.CPA,y.City, x.increment,g.name) AS a
     inner join 
     (SELECT y.CPA,y.City, x.increment, sum([hs]) AS hu
     FROM [regional_forecast].[sr13_final].[capacity] x
