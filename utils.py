@@ -174,12 +174,14 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     sr14cap = pd.DataFrame()
     feasible_parcels_df['remaining_capacity'] = (feasible_parcels_df.max_res_units - feasible_parcels_df.residential_units)
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
-
-    for jur in jurs['jurisdiction_id'].tolist():
+    for jur in control_totals.geo_id.unique().tolist():
+    # for jur in jurs['jurisdiction_id'].tolist():
         target_units_for_geo = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
-        geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
+        # geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
+        geo_name = str(jur)
         print("Jurisdiction %d %s target units: %d" % (jur,geo_name,target_units_for_geo))
-        parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
+        # parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
+        parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
         sr14cap = sr14cap.append(chosen)
 
