@@ -20,6 +20,57 @@ parcels_sql = '''
   WHERE parcels.capacity > 0
 '''
 
+city_sql = '''
+  WITH bldgs_by_parcel AS (SELECT parcel_id, SUM(residential_units) AS residential_units, 
+                                  count(building_id) AS num_of_bldgs
+                           FROM   urbansim.urbansim.building GROUP BY parcel_id)
+  SELECT parcels.parcel_id, parcels.jurisdiction_id, parcels.site_id,
+         parcels.capacity AS capacity_base_yr, cicpa_13 as jur_or_cpa_id,
+         COALESCE(bldgs_by_parcel.residential_units,0) AS residential_units,
+         COALESCE(bldgs_by_parcel.num_of_bldgs,0) AS bldgs,
+         0 as partial_build
+  FROM urbansim.urbansim.parcel parcels
+  LEFT JOIN bldgs_by_parcel 
+  ON bldgs_by_parcel.parcel_id = parcels.parcel_id
+  JOIN data_cafe.ref.vi_xref_geography_mgra_13   as x on x.mgra_13 = parcels.mgra_id
+  JOIN data_cafe.ref.geography_zone				 as g on x.cicpa_13 = g.zone 
+  WHERE parcels.capacity > 0  and  jurisdiction_id = 14 and g.geography_type_id = 15
+  '''
+
+
+county_sql = '''
+  WITH bldgs_by_parcel AS (SELECT parcel_id, SUM(residential_units) AS residential_units, 
+                                  count(building_id) AS num_of_bldgs
+                           FROM   urbansim.urbansim.building GROUP BY parcel_id)
+  SELECT parcels.parcel_id, parcels.jurisdiction_id, parcels.site_id,
+         parcels.capacity AS capacity_base_yr, cocpa_13 as  jur_or_cpa_id,
+         COALESCE(bldgs_by_parcel.residential_units,0) AS residential_units,
+         COALESCE(bldgs_by_parcel.num_of_bldgs,0) AS bldgs,
+         0 as partial_build
+  FROM urbansim.urbansim.parcel parcels
+  LEFT JOIN bldgs_by_parcel 
+  ON bldgs_by_parcel.parcel_id = parcels.parcel_id
+  JOIN data_cafe.ref.vi_xref_geography_mgra_13   as x on x.mgra_13 = parcels.mgra_id
+  JOIN data_cafe.ref.geography_zone				 as g on x.cocpa_13 = g.zone 
+  WHERE parcels.capacity > 0  and  jurisdiction_id = 19 and g.geography_type_id = 20
+  '''
+
+all_but_city_county = '''
+  WITH bldgs_by_parcel AS (SELECT parcel_id, SUM(residential_units) AS residential_units, 
+                                  count(building_id) AS num_of_bldgs
+                           FROM   urbansim.urbansim.building GROUP BY parcel_id)
+  SELECT parcels.parcel_id, parcels.jurisdiction_id, parcels.site_id,
+         parcels.capacity AS capacity_base_yr, parcels.jurisdiction_id as  jur_or_cpa_id,
+         COALESCE(bldgs_by_parcel.residential_units,0) AS residential_units,
+         COALESCE(bldgs_by_parcel.num_of_bldgs,0) AS bldgs,
+         0 as partial_build
+  FROM urbansim.urbansim.parcel parcels
+  LEFT JOIN bldgs_by_parcel 
+  ON bldgs_by_parcel.parcel_id = parcels.parcel_id
+  WHERE parcels.capacity > 0  and  jurisdiction_id NOT IN (14, 19)
+  '''
+
+
 ## Household controls (agents)
 households_sql = '''
   SELECT yr AS year,
@@ -56,7 +107,12 @@ regional_capacity_controls_sql = '''
         ,geo_id
         ,control
         ,control_type
+<<<<<<< HEAD
   FROM [urbansim].[urbansim].[urbansim_lite_subregional_control]
+=======
+        ,max_units
+  FROM urbansim.urbansim.urbansim_lite_subregional_control
+>>>>>>> cpa
   WHERE scenario = 1
 '''
 
@@ -69,15 +125,31 @@ dev_control = '''
 SELECT parcel_id
       ,phase as phase_yr_ctrl
       ,scenario
+<<<<<<< HEAD
   FROM [urbansim].[urbansim].[urbansim_lite_parcel_control]
+=======
+  FROM urbansim.urbansim.urbansim_lite_parcel_control
+>>>>>>> cpa
   WHERE scenario = 0
 '''
+
+
+parcels1_df = pd.read_sql(city_sql, mssql_engine, index_col='parcel_id')
+parcels2_df = pd.read_sql(county_sql, mssql_engine, index_col='parcel_id')
+parcels3_df = pd.read_sql(all_but_city_county, mssql_engine, index_col='parcel_id')
+
+parcels_df = pd.concat([parcels1_df,parcels2_df,parcels3_df])
+
+# parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
+parcels_df['buildout'] = parcels_df['capacity_base_yr'] + parcels_df['residential_units']
+
+
 
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
 buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
 devyear_df = pd.read_sql(dev_control, mssql_engine, index_col='parcel_id')
-parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
-parcels_df['max_res_units'] = parcels_df['capacity_base_yr'] + parcels_df['residential_units']
+# parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
+# parcels_df['max_res_units'] = parcels_df['capacity_base_yr'] + parcels_df['residential_units']
 regional_controls_df = pd.read_sql(regional_capacity_controls_sql, mssql_engine)
 regional_controls_df['control_type'] = regional_controls_df['control_type'].astype(str)
 regional_controls_df['geo'] = regional_controls_df['geo'].astype(str)
