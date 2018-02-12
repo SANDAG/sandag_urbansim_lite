@@ -27,14 +27,14 @@ buildings_out.rename(columns = {'residential_units': 'units_added'},inplace=True
 
 run_id_sql = '''
 SELECT max(run_id)
-  FROM [urbansim].[urbansim].[urbansim_lite_output_units]
+  FROM [urbansim].[urbansim].[urbansim_lite_output]
 '''
 run_id_df = pd.read_sql(run_id_sql, mssql_engine)
 run_id = int(run_id_df.values)
 
 index_sql = '''
 SELECT max([units_index])
-  FROM [urbansim].[urbansim].[urbansim_lite_output_units]
+  FROM [urbansim].[urbansim].[urbansim_lite_output]
 '''
 index_df = pd.read_sql(index_sql, mssql_engine)
 max_id = int(index_df.values)
