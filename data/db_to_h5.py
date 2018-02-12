@@ -107,12 +107,8 @@ regional_capacity_controls_sql = '''
         ,geo_id
         ,control
         ,control_type
-<<<<<<< HEAD
-  FROM [urbansim].[urbansim].[urbansim_lite_subregional_control]
-=======
         ,max_units
   FROM urbansim.urbansim.urbansim_lite_subregional_control
->>>>>>> cpa
   WHERE scenario = 1
 '''
 
@@ -125,11 +121,7 @@ dev_control = '''
 SELECT parcel_id
       ,phase as phase_yr_ctrl
       ,scenario
-<<<<<<< HEAD
-  FROM [urbansim].[urbansim].[urbansim_lite_parcel_control]
-=======
   FROM urbansim.urbansim.urbansim_lite_parcel_control
->>>>>>> cpa
   WHERE scenario = 0
 '''
 
