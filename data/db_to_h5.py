@@ -56,8 +56,8 @@ regional_capacity_controls_sql = '''
         ,geo_id
         ,control
         ,control_type
-  FROM urbansim.urbansim.residential_control
-  WHERE scenario = 6
+  FROM [urbansim].[urbansim].[urbansim_lite_subregional_control]
+  WHERE scenario = 1
 '''
 
 jurisdictions_sql = '''
@@ -69,7 +69,7 @@ dev_control = '''
 SELECT parcel_id
       ,phase as phase_yr_ctrl
       ,scenario
-  FROM [urbansim].[urbansim].[urbansim_lite_dev_control]
+  FROM [urbansim].[urbansim].[urbansim_lite_parcel_control]
   WHERE scenario = 0
 '''
 
