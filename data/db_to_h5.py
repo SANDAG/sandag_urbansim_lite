@@ -132,7 +132,7 @@ parcels3_df = pd.read_sql(all_but_city_county, mssql_engine, index_col='parcel_i
 parcels_df = pd.concat([parcels1_df,parcels2_df,parcels3_df])
 
 # parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
-parcels_df['max_res_units'] = parcels_df['capacity_base_yr'] + parcels_df['residential_units']
+parcels_df['buildout'] = parcels_df['capacity_base_yr'] + parcels_df['residential_units']
 
 
 
