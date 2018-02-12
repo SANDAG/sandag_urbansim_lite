@@ -52,17 +52,17 @@ sr13_sql_match_san_sched_dev = '''
 '''
 
 ################################
-# add name to cpa...
+# add cpa
 ################################
-# San Deigo, jurisdiction_id = 14
+# San Diego, jurisdiction_id = 14
 sd_by_cpa = '''
-	SELECT c.name as cpa_name, c.City AS jurisdiction_id,c.cpa, c.yr_from, c.yr_to, c.hu_change
+    SELECT c.name as cpa_name, c.City AS jurisdiction_id,c.cpa, c.yr_from, c.yr_to, c.hu_change
     FROM (SELECT a.City,a.cpa,a.name, a.increment AS yr_from, b.increment AS yr_to
     ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
     FROM (SELECT y.cpa,g.name,y.City, x.increment, sum([hs]) AS hu
     FROM [regional_forecast].[sr13_final].[capacity] x
     inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
-	inner join data_cafe.ref.geography_zone	as g on g.zone = y.cpa
+    inner join data_cafe.ref.geography_zone	as g on g.zone = y.cpa
     WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050)
     and x.site = 0  and g.geography_type_id = 15
     GROUP BY y.cpa,y.City, x.increment,g.name) AS a
@@ -74,20 +74,20 @@ sd_by_cpa = '''
     and x.site = 0
     GROUP BY y.cpa,y.City, x.increment) as b
     ON a.cpa = b.cpa and a.increment = b.increment-5) AS c
-	where City = 14
+    WHERE City = 14
     ORDER BY yr_from, City
     '''
 cpa_sd_df = pd.read_sql(sd_by_cpa, mssql_engine)
 
 # Unincorporated, jurisdiction_id = 19
 unincorp_by_cpa = '''
-	SELECT c.name as cpa_name, c.City AS jurisdiction_id,c.cpa, c.yr_from, c.yr_to, c.hu_change
+    SELECT c.name as cpa_name, c.City AS jurisdiction_id,c.cpa, c.yr_from, c.yr_to, c.hu_change
     FROM (SELECT a.City,a.cpa,a.name, a.increment AS yr_from, b.increment AS yr_to
     ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
     FROM (SELECT y.cpa,g.name,y.City, x.increment, sum([hs]) AS hu
     FROM [regional_forecast].[sr13_final].[capacity] x
     inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
-	inner join data_cafe.ref.geography_zone	as g on g.zone = y.cpa
+    inner join data_cafe.ref.geography_zone	as g on g.zone = y.cpa
     WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050)
     and x.site = 0  and g.geography_type_id = 20
     GROUP BY y.cpa,y.City, x.increment,g.name) AS a
@@ -99,7 +99,7 @@ unincorp_by_cpa = '''
     and x.site = 0
     GROUP BY y.cpa,y.City, x.increment) as b
     ON a.cpa = b.cpa and a.increment = b.increment-5) AS c
-	where City = 19
+    WHERE City = 19
     ORDER BY yr_from, City
     '''
 cpa_unincorp_df = pd.read_sql(unincorp_by_cpa, mssql_engine)
@@ -223,17 +223,18 @@ sr14_res_control.geo_id = sr14_res_control.geo_id.astype(int)
 # formalize dataframe for exporting
 ########################################
 ## Be sure to change scenario!
-# scenario 7 has cpa for San Diego and Unincorporated (jurisdiction_id 14 and 19)
+# scenario 1 has cpa for San Diego and Unincorporated (jurisdiction_id 14 and 19)
 ########################################
-sr14_res_control['scenario'] = 7
+sr14_res_control['scenario'] = 1
+sr14_res_control['scenario_desc'] = 'jurisdictions and cpa for city and county'
 sr14_res_control['control_type'] = 'percentage'
 sr14_res_control = sr14_res_control.reset_index()
 
 # to write to csv
-# sr14_res_control.to_csv('sr14_res_control.csv')
+sr14_res_control.to_csv('sr14_res_control.csv')
 
 # keep only columns for db table
-sr14_res_control = sr14_res_control[['scenario','yr','geo','geo_id','control','control_type']]
+sr14_res_control = sr14_res_control[['scenario','yr','geo','geo_id','control','control_type','scenario_desc']]
 
 # to write to database
-# sr14_res_control.to_sql(name='residential_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
+# sr14_res_control.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
