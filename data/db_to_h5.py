@@ -107,6 +107,7 @@ regional_capacity_controls_sql = '''
         ,geo_id
         ,control
         ,control_type
+        ,max_units
   FROM urbansim.urbansim.urbansim_lite_subregional_control
   WHERE scenario = 1
 '''

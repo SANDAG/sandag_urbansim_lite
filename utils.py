@@ -176,7 +176,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
     for jur in control_totals.geo_id.unique().tolist():
     # for jur in jurs['jurisdiction_id'].tolist():
-        target_units_for_geo = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
+        target_units_for_geo = min(subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0],
+                                   subregional_targets.loc[subregional_targets['geo_id']==jur].max_units.values[0])
         # geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
         geo_name = str(jur)
         print("Jurisdiction %s target units: %d" % (geo_name,target_units_for_geo))
