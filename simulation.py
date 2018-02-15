@@ -3,6 +3,7 @@ import orca
 from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
 import pandas as pd
+import sqlalchemy
 
 
 utils.initialize_tables()
@@ -32,24 +33,16 @@ SELECT max(run_id)
 run_id_df = pd.read_sql(run_id_sql, mssql_engine)
 run_id = int(run_id_df.values)
 
-index_sql = '''
-SELECT max([units_index])
-  FROM [urbansim].[urbansim].[urbansim_lite_output]
-'''
-index_df = pd.read_sql(index_sql, mssql_engine)
-max_id = int(index_df.values)
-
-
-buildings_out['units_index'] = range(max_id + 1, max_id + len(buildings_out) + 1)
-# buildings_out['units_index'] = range(1, len(buildings_out)+1)
-
 
 buildings_out['run_id'] = run_id + 1
-
+# buildings_out['run_id'] = 1
 buildings_out.to_csv('data/new_units.csv')
 
 units_by_jur = orca.get_table('uj').to_frame()
 
 units_by_jur.to_csv('data/units_by_jur.csv')
-# buildings_out.to_sql(name='urbansim_lite_output_units', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
 
+#buildings_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
+#                     dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'units_added': sqlalchemy.types.INTEGER(),
+#                              'year_simulation': sqlalchemy.types.INTEGER(),
+#                              'run_id': sqlalchemy.types.INTEGER()})
