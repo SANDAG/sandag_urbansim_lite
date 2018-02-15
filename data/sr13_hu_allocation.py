@@ -139,14 +139,39 @@ sh_df = pd.read_sql(sched_dev_sql, mssql_engine)
 sched_dev_capacity = int(sh_df.values)
 
 sr14_cap_sql = '''
-  SELECT jurisdiction_id, sum(capacity)  as sr14_cap
+  SELECT jurisdiction_id as jur_or_cpa_id, sum(capacity)  as sr14_cap
   FROM urbansim.urbansim.parcel
   WHERE capacity > 0 AND site_id IS NULL
   GROUP BY jurisdiction_id
   ORDER BY jurisdiction_id
 '''
 
-sr14_cap_df = pd.read_sql(sr14_cap_sql, mssql_engine,index_col='jurisdiction_id')
+
+
+city_cap_sql = '''
+  SELECT cicpa_13 as jur_or_cpa_id, sum(capacity)  as sr14_cap
+  FROM urbansim.urbansim.parcel parcels
+  JOIN data_cafe.ref.vi_xref_geography_mgra_13   as x on x.mgra_13 = parcels.mgra_id
+  JOIN data_cafe.ref.geography_zone				 as g on x.cicpa_13 = g.zone 
+  WHERE parcels.capacity > 0  and  site_id IS NULL and jurisdiction_id = 14 and g.geography_type_id = 15
+  GROUP BY cicpa_13
+  ORDER BY cicpa_13
+  '''
+
+county_cap_sql = '''
+  SELECT cocpa_13 as jur_or_cpa_id, sum(capacity)  as sr14_cap
+  FROM urbansim.urbansim.parcel parcels
+  JOIN data_cafe.ref.vi_xref_geography_mgra_13   as x on x.mgra_13 = parcels.mgra_id
+  JOIN data_cafe.ref.geography_zone				 as g on x.cocpa_13 = g.zone 
+  WHERE parcels.capacity > 0  and  site_id IS NULL and jurisdiction_id = 19 and g.geography_type_id = 20
+  GROUP BY cocpa_13
+  ORDER BY cocpa_13
+  '''
+
+jurs_cap_df = pd.read_sql(sr14_cap_sql, mssql_engine,index_col='jur_or_cpa_id')
+city_cap_df = pd.read_sql(city_cap_sql, mssql_engine,index_col='jur_or_cpa_id')
+county_cap_df = pd.read_sql(county_cap_sql, mssql_engine,index_col='jur_or_cpa_id')
+sr14_cap_df = pd.concat([jurs_cap_df, city_cap_df, county_cap_df])
 
 # sr14 units for region
 units_needed = (hh - du - sched_dev_capacity).astype(float)
@@ -169,18 +194,27 @@ sr13_hu_df['orig_hu_change'] = sr13_hu_df['hu_change']
 # adjustment to meet target for sr14
 sr13_hu_df['hu_change'] = adj_to_totals * sr13_hu_df['hu_change']
 
+sr13_hu_df['jurisdiction_id_orig'] = sr13_hu_df['jurisdiction_id']
+
+sr13_hu_df['jur_or_cpa_id'] = sr13_hu_df['jurisdiction_id']
+
+sr13_hu_df.loc[(sr13_hu_df.jurisdiction_id == 14) | (sr13_hu_df.jurisdiction_id == 19), 'jur_or_cpa_id'] = sr13_hu_df['cpa']
+
 # units by jursidiction
 geo_share = pd.DataFrame({'hu_change_sum': sr13_hu_df.
-                       groupby(["jurisdiction_id"]).hu_change.sum()})
+                       groupby(["jur_or_cpa_id"]).hu_change.sum()})
 
 # compare sr13 and sr14 share
 compare_cap_to_forecast = geo_share.join(sr14_cap_df)
 
 # adjustment needed for capacity differences bet sr13 and sr14
 compare_cap_to_forecast['adj_per'] = compare_cap_to_forecast.sr14_cap/compare_cap_to_forecast.hu_change_sum
-
+compare_cap_to_forecast.fillna(0,inplace=True)
+compare_cap_to_forecast.reset_index(inplace=True)
+compare_cap_to_forecast['jur_or_cpa_id'] = compare_cap_to_forecast['jur_or_cpa_id'].astype('int')
+sr13_hu_df['jur_or_cpa_id'] = sr13_hu_df['jur_or_cpa_id'].astype('int')
 # join with sr13 data
-sr13_hu_df = sr13_hu_df.join(compare_cap_to_forecast,on='jurisdiction_id')
+sr13_hu_df = sr13_hu_df.merge(compare_cap_to_forecast[['jur_or_cpa_id','sr14_cap','adj_per']],on='jur_or_cpa_id')
 
 # adjust hu by capacity differences
 sr13_hu_df['hu_change'] = sr13_hu_df['adj_per'] * sr13_hu_df['hu_change']
@@ -235,6 +269,7 @@ sr14_res_control.to_csv('sr14_res_control.csv')
 
 # keep only columns for db table
 sr14_res_control = sr14_res_control[['scenario','yr','geo','geo_id','control','control_type','scenario_desc']]
+sr14_res_control.fillna(0,inplace=True)
 
 # to write to database
 # sr14_res_control.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
