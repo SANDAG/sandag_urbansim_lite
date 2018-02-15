@@ -23,7 +23,7 @@ parcels_sql = '''
 '''
 parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
 
-parcels_df['earliest_dev_year'] = 2015
-parcels_df['scenario'] = 0
-
-parcels_df.to_sql(name='urbansim_lite_dev_control', con=mssql_engine, schema='urbansim', index=True,if_exists='replace')
+parcels_df['phase'] = 2015
+parcels_df['scenario'] = 1
+parcels_df = parcels_df[['phase','scenario']]
+parcels_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
