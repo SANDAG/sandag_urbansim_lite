@@ -229,7 +229,7 @@ for period in sr13_hu_df['yr_from'].unique():
 # Check calculation for when period length or number is changed:
 print(round(sr13_hu_df.control.sum()/number_periods), "<- Should be equal to 1!")
 
-# split each period into the required number of years
+# split each period into the required number of years (creating duplicated rows - see while loop comments below)
 sr14_res_control = sr13_hu_df.reindex(sr13_hu_df.index.repeat(sr13_hu_df.yr_to - sr13_hu_df.yr_from)).reset_index(drop=True)
 
 # rename for clarity with generalized geography and year incrementing
@@ -239,9 +239,9 @@ sr14_res_control.rename(columns={'jurisdiction_id':'geo_id','yr_from': 'yr'},inp
 sr14_res_control['yr'] = sr14_res_control.yr + 1
 
 # modify the year column to increment by one, rather than repeat by period
-while any(sr14_res_control.duplicated()):
-    sr14_res_control['year_maker'] = sr14_res_control.duplicated()
-    sr14_res_control.loc[sr14_res_control.year_maker == True, 'yr'] = sr14_res_control.yr + 1
+while any(sr14_res_control.duplicated()): # checks for duplicate rows
+    sr14_res_control['year_maker'] = sr14_res_control.duplicated() # create a boolean column = True if row is a repeat
+    sr14_res_control.loc[sr14_res_control.year_maker == True, 'yr'] = sr14_res_control.yr + 1 # adds one to the year if the row is a duplicate
 
 # organize by year and geography
 sr14_res_control.sort_values(by=['yr','geo_id','cpa'],inplace=True)
