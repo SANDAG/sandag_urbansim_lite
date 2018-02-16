@@ -8,9 +8,10 @@ def year(iter_var):
     return iter_var
 
 
-# @orca.step('scheduled_development_events')
+@orca.step('scheduled_development_events')
+def scheduled_development_events(buildings):
+     print year
 # def scheduled_development_events(scheduled_development_events, buildings):
-#     year = get_year()
 #     sched_dev = scheduled_development_events.to_frame()
 #     sched_dev = sched_dev[sched_dev.year_built==year]
 #     if len(sched_dev) > 0:
