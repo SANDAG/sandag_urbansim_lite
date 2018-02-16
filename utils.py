@@ -27,19 +27,22 @@ def initialize_tables():
     orca.add_table('sr14cap_out',cap_results)
 
 
-# def run_scheduled_development(buildings, year):
-#     sched_dev = orca.get_table('scheduled_development').to_frame()
-#     sched_dev = sched_dev[sched_dev.year_built==year]
-#     if len(sched_dev) > 0:
-#         max_bid = buildings.index.values.max()
-#         idx = np.arange(max_bid + 1,max_bid+len(sched_dev)+1)
-#         sched_dev['building_id'] = idx
-#         sched_dev = sched_dev.set_index('building_id')
-#         from urbansim.developer.developer import Developer
-#         merge = Developer(pd.DataFrame({})).merge
-#         b = buildings.to_frame(buildings.local_columns)
-#         all_buildings = merge(b,sched_dev[b.columns])
-#         orca.add_table("buildings", all_buildings)
+def run_scheduled_development(buildings, year):
+    sched_dev = orca.get_table('scheduled_development').to_frame()
+    sched_dev = sched_dev[sched_dev.yr==year]
+    if len(sched_dev) > 0:
+        max_bid = buildings.index.values.max()
+        idx = np.arange(max_bid + 1,max_bid+len(sched_dev)+1)
+        sched_dev['building_id'] = idx
+        sched_dev = sched_dev.set_index('building_id')
+        sched_dev['year_built'] = year
+        sched_dev['residential_units'] = sched_dev['res_units']
+        sched_dev['building_type_id'] = ''
+        from urbansim.developer.developer import Developer
+        merge = Developer(pd.DataFrame({})).merge
+        b = buildings.to_frame(buildings.local_columns)
+        all_buildings = merge(b,sched_dev[b.columns])
+        orca.add_table("buildings", all_buildings)
 
 
 def run_feasibility(parcels, year=None):
@@ -165,8 +168,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     feasible_parcels_df = feasibility.to_frame()
 
     num_of_sched_dev = parcels.loc[~parcels['site_id'].isnull()].capacity_base_yr.sum()
-    target_units = target_units - num_of_sched_dev
-
+    # target_units = target_units - num_of_sched_dev
     print("Target of new units = {:,} after scheduled developments are built".format(target_units))
 
     print("{:,} feasible parcels before running developer (excludes sched dev)"
