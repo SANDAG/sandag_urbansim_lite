@@ -8,6 +8,24 @@ def year(iter_var):
     return iter_var
 
 
+# @orca.step('scheduled_development_events')
+# def scheduled_development_events(scheduled_development_events, buildings):
+#     year = get_year()
+#     sched_dev = scheduled_development_events.to_frame()
+#     sched_dev = sched_dev[sched_dev.year_built==year]
+#     if len(sched_dev) > 0:
+#         max_bid = buildings.index.values.max()
+#         idx = np.arange(max_bid + 1,max_bid+len(sched_dev)+1)
+#         sched_dev['building_id'] = idx
+#         sched_dev = sched_dev.set_index('building_id')
+#         from urbansim.developer.developer import Developer
+#         merge = Developer(pd.DataFrame({})).merge
+#         b = buildings.to_frame(buildings.local_columns)
+#         all_buildings = merge(b,sched_dev[b.columns])
+#         orca.add_table("buildings", all_buildings)
+
+
+
 @orca.step('feasibility')
 def feasibility(parcels, year):
     utils.run_feasibility(parcels, year)
