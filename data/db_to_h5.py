@@ -5,6 +5,19 @@ from pysandag.database import get_connection_string
 db_connection_string = get_connection_string('config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
+sched_dev_sql = '''
+  SELECT [scenario]
+      ,[parcel_id]
+      ,[yr]
+      ,[site_id]
+      ,[res_units]
+      ,[job_spaces]
+      ,[households]
+      ,[jobs]
+  FROM urbansim.urbansim.scheduled_development_do_not_use
+  WHERE scenario = 1
+'''
+
 parcels_sql = '''
   WITH bldgs_by_parcel AS (SELECT parcel_id, SUM(residential_units) AS residential_units, 
                                   count(building_id) AS num_of_bldgs
@@ -137,6 +150,7 @@ parcels_df['buildout'] = parcels_df['capacity_base_yr'] + parcels_df['residentia
 
 parcels_df.sort_index(inplace=True)
 
+sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
 buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
 devyear_df = pd.read_sql(dev_control, mssql_engine, index_col='parcel_id')
@@ -149,6 +163,7 @@ jurisdictions_df = pd.read_sql(jurisdictions_sql, mssql_engine)
 jurisdictions_df['name'] = jurisdictions_df['name'].astype(str)
 
 with pd.HDFStore('urbansim.h5', mode='w') as store:
+    store.put('scheduled_development', sched_dev_df, format='table')
     store.put('parcels', parcels_df, format='table')
     store.put('households',households_df,format='table')
     store.put('buildings', buildings_df, format='table')

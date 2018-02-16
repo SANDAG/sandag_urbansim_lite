@@ -9,10 +9,10 @@ import sqlalchemy
 utils.initialize_tables()
 
 orca.run([
-    "scheduled_development_events",
+    # "scheduled_development_events",
     "feasibility",
     "residential_developer"
-     ], iter_vars=range(2021, 2022))
+     ], iter_vars=range(2021, 2030))
 
 
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
