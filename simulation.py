@@ -12,7 +12,7 @@ orca.run([
     "scheduled_development_events",
     "feasibility",
     "residential_developer"
-     ], iter_vars=range(2017, 2050))
+     ], iter_vars=range(2017, 2051))
 
 
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
