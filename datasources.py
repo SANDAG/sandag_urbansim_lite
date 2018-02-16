@@ -41,3 +41,8 @@ def jurisdictions(store):
 def devyear(store):
     df = store['devyear']
     return df
+
+@orca.table('scheduled_development', cache=True)
+def sched_dev(store):
+    df = store['scheduled_development']
+    return df
