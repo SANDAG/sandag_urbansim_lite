@@ -29,7 +29,7 @@ def initialize_tables():
 
 def run_scheduled_development(buildings, year):
     sched_dev = orca.get_table('scheduled_development').to_frame()
-    sched_dev = sched_dev[sched_dev.yr==year]
+    sched_dev = sched_dev[(sched_dev.yr==year) & (sched_dev.res_units > 0)]
     if len(sched_dev) > 0:
         max_bid = buildings.index.values.max()
         idx = np.arange(max_bid + 1,max_bid+len(sched_dev)+1)
