@@ -153,6 +153,7 @@ parcels_df.sort_index(inplace=True)
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
 buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
+buildings_df['source'] = 'existing'
 devyear_df = pd.read_sql(dev_control, mssql_engine, index_col='parcel_id')
 # parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
 # parcels_df['max_res_units'] = parcels_df['capacity_base_yr'] + parcels_df['residential_units']
