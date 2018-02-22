@@ -38,6 +38,7 @@ def run_scheduled_development(buildings, year):
         sched_dev['year_built'] = year
         sched_dev['residential_units'] = sched_dev['res_units']
         sched_dev['building_type_id'] = ''
+        sched_dev['source'] = 'sched_dev'
         from urbansim.developer.developer import Developer
         merge = Developer(pd.DataFrame({})).merge
         b = buildings.to_frame(buildings.local_columns)
@@ -201,6 +202,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         # parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
+        if len(chosen):
+            chosen['source'] = 'subregional_control'
         sr14cap = sr14cap.append(chosen)
 
     if len(sr14cap):
@@ -216,6 +219,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         feasible_parcels_df= feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0]
         feasible_parcels_df['partial_build'] = feasible_parcels_df.residential_units_sim_yr
         chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
+        if len(chosen):
+            chosen['source'] = 'entire_region'
         sr14cap = sr14cap.append(chosen)
 
 
