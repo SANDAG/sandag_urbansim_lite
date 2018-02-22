@@ -21,7 +21,7 @@ mssql_engine = create_engine(db_connection_string)
 buildings = orca.get_table('buildings').to_frame()
 buildings = buildings.reset_index(drop=False)
 buildings = buildings.loc[(buildings['year_built'] > 2016)]
-buildings_out = buildings[['parcel_id','residential_units','year_built']].copy()
+buildings_out = buildings[['parcel_id','residential_units','year_built','source']].copy()
 buildings_out.reset_index(drop=True,inplace=True)
 
 buildings_out.rename(columns = {'year_built': 'year_simulation'},inplace=True)
@@ -43,7 +43,7 @@ units_by_jur = orca.get_table('uj').to_frame()
 
 units_by_jur.to_csv('data/units_by_jur.csv')
 
-#buildings_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
-#                     dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'units_added': sqlalchemy.types.INTEGER(),
-#                              'year_simulation': sqlalchemy.types.INTEGER(),
-#                              'run_id': sqlalchemy.types.INTEGER()})
+# buildings_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
+#                    dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'units_added': sqlalchemy.types.INTEGER(),
+#                             'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
+#                             'run_id': sqlalchemy.types.INTEGER()})
