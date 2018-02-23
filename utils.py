@@ -226,14 +226,14 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
     if len(sr14cap) > 0:
         # group by parcel id again if same parcel was picked
-        sr14cap = pd.DataFrame({'residential_units_sim_yr': sr14cap.
+        parcel_sr14_units = pd.DataFrame({'residential_units_sim_yr': sr14cap.
                                             groupby(["parcel_id", "jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
                                                      "bldgs", "buildout"]).residential_units_sim_yr.sum()}).reset_index()
-        sr14cap.set_index('parcel_id', inplace=True)
-        sr14cap['partial_build'] = sr14cap.buildout - sr14cap.residential_units_sim_yr - sr14cap.residential_units
+        parcel_sr14_units.set_index('parcel_id', inplace=True)
+        parcel_sr14_units['partial_build'] = parcel_sr14_units.buildout - parcel_sr14_units.residential_units_sim_yr - parcel_sr14_units.residential_units
         parcels = parcels.drop(['partial_build'], 1)
-        parcels = parcels.join(sr14cap[['residential_units_sim_yr','partial_build']])
+        parcels = parcels.join(parcel_sr14_units[['residential_units_sim_yr','partial_build']])
         parcels.residential_units_sim_yr = parcels.residential_units_sim_yr.fillna(0)
         parcels.partial_build = parcels.partial_build.fillna(0)
         parcels['residential_units'] = parcels['residential_units'] + parcels['residential_units_sim_yr']
