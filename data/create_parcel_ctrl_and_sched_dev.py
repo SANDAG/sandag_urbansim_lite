@@ -26,4 +26,9 @@ parcels_df = pd.read_sql(parcels_sql, mssql_engine, index_col='parcel_id')
 parcels_df['phase'] = 2015
 parcels_df['scenario'] = 1
 parcels_df = parcels_df[['phase','scenario']]
-parcels_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
+# parcels_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
+
+
+# create sched dev table
+# sched_dev = pd.read_csv('sched_dev.csv')
+# sched_dev.to_sql(name='scheduled_development_do_not_use', con=mssql_engine, schema='urbansim', index=False,if_exists='replace')
