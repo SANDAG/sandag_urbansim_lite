@@ -53,3 +53,7 @@ desktop.ini
 *.csv
 *.xlsx
 pysandag-master/
+
+# Images #
+################
+*.png
