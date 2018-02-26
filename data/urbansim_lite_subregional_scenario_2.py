@@ -5,28 +5,6 @@ from pysandag.database import get_connection_string
 db_connection_string = get_connection_string('config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
-##################################
-# includes sched dev (only here)
-##################################
-sr13_sql_match = '''
-    SELECT c.jurisdiction, c.jurisdiction_id, c.yr_from, c.yr_to, c.hu_change
-    FROM (SELECT a.jurisdiction, a.jurisdiction_id, a.yr_id AS yr_from, b.yr_id AS yr_to
-    ,CASE WHEN b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
-    FROM (SELECT y.jurisdiction, y.jurisdiction_id, x.yr_id, sum(x.units) AS hu
-    FROM [demographic_warehouse].[fact].[housing] AS x
-    inner join [demographic_warehouse].[dim].[mgra_denormalize] AS y ON x.mgra_id = y.mgra_id
-    WHERE x.datasource_id = 13 and x.yr_id in (2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050)
-    GROUP BY y.jurisdiction, y.jurisdiction_id, x.yr_id) AS a
-    inner join 
-    (SELECT y.jurisdiction,y.jurisdiction_id,x.yr_id, sum(x.units) AS hu
-    FROM [demographic_warehouse].[fact].[housing] AS x
-    inner join [demographic_warehouse].[dim].[mgra_denormalize] AS y ON x.mgra_id = y.mgra_id
-    WHERE x.datasource_id = 13 and x.yr_id in (2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050)
-    GROUP BY y.jurisdiction, y.jurisdiction_id, x.yr_id) AS b
-    ON a.jurisdiction_id = b.jurisdiction_id and a.yr_id = b.yr_id-5) AS c
-    ORDER BY yr_from, jurisdiction_id
-'''
-
 ###############################
 # 2012-2020 controls (sched_dev?)
 ###############################
@@ -203,7 +181,7 @@ hh_df =  pd.read_sql(households_sql, mssql_engine)
 hh = hh_df.loc[hh_df.yr == 2050].hh.values[0]
 
 du_sql = '''
-  SELECT  SUM(COALESCE(residential_units,0)) AS residential_units
+  SELECT SUM(COALESCE(residential_units,0)) AS residential_units
   FROM urbansim.urbansim.building
 '''
 
@@ -211,7 +189,7 @@ du_df = pd.read_sql(du_sql, mssql_engine)
 du = int(du_df.values)
 
 sched_dev_sql = '''
-  SELECT  SUM(COALESCE(capacity,0)) 
+  SELECT SUM(COALESCE(capacity,0)) 
   FROM urbansim.urbansim.parcel
   WHERE site_id is NOT NULL and capacity > 0
 '''
@@ -220,7 +198,7 @@ sh_df = pd.read_sql(sched_dev_sql, mssql_engine)
 sched_dev_capacity = int(sh_df.values)
 
 sr14_cap_sql = '''
-  SELECT jurisdiction_id as jur_or_cpa_id, sum(capacity)  as sr14_cap
+  SELECT jurisdiction_id as jur_or_cpa_id, sum(capacity) as sr14_cap
   FROM urbansim.urbansim.parcel
   WHERE capacity > 0 AND site_id IS NULL
   GROUP BY jurisdiction_id
@@ -283,10 +261,13 @@ sr13_hu_df.loc[(sr13_hu_df.jurisdiction_id == 14) | (sr13_hu_df.jurisdiction_id 
 geo_share = pd.DataFrame({'hu_change_sum': sr13_hu_df.
                        groupby(["jur_or_cpa_id"]).hu_change.sum()})
 
+#Scenario 2 modification: allow 3% remaining capacity in each geography
+sr14_cap_df.sr14_cap = sr14_cap_df.sr14_cap * .97
+
 # compare sr13 and sr14 share
 compare_cap_to_forecast = geo_share.join(sr14_cap_df)
 
-# adjustment needed for capacity differences bet sr13 and sr14
+# adjustment needed for capacity differences between sr13 and sr14
 compare_cap_to_forecast['adj_per'] = compare_cap_to_forecast.sr14_cap/compare_cap_to_forecast.hu_change_sum
 compare_cap_to_forecast.fillna(0,inplace=True)
 compare_cap_to_forecast.reset_index(inplace=True)
@@ -337,9 +318,11 @@ sr14_res_control.geo_id = sr14_res_control.geo_id.astype(int)
 ########################################
 ## Be sure to change scenario!
 # scenario 1 has cpa for San Diego and Unincorporated (jurisdiction_id 14 and 19)
+# scenario 2 is same as scenario 1, except controls are adjusted to leave 3% capacity in each geo
+#       this is achieved by multiplying sr14 capacity per geo by .97
 ########################################
-sr14_res_control['scenario'] = 1
-sr14_res_control['scenario_desc'] = 'jurisdictions and cpa for city and county'
+sr14_res_control['scenario'] = 2
+sr14_res_control['scenario_desc'] = 'jurisdictions and cpa for city and county, 3% remaining capacity'
 sr14_res_control['control_type'] = 'percentage'
 sr14_res_control = sr14_res_control.reset_index()
 
