@@ -35,3 +35,7 @@ def residential_developer(feasibility, households, buildings, parcels, year, reg
                         form_to_btype_callback=None,
                         add_more_columns_callback=None,
                         bldg_sqft_per_job=400.0)
+
+@orca.step('summary')
+def summary(year):
+    utils.summary(year)

@@ -28,6 +28,7 @@ def initialize_tables():
 
 
 def run_scheduled_development(buildings, year):
+    print('\n Now in year: %d' % (year))
     sched_dev = orca.get_table('scheduled_development').to_frame()
     sched_dev = sched_dev[(sched_dev.yr==year) & (sched_dev.res_units > 0)]
     if len(sched_dev) > 0:
@@ -159,7 +160,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     # note: num of households is first adjusted by vacancy rate using:  num of households/(1-vacancy rate)
     # target vacancy from call to run_developer in models
 
-    print("\n Agents are households. Agent spaces are dwelling units")
+    print("Agents are households. Agent spaces are dwelling units")
     # current vacancy = 1 - num_agents / float(num_units)
     # target_units = dev.\
     #     compute_units_to_build(agents.to_frame().housing_units_add.get_value(year),
@@ -206,7 +207,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         # parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
-        if subregion_targets > subregion_max:
+        if subregion_targets > subregion_max: #if subregion_max is NaN, this gets skipped (which is fine)
             feasible_parcels_df = feasible_parcels_df.drop(feasible_parcels_df[feasible_parcels_df.jur_or_cpa_id == jur].index)
         if len(chosen):
             chosen['source'] = 'subregional_control'
@@ -282,3 +283,13 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
                                   sr14cap[buildings.local_columns])
 
         orca.add_table("buildings", all_buildings)
+
+def summary(year):
+    current_builds = orca.get_table('buildings').to_frame()
+    current_builds = current_builds.loc[(current_builds.year_built == year)]
+    sched_dev_built = (current_builds.loc[(current_builds.source == 'sched_dev')]).residential_units.sum()
+    subregional_control_built = (current_builds.loc[(current_builds.source == 'subregional_control')]).residential_units.sum()
+    entire_region_built = (current_builds.loc[(current_builds.source == 'entire_region')]).residential_units.sum()
+    print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
+    print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
+    print(' %d units built as Total Remaining in %d' % (entire_region_built, year))

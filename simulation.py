@@ -11,7 +11,8 @@ utils.initialize_tables()
 orca.run([
     "scheduled_development_events",
     "feasibility",
-    "residential_developer"
+    "residential_developer",
+    "summary"
      ], iter_vars=range(2017, 2051))
 
 
