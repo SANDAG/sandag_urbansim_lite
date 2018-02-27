@@ -196,8 +196,9 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
     for jur in control_totals.geo_id.unique().tolist():
     # for jur in jurs['jurisdiction_id'].tolist():
-        target_units_for_geo = min(subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0],
-                                   subregional_targets.loc[subregional_targets['geo_id']==jur].max_units.values[0])
+        subregion_targets = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
+        subregion_max = subregional_targets.loc[subregional_targets['geo_id']==jur].max_units.values[0]
+        target_units_for_geo = min(subregion_targets, subregion_max)
         # geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
         target_units_for_geo = int(target_units_for_geo)
         geo_name = str(jur)
@@ -205,6 +206,8 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         # parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
+        if subregion_targets > subregion_max:
+            feasible_parcels_df = feasible_parcels_df.drop(feasible_parcels_df[feasible_parcels_df.jur_or_cpa_id == jur].index)
         if len(chosen):
             chosen['source'] = 'subregional_control'
         sr14cap = sr14cap.append(chosen)
