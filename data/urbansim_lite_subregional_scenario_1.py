@@ -352,3 +352,8 @@ sr14_res_control.fillna(0,inplace=True)
 
 # to write to database
 sr14_res_control.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
+
+## set max units to 100
+# UPDATE [urbansim].[urbansim].[urbansim_lite_subregional_control]
+# SET max_units = 100
+# WHERE geo_id = 8 and scenario = 1
