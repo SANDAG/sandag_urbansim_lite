@@ -27,30 +27,6 @@ sr13_sql_match = '''
     ORDER BY yr_from, jurisdiction_id
 '''
 
-###############################
-# 2012-2020 controls (sched_dev?)
-###############################
-sr13_sql_match_12_20 = '''
-    SELECT '' as jurisdiction, c.City AS jurisdiction_id, c.yr_from, c.yr_to, c.hu_change
-    FROM (SELECT a.City, a.increment AS yr_from, b.increment AS yr_to
-    ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
-    FROM (SELECT y.City, x.increment, sum([hs]) AS hu
-    FROM [regional_forecast].[sr13_final].[capacity] x
-    inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
-    WHERE x.scenario = 0 and x.increment in (2012, 2020)
-    and x.site = 0 
-    GROUP BY y.City, x.increment) AS a
-    inner join 
-    (SELECT y.City, x.increment, sum([hs]) AS hu
-    FROM [regional_forecast].[sr13_final].[capacity] x
-    inner join [regional_forecast].[sr13_final].[mgra13] AS y ON x.mgra = y.mgra
-    WHERE x.scenario = 0 and x.increment in (2012, 2020) 
-    and x.site = 0
-    GROUP BY y.City, x.increment) as b
-    ON a.City = b.City and a.increment = b.increment-8) AS c
-    ORDER BY yr_from, City
-'''
-
 ##################################
 # without sched dev
 ##################################
@@ -61,14 +37,14 @@ sr13_sql_match_san_sched_dev = '''
     FROM (SELECT y.City, x.increment, sum([hs]) AS hu
     FROM [regional_forecast].[sr13_final].[capacity] x
     inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
-    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050)
+    WHERE x.scenario = 0 and x.increment in (2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050)
     and x.site = 0 
     GROUP BY y.City, x.increment) AS a
     inner join 
     (SELECT y.City, x.increment, sum([hs]) AS hu
     FROM [regional_forecast].[sr13_final].[capacity] x
     inner join [regional_forecast].[sr13_final].[mgra13] AS y ON x.mgra = y.mgra
-    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050) 
+    WHERE x.scenario = 0 and x.increment in (2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050) 
     and x.site = 0
     GROUP BY y.City, x.increment) as b
     ON a.City = b.City and a.increment = b.increment-5) AS c
@@ -76,12 +52,9 @@ sr13_sql_match_san_sched_dev = '''
 '''
 
 ##############################################
-# choose without sched dev as control
+# choose without sched dev as control (currently without)
 ##############################################
-sr13_12_20 = pd.read_sql(sr13_sql_match_12_20, mssql_engine)
-sr13_12_20['hu_change'] = 0
-sr13_20_50 = pd.read_sql(sr13_sql_match_san_sched_dev, mssql_engine)
-sr13_hu_df = pd.concat([sr13_12_20, sr13_20_50])
+sr13_hu_df = pd.read_sql(sr13_sql_match_san_sched_dev, mssql_engine)
 sr13_hu_df['jurisdiction'] = sr13_hu_df['jurisdiction'].astype(str)
 ##########################################################################
 
@@ -89,7 +62,7 @@ sr13_hu_df['jurisdiction'] = sr13_hu_df['jurisdiction'].astype(str)
 # add cpa
 ################################
 # San Diego, jurisdiction_id = 14
-sd_by_cpa_12_20 = '''
+sd_by_cpa_15_50 = '''
     SELECT c.name as cpa_name, c.City AS jurisdiction_id,c.cpa, c.yr_from, c.yr_to, c.hu_change
     FROM (SELECT a.City,a.cpa,a.name, a.increment AS yr_from, b.increment AS yr_to
     ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
@@ -97,51 +70,24 @@ sd_by_cpa_12_20 = '''
     FROM [regional_forecast].[sr13_final].[capacity] x
     inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
     inner join data_cafe.ref.geography_zone	as g on g.zone = y.cpa
-    WHERE x.scenario = 0 and x.increment in (2012, 2020)
+    WHERE x.scenario = 0 and x.increment in (2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050)
     and x.site = 0  and g.geography_type_id = 15
     GROUP BY y.cpa,y.City, x.increment,g.name) AS a
     inner join 
     (SELECT y.cpa,y.City, x.increment, sum([hs]) AS hu
     FROM [regional_forecast].[sr13_final].[capacity] x
     inner join [regional_forecast].[sr13_final].[mgra13] AS y ON x.mgra = y.mgra
-    WHERE x.scenario = 0 and x.increment in (2012, 2020) 
-    and x.site = 0
-    GROUP BY y.cpa,y.City, x.increment) as b
-    ON a.cpa = b.cpa and a.increment = b.increment-8) AS c
-    WHERE City = 14
-    ORDER BY yr_from, City
-    '''
-cpa_sd_12_20_df = pd.read_sql(sd_by_cpa_12_20, mssql_engine)
-cpa_sd_12_20_df['hu_change'] = 0
-
-sd_by_cpa_20_50 = '''
-    SELECT c.name as cpa_name, c.City AS jurisdiction_id,c.cpa, c.yr_from, c.yr_to, c.hu_change
-    FROM (SELECT a.City,a.cpa,a.name, a.increment AS yr_from, b.increment AS yr_to
-    ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
-    FROM (SELECT y.cpa,g.name,y.City, x.increment, sum([hs]) AS hu
-    FROM [regional_forecast].[sr13_final].[capacity] x
-    inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
-    inner join data_cafe.ref.geography_zone	as g on g.zone = y.cpa
-    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050)
-    and x.site = 0  and g.geography_type_id = 15
-    GROUP BY y.cpa,y.City, x.increment,g.name) AS a
-    inner join 
-    (SELECT y.cpa,y.City, x.increment, sum([hs]) AS hu
-    FROM [regional_forecast].[sr13_final].[capacity] x
-    inner join [regional_forecast].[sr13_final].[mgra13] AS y ON x.mgra = y.mgra
-    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050) 
+    WHERE x.scenario = 0 and x.increment in (2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050) 
     and x.site = 0
     GROUP BY y.cpa,y.City, x.increment) as b
     ON a.cpa = b.cpa and a.increment = b.increment-5) AS c
     WHERE City = 14
     ORDER BY yr_from, City
     '''
-cpa_sd_20_50_df = pd.read_sql(sd_by_cpa_20_50, mssql_engine)
-
-cpa_sd_df = pd.concat([cpa_sd_12_20_df, cpa_sd_20_50_df])
+cpa_sd_df= pd.read_sql(sd_by_cpa_15_50, mssql_engine)
 
 # Unincorporated, jurisdiction_id = 19
-unincorp_by_cpa_12_20 = '''
+unincorp_by_cpa_15_50 = '''
     SELECT c.name as cpa_name, c.City AS jurisdiction_id,c.cpa, c.yr_from, c.yr_to, c.hu_change
     FROM (SELECT a.City,a.cpa,a.name, a.increment AS yr_from, b.increment AS yr_to
     ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
@@ -149,48 +95,21 @@ unincorp_by_cpa_12_20 = '''
     FROM [regional_forecast].[sr13_final].[capacity] x
     inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
     inner join data_cafe.ref.geography_zone	as g on g.zone = y.cpa
-    WHERE x.scenario = 0 and x.increment in (2012, 2020)
+    WHERE x.scenario = 0 and x.increment in (2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050)
     and x.site = 0  and g.geography_type_id = 20
     GROUP BY y.cpa,y.City, x.increment,g.name) AS a
     inner join 
     (SELECT y.cpa,y.City, x.increment, sum([hs]) AS hu
     FROM [regional_forecast].[sr13_final].[capacity] x
     inner join [regional_forecast].[sr13_final].[mgra13] AS y ON x.mgra = y.mgra
-    WHERE x.scenario = 0 and x.increment in (2012, 2020) 
-    and x.site = 0
-    GROUP BY y.cpa,y.City, x.increment) as b
-    ON a.cpa = b.cpa and a.increment = b.increment-8) AS c
-    WHERE City = 19
-    ORDER BY yr_from, City
-    '''
-cpa_unincorp_12_20_df = pd.read_sql(unincorp_by_cpa_12_20, mssql_engine)
-cpa_unincorp_12_20_df['hu_change'] = 0
-
-unincorp_by_cpa_20_50 = '''
-    SELECT c.name as cpa_name, c.City AS jurisdiction_id,c.cpa, c.yr_from, c.yr_to, c.hu_change
-    FROM (SELECT a.City,a.cpa,a.name, a.increment AS yr_from, b.increment AS yr_to
-    ,CASE WHEN  b.hu - a.hu > 0 THEN b.hu - a.hu ELSE 0 END AS hu_change
-    FROM (SELECT y.cpa,g.name,y.City, x.increment, sum([hs]) AS hu
-    FROM [regional_forecast].[sr13_final].[capacity] x
-    inner join [regional_forecast].[sr13_final].[mgra13] as y on x.mgra = y.mgra
-    inner join data_cafe.ref.geography_zone	as g on g.zone = y.cpa
-    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050)
-    and x.site = 0  and g.geography_type_id = 20
-    GROUP BY y.cpa,y.City, x.increment,g.name) AS a
-    inner join 
-    (SELECT y.cpa,y.City, x.increment, sum([hs]) AS hu
-    FROM [regional_forecast].[sr13_final].[capacity] x
-    inner join [regional_forecast].[sr13_final].[mgra13] AS y ON x.mgra = y.mgra
-    WHERE x.scenario = 0 and x.increment in (2020, 2025, 2030, 2035, 2040, 2045, 2050) 
+    WHERE x.scenario = 0 and x.increment in (2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050) 
     and x.site = 0
     GROUP BY y.cpa,y.City, x.increment) as b
     ON a.cpa = b.cpa and a.increment = b.increment-5) AS c
     WHERE City = 19
     ORDER BY yr_from, City
     '''
-cpa_unincorp_20_50_df = pd.read_sql(unincorp_by_cpa_20_50, mssql_engine)
-
-cpa_unincorp_df = pd.concat([cpa_unincorp_12_20_df, cpa_unincorp_20_50_df])
+cpa_unincorp_df = pd.read_sql(unincorp_by_cpa_15_50, mssql_engine)
 
 households_sql = '''
   SELECT sum(hh) AS hh,yr
