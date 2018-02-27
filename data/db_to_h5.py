@@ -86,13 +86,21 @@ all_but_city_county = '''
 
 ## Household controls (agents)
 households_sql = '''
-  SELECT yr AS year,
-         sum(hh) AS hh
-  FROM isam.demographic_output.summary
-  WHERE sim_id = 1004
-  GROUP BY yr
-  ORDER BY yr
+SELECT  yr as year, 
+        households, 
+        housing_units_add 
+FROM [isam].[economic_output].[urbansim_housing_units]
 '''
+
+
+# households_sql = '''
+#   SELECT yr AS year,
+#          sum(hh) AS hh
+#   FROM isam.demographic_output.summary
+#   WHERE sim_id = 1004
+#   GROUP BY yr
+#   ORDER BY yr
+# '''
 
 # households_sql = '''
 #   SELECT yr AS year
@@ -110,6 +118,8 @@ buildings_sql = '''
         ,COALESCE(year_built,0) AS year_built
   FROM urbansim.urbansim.building
 '''
+
+
 
 # Dwelling unit controls
 regional_capacity_controls_sql = '''
@@ -152,6 +162,7 @@ parcels_df.sort_index(inplace=True)
 
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
+households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
 buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
 buildings_df['source'] = 'existing'
 devyear_df = pd.read_sql(dev_control, mssql_engine, index_col='parcel_id')
