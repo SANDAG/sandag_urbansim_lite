@@ -161,15 +161,17 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
     print("\n Agents are households. Agent spaces are dwelling units")
     # current vacancy = 1 - num_agents / float(num_units)
+    # target_units = dev.\
+    #     compute_units_to_build(agents.to_frame().housing_units_add.get_value(year),
+    #                            buildings[supply_fname].sum(),
+    #                            target_vacancy)
     target_units = dev.\
-        compute_units_to_build(agents.to_frame().hh.get_value(year),
-                               buildings[supply_fname].sum(),
+        compute_units_to_build(agents.to_frame().total_housing_units.get_value(year),
+                               buildings.to_frame().loc[buildings.year_built > 2016][supply_fname].sum(),
                                target_vacancy)
 
     feasible_parcels_df = feasibility.to_frame()
 
-    num_of_sched_dev = parcels.loc[~parcels['site_id'].isnull()].capacity_base_yr.sum()
-    # target_units = target_units - num_of_sched_dev
     print("Target of new units = {:,} after scheduled developments are built".format(target_units))
 
     print("{:,} feasible parcels before running developer (excludes sched dev)"
