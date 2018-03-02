@@ -85,6 +85,7 @@ buildings_sql = '''
         ,COALESCE(residential_units,0) AS residential_units
         ,COALESCE(year_built,0) AS year_built
      FROM urbansim.urbansim.building
+     where year_built > 2015
 '''
 
 regional_capacity_controls_sql = '''
