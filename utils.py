@@ -106,7 +106,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
             parcels_picked = pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
                                           groupby(["parcel_id", "jurisdiction_id", "capacity_base_yr",
-                                                   "residential_units", "bldgs", "buildout"])
+                                                   "residential_units", "buildout"])
                                           .size()}).reset_index()
             parcels_picked.set_index('parcel_id', inplace=True)
     return parcels_picked
@@ -236,7 +236,7 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         parcel_sr14_units = pd.DataFrame({'residential_units_sim_yr': sr14cap.
                                             groupby(["parcel_id", "jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
-                                                     "bldgs", "buildout"]).residential_units_sim_yr.sum()}).reset_index()
+                                                     "buildout"]).residential_units_sim_yr.sum()}).reset_index()
         parcel_sr14_units.set_index('parcel_id', inplace=True)
         parcel_sr14_units['partial_build'] = parcel_sr14_units.buildout - parcel_sr14_units.residential_units_sim_yr - parcel_sr14_units.residential_units
         parcels = parcels.drop(['partial_build'], 1)
