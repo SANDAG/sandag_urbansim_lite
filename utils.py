@@ -67,7 +67,7 @@ def run_feasibility(parcels, year=None):
     parcels = parcels.join(devyear)
     feasible_parcels = parcels.loc[parcels['buildout'] > parcels['residential_units']]
     # Restrict feasibility to specific years, based on scenario (TBD)
-    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr_ctrl'] < year]
+    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr_ctrl'] <= year]
     # remove scheduled developments from feasibility table
     feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
     orca.add_table("feasibility", feasible_parcels)
