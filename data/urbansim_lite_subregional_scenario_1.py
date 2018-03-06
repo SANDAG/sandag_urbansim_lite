@@ -150,7 +150,7 @@ parcel_city_and_county_sql = '''
             du AS residential_units, 
             0 as partial_build
        FROM urbansim.urbansim.parcel p
-      WHERE capacity > 0 and jurisdiction_id IN (14,19)
+      WHERE capacity > 0 and jurisdiction_id IN (14,19) and site_id IS NULL
 '''
 
 xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
@@ -169,47 +169,14 @@ parcels.sort_index(inplace=True)
 parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']
 
 
-sr14_cap_df_new = pd.DataFrame({'sr14_cap': parcels.groupby(['jur_or_cpa_id']).
+sr14_cap_df = pd.DataFrame({'sr14_cap': parcels.groupby(['jur_or_cpa_id']).
                                capacity_base_yr.sum()}).reset_index()
 
-sr14_cap_df_new.set_index('jur_or_cpa_id',inplace=True)
+sr14_cap_df.set_index('jur_or_cpa_id',inplace=True)
 
-sr14_cap_df_new.sr14_cap = sr14_cap_df_new.sr14_cap.astype(int)
+sr14_cap_df.sr14_cap = sr14_cap_df.sr14_cap.astype(int)
 
-sr14_cap_sql = '''
-  SELECT jurisdiction_id as jur_or_cpa_id, sum(capacity)  as sr14_cap
-  FROM urbansim.urbansim.parcel
-  WHERE capacity > 0 AND site_id IS NULL
-  GROUP BY jurisdiction_id
-  ORDER BY jurisdiction_id
-'''
 
-city_cap_sql = '''
-  SELECT cicpa_13 as jur_or_cpa_id, sum(capacity)  as sr14_cap
-  FROM urbansim.urbansim.parcel parcels
-  JOIN data_cafe.ref.vi_xref_geography_mgra_13   as x on x.mgra_13 = parcels.mgra_id
-  JOIN data_cafe.ref.geography_zone				 as g on x.cicpa_13 = g.zone 
-  WHERE parcels.capacity > 0  and  site_id IS NULL and jurisdiction_id = 14 and g.geography_type_id = 15
-  GROUP BY cicpa_13
-  ORDER BY cicpa_13
-  '''
-
-county_cap_sql = '''
-  SELECT cocpa_13 as jur_or_cpa_id, sum(capacity)  as sr14_cap
-  FROM urbansim.urbansim.parcel parcels
-  JOIN data_cafe.ref.vi_xref_geography_mgra_13   as x on x.mgra_13 = parcels.mgra_id
-  JOIN data_cafe.ref.geography_zone				 as g on x.cocpa_13 = g.zone 
-  WHERE parcels.capacity > 0  and  site_id IS NULL and jurisdiction_id = 19 and g.geography_type_id = 20
-  GROUP BY cocpa_13
-  ORDER BY cocpa_13
-  '''
-
-jurs_cap_df = pd.read_sql(sr14_cap_sql, mssql_engine,index_col='jur_or_cpa_id')
-city_cap_df = pd.read_sql(city_cap_sql, mssql_engine,index_col='jur_or_cpa_id')
-county_cap_df = pd.read_sql(county_cap_sql, mssql_engine,index_col='jur_or_cpa_id')
-sr14_cap_df = pd.concat([jurs_cap_df, city_cap_df, county_cap_df])
-
-# sr14 units for region
 
 housing_unit_sql = '''select  yr,
     housing_units1, households,housing_units_add 
