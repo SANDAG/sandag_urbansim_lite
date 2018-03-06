@@ -10,13 +10,13 @@ mssql_engine = create_engine(db_connection_string)
 parcels_2017_sql = '''
      SELECT	parcelid_2015 as parcel_id, cap_remaining_new AS capacity_base_yr
        FROM urbansim.urbansim.parcel_update_2017 update2017
-      WHERE cap_remaining_new > 0 
+      WHERE cap_remaining_new > 0
 '''
 
 parcels_2015_sql = '''
      SELECT	parcel_id, capacity AS capacity_base_yr
        FROM urbansim.urbansim.parcel p
-      WHERE capacity > 0 
+      WHERE capacity > 0
 '''
 
 parcels_2015_df = pd.read_sql(parcels_2015_sql, mssql_engine, index_col='parcel_id')
