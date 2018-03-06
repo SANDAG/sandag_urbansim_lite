@@ -111,32 +111,70 @@ unincorp_by_cpa_15_50 = '''
     '''
 cpa_unincorp_df = pd.read_sql(unincorp_by_cpa_15_50, mssql_engine)
 
-households_sql = '''
-  SELECT sum(hh) AS hh,yr
-  FROM isam.demographic_output.summary
-  WHERE sim_id = 1004 and yr > 2019
-  GROUP BY yr
-'''
-
-hh_df =  pd.read_sql(households_sql, mssql_engine)
-hh = hh_df.loc[hh_df.yr == 2050].hh.values[0]
-
-du_sql = '''
-  SELECT  SUM(COALESCE(residential_units,0)) AS residential_units
-  FROM urbansim.urbansim.building
-'''
-
-du_df = pd.read_sql(du_sql, mssql_engine)
-du = int(du_df.values)
-
 sched_dev_sql = '''
-  SELECT  SUM(COALESCE(capacity,0)) 
-  FROM urbansim.urbansim.parcel
-  WHERE site_id is NOT NULL and capacity > 0
+    SELECT scenario, parcel_id, yr, site_id, 
+           res_units, job_spaces, households, jobs
+      FROM urbansim.urbansim.scheduled_development_do_not_use
+     WHERE scenario = 1 and yr > 2016
+'''
+sched_dev_df =  pd.read_sql(sched_dev_sql, mssql_engine)
+sched_dev_capacity = int(sched_dev_df.res_units.sum())
+
+
+xref_geography_sql = '''
+    SELECT mgra_13, luz_13, cocpa_13, cocpa_2016,
+           jurisdiction_2016, cicpa_13
+      FROM data_cafe.ref.vi_xref_geography_mgra_13
 '''
 
-sh_df = pd.read_sql(sched_dev_sql, mssql_engine)
-sched_dev_capacity = int(sh_df.values)
+parcel_update_2017_sql = '''
+    SELECT	parcelid_2015 as parcel_id, p.mgra_id, p.jurisdiction_id, 
+            p.luz_id, p.site_id, cap_remaining_new AS capacity_base_yr, 
+            du_2017 AS residential_units, 
+            0 as partial_build
+       FROM urbansim.urbansim.parcel_update_2017 update2017
+       JOIN urbansim.urbansim.parcel p
+         ON p.parcel_id = update2017.parcelid_2015
+      WHERE cap_remaining_new > 0 and jurisdiction_id NOT IN (14,19) and site_id IS NULL
+'''
+
+# parcel_update_2017 does not have city and county capacity updates yet
+# problematic since sched dev table has city and county update
+# was inflating capacity since site ids did not match
+# work around is to use city and county capacity prior to update to 2017
+# from urbansim.parcel
+# delete this code and get all capacities from parcel_update_2017 when avail
+parcel_city_and_county_sql = '''
+    SELECT	parcel_id, p.mgra_id, p.jurisdiction_id, 
+            p.luz_id, p.site_id, capacity AS capacity_base_yr, 
+            du AS residential_units, 
+            0 as partial_build
+       FROM urbansim.urbansim.parcel p
+      WHERE capacity > 0 and jurisdiction_id IN (14,19)
+'''
+
+xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
+xref_geography_df['jur_or_cpa_id'] = xref_geography_df['cocpa_13']
+xref_geography_df['jur_or_cpa_id'].fillna(xref_geography_df['cicpa_13'],inplace=True)
+xref_geography_df['jur_or_cpa_id'].fillna(xref_geography_df['jurisdiction_2016'],inplace=True)
+xref_geography_df['jur_or_cpa_id'] = xref_geography_df['jur_or_cpa_id'].astype(int)
+
+parcel_update_2017_df = pd.read_sql(parcel_update_2017_sql, mssql_engine)
+parcel_city_and_county_df= pd.read_sql(parcel_city_and_county_sql, mssql_engine)
+parcels_df = pd.concat([parcel_update_2017_df,parcel_city_and_county_df])
+parcels = pd.merge(parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id']],left_on='mgra_id',right_on='mgra_13')
+parcels.parcel_id = parcels.parcel_id.astype(int)
+parcels.set_index('parcel_id',inplace=True)
+parcels.sort_index(inplace=True)
+parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']
+
+
+sr14_cap_df_new = pd.DataFrame({'sr14_cap': parcels.groupby(['jur_or_cpa_id']).
+                               capacity_base_yr.sum()}).reset_index()
+
+sr14_cap_df_new.set_index('jur_or_cpa_id',inplace=True)
+
+sr14_cap_df_new.sr14_cap = sr14_cap_df_new.sr14_cap.astype(int)
 
 sr14_cap_sql = '''
   SELECT jurisdiction_id as jur_or_cpa_id, sum(capacity)  as sr14_cap
