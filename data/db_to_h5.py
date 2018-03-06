@@ -89,7 +89,7 @@ buildings_sql = '''
 '''
 
 regional_capacity_controls_sql = '''
-    SELECT residential_control_id, scenario, yr, geo,
+    SELECT scenario, yr, geo,
            geo_id, control, control_type, max_units
       FROM urbansim.urbansim.urbansim_lite_subregional_control
      WHERE scenario = 1
