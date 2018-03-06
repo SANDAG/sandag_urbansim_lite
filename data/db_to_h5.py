@@ -98,7 +98,7 @@ regional_capacity_controls_sql = '''
 parcel_dev_control_sql = '''
     SELECT parcel_id, phase as phase_yr_ctrl, scenario
       FROM urbansim.urbansim.urbansim_lite_parcel_control
-     WHERE scenario = 0
+     WHERE scenario = 1
 '''
 
 xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)

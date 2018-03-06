@@ -49,7 +49,7 @@ units_by_jur.to_csv('data/units_by_jur.csv')
 
 
 # output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date'])
-# run_description = 'Test sched_dev; jur=14,19 cap not updated; jur=8 max_units 100/year and phase yr for desert'
+# run_description = 'Updated subregional controls. Updated test sched_dev; jur=14,19 cap not updated; phase yr for desert. no max units'
 # run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 # output_records.loc[run_id] = [run_id, run_description, run_date]
 # output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
