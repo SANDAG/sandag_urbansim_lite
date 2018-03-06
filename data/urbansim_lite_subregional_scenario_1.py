@@ -210,7 +210,15 @@ county_cap_df = pd.read_sql(county_cap_sql, mssql_engine,index_col='jur_or_cpa_i
 sr14_cap_df = pd.concat([jurs_cap_df, city_cap_df, county_cap_df])
 
 # sr14 units for region
-units_needed = (hh - du - sched_dev_capacity).astype(float)
+
+housing_unit_sql = '''select  yr,
+    housing_units1, households,housing_units_add 
+    from [isam].[economic_output].[urbansim_housing_units]'''
+hu_df =  pd.read_sql(housing_unit_sql, mssql_engine,index_col ='yr')
+hu_df['total_housing_units_add'] = hu_df.housing_units_add.cumsum()
+
+units_needed = int(hu_df['housing_units_add'].sum()) - sched_dev_capacity
+
 
 # add cpa to dataframe
 # drops jurisdictions 14 and 19 to re-add them at CPA level
@@ -304,11 +312,12 @@ sr14_res_control = sr14_res_control.reset_index()
 sr14_res_control.to_csv('sr14_res_control.csv')
 
 # keep only columns for db table
-sr14_res_control = sr14_res_control[['scenario','yr','geo','geo_id','control','control_type','scenario_desc']]
 sr14_res_control.fillna(0,inplace=True)
+sr14_res_control['max_units'] = None
+sr14_res_control = sr14_res_control[['scenario','yr','geo','geo_id','control','control_type','max_units','scenario_desc']]
 
 # to write to database
-sr14_res_control.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
+sr14_res_control.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='replace')
 
 ## set max units to 100
 # UPDATE [urbansim].[urbansim].[urbansim_lite_subregional_control]
