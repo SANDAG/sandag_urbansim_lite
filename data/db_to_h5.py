@@ -100,6 +100,15 @@ buildings_sql = '''
      where year_built > 2015
 '''
 
+negative_capacity_parcels = '''
+    SELECT parcel_id, 
+        p.site_id,
+        null as yr,
+        capacity
+    FROM urbansim.urbansim.parcel p
+    WHERE capacity < 0 and site_id is null
+'''
+
 regional_capacity_controls_sql = '''
     SELECT scenario, yr, geo,
            geo_id, control, control_type, max_units
@@ -144,6 +153,7 @@ regional_controls_df['control_type'] = regional_controls_df['control_type'].asty
 regional_controls_df['geo'] = regional_controls_df['geo'].astype(str)
 jurisdictions_df = pd.read_sql(jurisdictions_names_sql, mssql_engine)
 jurisdictions_df['name'] = jurisdictions_df['name'].astype(str)
+negative_parcels_df = pd.read_sql(negative_capacity_parcels, mssql_engine)
 
 with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('scheduled_development', sched_dev_df, format='table')
@@ -153,3 +163,4 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('regional_controls', regional_controls_df, format='table')
     store.put('jurisdictions', jurisdictions_df, format='table')
     store.put('devyear', devyear_df, format='table')
+    store.put('negative_parcels', negative_parcels_df, format='table')

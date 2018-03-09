@@ -11,6 +11,7 @@ utils.initialize_tables()
 
 orca.run([
     "scheduled_development_events",
+    "negative_parcel_reducer",
     "feasibility",
     "residential_developer",
     "summary"
@@ -27,7 +28,7 @@ hu_forecast_out = hu_forecast[['parcel_id','residential_units','year_built','sou
 hu_forecast_out.reset_index(drop=True,inplace=True)
 
 hu_forecast_out.rename(columns = {'year_built': 'year_simulation'},inplace=True)
-hu_forecast_out.rename(columns = {'residential_units': 'units_added'},inplace=True)
+hu_forecast_out.rename(columns = {'residential_units': 'unit_change'},inplace=True)
 
 run_id_sql = '''
 SELECT max(run_id)

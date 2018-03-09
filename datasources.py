@@ -46,3 +46,8 @@ def devyear(store):
 def sched_dev(store):
     df = store['scheduled_development']
     return df
+
+@orca.table('negative_parcels', cache=True)
+def negative_parcels(store):
+    df = store['negative_parcels']
+    return df

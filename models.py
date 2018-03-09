@@ -14,6 +14,11 @@ def scheduled_development_events(hu_forecast, year):
     utils.run_scheduled_development(hu_forecast, year)
 
 
+@orca.step('negative_parcel_reducer')
+def negative_parcel_reducer(hu_forecast, year):
+    utils.run_reducer(hu_forecast, year)
+
+
 @orca.step('feasibility')
 def feasibility(parcels, year):
     utils.run_feasibility(parcels, year)
