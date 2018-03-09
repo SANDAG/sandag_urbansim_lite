@@ -38,7 +38,7 @@ parcel_city_and_county_sql = '''
 
 sched_dev_sql = '''
     SELECT scenario, parcel_id, yr, site_id, 
-           res_units, job_spaces, households, jobs
+           res_units
       FROM urbansim.urbansim.scheduled_development_do_not_use
      WHERE scenario = 1 and yr > 2016
 '''
