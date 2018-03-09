@@ -20,14 +20,14 @@ orca.run([
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
-buildings = orca.get_table('buildings').to_frame()
-buildings = buildings.reset_index(drop=False)
-buildings = buildings.loc[(buildings['year_built'] > 2016)]
-buildings_out = buildings[['parcel_id','residential_units','year_built','source']].copy()
-buildings_out.reset_index(drop=True,inplace=True)
+hu_forecast = orca.get_table('hu_forecast').to_frame()
+hu_forecast = hu_forecast.reset_index(drop=False)
+hu_forecast = hu_forecast.loc[(hu_forecast['year_built'] > 2016)]
+hu_forecast_out = hu_forecast[['parcel_id','residential_units','year_built','source']].copy()
+hu_forecast_out.reset_index(drop=True,inplace=True)
 
-buildings_out.rename(columns = {'year_built': 'year_simulation'},inplace=True)
-buildings_out.rename(columns = {'residential_units': 'units_added'},inplace=True)
+hu_forecast_out.rename(columns = {'year_built': 'year_simulation'},inplace=True)
+hu_forecast_out.rename(columns = {'residential_units': 'units_added'},inplace=True)
 
 run_id_sql = '''
 SELECT max(run_id)
@@ -39,9 +39,9 @@ try:
 except:
     run_id = int(1)
 
-buildings_out['run_id'] = run_id
+hu_forecast_out['run_id'] = run_id
 
-buildings_out.to_csv('data/new_units.csv')
+hu_forecast_out.to_csv('data/new_units.csv')
 
 units_by_jur = orca.get_table('uj').to_frame()
 
@@ -54,7 +54,7 @@ units_by_jur.to_csv('data/units_by_jur.csv')
 # output_records.loc[run_id] = [run_id, run_description, run_date]
 # output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
 #
-# buildings_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
+# hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
 #                    dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'units_added': sqlalchemy.types.INTEGER(),
 #                             'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
 #                             'run_id': sqlalchemy.types.INTEGER()})

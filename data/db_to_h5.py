@@ -91,9 +91,9 @@ households_sql = '''
 '''
 
 buildings_sql = '''
-    SELECT building_id
+    SELECT building_id as hu_forecast_id
         ,parcel_id
-        ,COALESCE(development_type_id,0) AS building_type_id
+        ,COALESCE(development_type_id,0) AS hu_forecast_type_id
         ,COALESCE(residential_units,0) AS residential_units
         ,COALESCE(year_built,0) AS year_built
      FROM urbansim.urbansim.building
@@ -136,8 +136,8 @@ parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
 households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
-buildings_df = pd.read_sql(buildings_sql, mssql_engine, index_col='building_id')
-buildings_df['source'] = 'existing'
+hu_forecast_df = pd.read_sql(buildings_sql, mssql_engine, index_col='hu_forecast_id')
+hu_forecast_df['source'] = 'existing'
 devyear_df = pd.read_sql(parcel_dev_control_sql, mssql_engine, index_col='parcel_id')
 regional_controls_df = pd.read_sql(regional_capacity_controls_sql, mssql_engine)
 regional_controls_df['control_type'] = regional_controls_df['control_type'].astype(str)
@@ -149,7 +149,7 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('scheduled_development', sched_dev_df, format='table')
     store.put('parcels', parcels, format='table')
     store.put('households',households_df,format='table')
-    store.put('buildings', buildings_df, format='table')
+    store.put('hu_forecast', hu_forecast_df, format='table')
     store.put('regional_controls', regional_controls_df, format='table')
     store.put('jurisdictions', jurisdictions_df, format='table')
     store.put('devyear', devyear_df, format='table')

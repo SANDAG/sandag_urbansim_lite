@@ -20,9 +20,9 @@ def households(store):
     return df
 
 
-@orca.table('buildings', cache=True)
-def buildings(store):
-    df = store['buildings']
+@orca.table('hu_forecast', cache=True)
+def hu_forecast(store):
+    df = store['hu_forecast']
     return df
 
 

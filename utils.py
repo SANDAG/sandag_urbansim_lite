@@ -27,24 +27,24 @@ def initialize_tables():
     orca.add_table('sr14cap_out',cap_results)
 
 
-def run_scheduled_development(buildings, year):
+def run_scheduled_development(hu_forecast, year):
     print('\n Now in year: %d' % (year))
     sched_dev = orca.get_table('scheduled_development').to_frame()
     sched_dev = sched_dev[(sched_dev.yr==year) & (sched_dev.res_units > 0)]
     if len(sched_dev) > 0:
-        max_bid = buildings.index.values.max()
+        max_bid = hu_forecast.index.values.max()
         idx = np.arange(max_bid + 1,max_bid+len(sched_dev)+1)
-        sched_dev['building_id'] = idx
-        sched_dev = sched_dev.set_index('building_id')
+        sched_dev['hu_forecast_id'] = idx
+        sched_dev = sched_dev.set_index('hu_forecast_id')
         sched_dev['year_built'] = year
         sched_dev['residential_units'] = sched_dev['res_units']
-        sched_dev['building_type_id'] = ''
+        sched_dev['hu_forecast_type_id'] = ''
         sched_dev['source'] = 'sched_dev'
         from urbansim.developer.developer import Developer
         merge = Developer(pd.DataFrame({})).merge
-        b = buildings.to_frame(buildings.local_columns)
-        all_buildings = merge(b,sched_dev[b.columns])
-        orca.add_table("buildings", all_buildings)
+        b = hu_forecast.to_frame(hu_forecast.local_columns)
+        all_hu_forecast = merge(b,sched_dev[b.columns])
+        orca.add_table("hu_forecast", all_hu_forecast)
 
 
 def run_feasibility(parcels, year=None):
@@ -112,13 +112,13 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
     return parcels_picked
 
 
-def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions, supply_fname,
+def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictions, supply_fname,
                   total_units, feasibility, year=None,
                   target_vacancy=.03, form_to_btype_callback=None,
                   add_more_columns_callback=None, max_parcel_size=200000,
                   residential=True, bldg_sqft_per_job=400.0):
     """
-    Run the developer model to pick and build buildings
+    Run the developer model to pick and build hu_forecast
 
     Parameters
     ----------
@@ -128,10 +128,10 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     agents : DataFrame Wrapper
         Used to compute the current demand for units/floorspace in the area
          (households)
-    buildings : DataFrame Wrapper
+    hu_forecast : DataFrame Wrapper
         Used to compute the current supply of units/floorspace in the area
     supply_fname : string
-        Identifies the column in buildings which indicates the supply of
+        Identifies the column in hu_forecast which indicates the supply of
         units/floorspace ("residential units")
     total_units : Series
         Passed directly to dev.pick - total current residential_units /
@@ -140,13 +140,13 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
         The output from feasibility above (the table called 'feasibility')
     year : int
         The year of the simulation - will be assigned to 'year_built' on the
-        new buildings
+        new hu_forecast
     target_vacancy : float
         The target vacancy rate - used to determine how much to build
 
     Returns
     -------
-    Writes the result back to the buildings table (returns nothing)
+    Writes the result back to the hu_forecast table (returns nothing)
     """
 
     parcels = parcels.to_frame()
@@ -164,11 +164,11 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
     # current vacancy = 1 - num_agents / float(num_units)
     # target_units = dev.\
     #     compute_units_to_build(agents.to_frame().housing_units_add.get_value(year),
-    #                            buildings[supply_fname].sum(),
+    #                            hu_forecast[supply_fname].sum(),
     #                            target_vacancy)
     target_units = dev.\
         compute_units_to_build(agents.to_frame().total_housing_units.get_value(year),
-                               buildings.to_frame().loc[buildings.year_built > 2016][supply_fname].sum(),
+                               hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum(),
                                target_vacancy)
 
     feasible_parcels_df = feasibility.to_frame()
@@ -266,26 +266,26 @@ def run_developer(forms, parcels, agents, buildings, reg_controls, jurisdictions
 
         sr14cap = sr14cap.reset_index()
         sr14cap['residential_units'] = sr14cap['residential_units_sim_yr']
-        # temporarily assign building type id
-        sr14cap['building_type_id'] = ''
+        # temporarily assign hu_forecast type id
+        sr14cap['hu_forecast_type_id'] = ''
         if year is not None:
             sr14cap["year_built"] = year
 
-        print("Adding {:,} buildings with {:,} {}"
+        print("Adding {:,} hu_forecast with {:,} {}"
               .format(len(sr14cap),
                       int(sr14cap[supply_fname].sum()),
                       supply_fname))
         '''
-            Merge old building with the new buildings
+            Merge old hu_forecast with the new hu_forecast
         '''
 
-        all_buildings = dev.merge(buildings.to_frame(buildings.local_columns),
-                                  sr14cap[buildings.local_columns])
+        all_hu_forecast = dev.merge(hu_forecast.to_frame(hu_forecast.local_columns),
+                                  sr14cap[hu_forecast.local_columns])
 
-        orca.add_table("buildings", all_buildings)
+        orca.add_table("hu_forecast", all_hu_forecast)
 
 def summary(year):
-    current_builds = orca.get_table('buildings').to_frame()
+    current_builds = orca.get_table('hu_forecast').to_frame()
     current_builds = current_builds.loc[(current_builds.year_built == year)]
     sched_dev_built = (current_builds.loc[(current_builds.source == 'sched_dev')]).residential_units.sum()
     subregional_control_built = (current_builds.loc[(current_builds.source == 'subregional_control')]).residential_units.sum()

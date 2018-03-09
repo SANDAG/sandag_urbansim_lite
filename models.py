@@ -9,9 +9,9 @@ def year(iter_var):
 
 
 @orca.step('scheduled_development_events')
-def scheduled_development_events(buildings, year):
-# def scheduled_development_events(scheduled_development_events, buildings):
-    utils.run_scheduled_development(buildings, year)
+def scheduled_development_events(hu_forecast, year):
+# def scheduled_development_events(scheduled_development_events, hu_forecast):
+    utils.run_scheduled_development(hu_forecast, year)
 
 
 @orca.step('feasibility')
@@ -20,11 +20,11 @@ def feasibility(parcels, year):
 
 
 @orca.step('residential_developer')
-def residential_developer(feasibility, households, buildings, parcels, year, regional_controls, jurisdictions):
+def residential_developer(feasibility, households, hu_forecast, parcels, year, regional_controls, jurisdictions):
     utils.run_developer(forms=None,
                         parcels=parcels,
                         agents=households,
-                        buildings=buildings,
+                        hu_forecast=hu_forecast,
                         reg_controls=regional_controls,
                         jurisdictions=jurisdictions,
                         supply_fname="residential_units",
