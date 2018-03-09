@@ -119,13 +119,19 @@ xref_geography_df['jur_or_cpa_id'].fillna(xref_geography_df['cicpa_13'],inplace=
 xref_geography_df['jur_or_cpa_id'].fillna(xref_geography_df['jurisdiction_2016'],inplace=True)
 xref_geography_df['jur_or_cpa_id'] = xref_geography_df['jur_or_cpa_id'].astype(int)
 
-parcel_update_2017_df = pd.read_sql(parcel_update_2017_sql, mssql_engine)
-parcel_city_and_county_df= pd.read_sql(parcel_city_and_county_sql, mssql_engine)
-parcels_df = pd.concat([parcel_update_2017_df,parcel_city_and_county_df])
-parcels = pd.merge(parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id']],left_on='mgra_id',right_on='mgra_13')
+# parcel_update_2017_df = pd.read_sql(parcel_update_2017_sql, mssql_engine)
+# parcel_city_and_county_df= pd.read_sql(parcel_city_and_county_sql, mssql_engine)
+# parcels_df = pd.concat([parcel_update_2017_df,parcel_city_and_county_df])
+parcels_df = pd.read_sql(parcel_sql, mssql_engine)
+parcels = pd.merge(parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id','cocpa_13']],left_on='mgra_id',right_on='mgra_13')
+
+
 parcels.parcel_id = parcels.parcel_id.astype(int)
 parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)
+parcels.loc[parcels.jurisdiction_id != parcels.orig_jurisdiction_id,'jur_or_cpa_id'] = parcels['jurisdiction_id']
+parcels.loc[parcels.jur_or_cpa_id ==19,'jur_or_cpa_id'] = parcels['cocpa_13']
+
 parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
