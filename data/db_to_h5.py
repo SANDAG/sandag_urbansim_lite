@@ -6,6 +6,18 @@ from pysandag.database import get_connection_string
 db_connection_string = get_connection_string('config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
+
+
+parcel_sql = '''
+      SELECT	parcel_id, p.mgra_id, cap_jurisdiction_id as jurisdiction_id, 
+        jurisdiction_id as orig_jurisdiction_id,
+            p.luz_id, p.site_id, capacity AS capacity_base_yr, 
+            du AS residential_units, 
+            0 as partial_build
+       FROM urbansim.urbansim.parcel p
+      WHERE capacity > 0 and site_id IS NULL
+'''
+
 #########################################################################################
 # note: need to CHANGE when parcel_update_2017 has updated capacities for city and county
 #########################################################################################
