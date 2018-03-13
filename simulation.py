@@ -49,14 +49,14 @@ units_by_jur = orca.get_table('uj').to_frame()
 units_by_jur.to_csv('data/units_by_jur.csv')
 
 
-# output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date'])
-# run_description = 'Updated subregional controls. Updated test sched_dev; jur=14,19 cap not updated; phase yr for desert. no max units'
-# run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-# output_records.loc[run_id] = [run_id, run_description, run_date]
-# output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
-#
-# hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
-#                    dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'units_added': sqlalchemy.types.INTEGER(),
-#                             'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
-#                             'run_id': sqlalchemy.types.INTEGER()})
+output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date'])
+run_description = 'test sched_dev; urbansim.parcel capacities, not using 2017 update; phase yr for desert. incoporated neg capacities'
+run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+output_records.loc[run_id] = [run_id, run_description, run_date]
+output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
+
+hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
+                   dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'unit_change': sqlalchemy.types.INTEGER(),
+                            'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
+                            'run_id': sqlalchemy.types.INTEGER()})
 
