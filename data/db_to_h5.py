@@ -15,7 +15,7 @@ parcel_sql = '''
             du AS residential_units, 
             0 as partial_build
        FROM urbansim.urbansim.parcel p
-      WHERE capacity > 0 and site_id IS NULL
+      WHERE capacity > 0
 '''
 
 #########################################################################################
@@ -49,8 +49,8 @@ parcel_city_and_county_sql = '''
 '''
 
 sched_dev_sql = '''
-    SELECT scenario, parcel_id, yr, site_id, 
-           res_units
+    SELECT parcel_id, yr, site_id, 
+           res_units, max(yr) over (partition by site_id) as final_year
       FROM urbansim.urbansim.scheduled_development_do_not_use
      WHERE scenario = 1 and yr > 2016
 '''

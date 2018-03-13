@@ -53,10 +53,10 @@ output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date'])
 run_description = 'test sched_dev; urbansim.parcel capacities, not using 2017 update; phase yr for desert. incoporated neg capacities'
 run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 output_records.loc[run_id] = [run_id, run_description, run_date]
-output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
-
-hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
-                   dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'unit_change': sqlalchemy.types.INTEGER(),
-                            'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
-                            'run_id': sqlalchemy.types.INTEGER()})
+# output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
+#
+# hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
+#                    dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'unit_change': sqlalchemy.types.INTEGER(),
+#                             'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
+#                             'run_id': sqlalchemy.types.INTEGER()})
 

@@ -30,6 +30,9 @@ def initialize_tables():
 def run_scheduled_development(hu_forecast, year):
     print('\n Now in year: %d' % (year))
     sched_dev = orca.get_table('scheduled_development').to_frame()
+    completed_devs = sched_dev[sched_dev.final_year == year]
+    final_sched_dev = pd.DataFrame({'residential_units': completed_devs.groupby(["parcel_id"]).res_units.sum()}).reset_index()
+    orca.add_table("final_sched_dev", final_sched_dev)
     sched_dev = sched_dev[(sched_dev.yr==year) & (sched_dev.res_units > 0)]
     if len(sched_dev) > 0:
         max_bid = hu_forecast.index.values.max()
@@ -90,6 +93,10 @@ def run_feasibility(parcels, year=None):
     parcels = orca.get_table('parcels').to_frame()
     devyear = orca.get_table('devyear').to_frame()
     parcels = parcels.join(devyear)
+    finished_dev = orca.get_table('final_sched_dev').to_frame()
+    for parcel in finished_dev['parcel_id'].tolist():
+        parcels.loc[parcels.index == parcel, 'residential_units'] = finished_dev.loc[finished_dev.parcel_id== parcel]['residential_units']
+        parcels.loc[parcels.index == parcel, 'site_id'] = np.nan
     feasible_parcels = parcels.loc[parcels['buildout'] > parcels['residential_units']]
     # Restrict feasibility to specific years, based on scenario (TBD)
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr_ctrl'] <= year]
