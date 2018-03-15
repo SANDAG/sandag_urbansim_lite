@@ -54,6 +54,7 @@ desktop.ini
 *.xlsx
 pysandag-master/
 .ipynb_checkpoints
+*.pdf
 
 # Images #
 ################
