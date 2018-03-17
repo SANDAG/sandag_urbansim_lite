@@ -42,7 +42,7 @@ def run_scheduled_development(hu_forecast, year):
         sched_dev['year_built'] = year
         sched_dev['residential_units'] = sched_dev['res_units']
         sched_dev['hu_forecast_type_id'] = ''
-        sched_dev['source'] = 'sched_dev'
+        sched_dev['source'] = '1'
         from urbansim.developer.developer import Developer
         merge = Developer(pd.DataFrame({})).merge
         b = hu_forecast.to_frame(hu_forecast.local_columns)
@@ -66,7 +66,7 @@ def run_reducer(hu_forecast, year):
         parcels_reduced['year_built'] = year
         parcels_reduced['hu_forecast_type_id'] = ''
         parcels_reduced['residential_units'] = parcels_reduced['capacity']
-        parcels_reduced['source'] = 'reducer'
+        parcels_reduced['source'] = '4'
         for parcel in parcels_reduced['parcel_id'].tolist():
             reducible_parcels.loc[reducible_parcels.parcel_id == parcel, 'capacity'] = 0
         orca.add_table("negative_parcels", reducible_parcels)
@@ -243,7 +243,7 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
         if subregion_targets > subregion_max: #if subregion_max is NaN, this gets skipped (which is fine)
             feasible_parcels_df = feasible_parcels_df.drop(feasible_parcels_df[feasible_parcels_df.jur_or_cpa_id == jur].index)
         if len(chosen):
-            chosen['source'] = 'subregional_control'
+            chosen['source'] = '2'
         sr14cap = sr14cap.append(chosen)
 
     if len(sr14cap):
@@ -260,7 +260,7 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
         feasible_parcels_df['partial_build'] = feasible_parcels_df.residential_units_sim_yr
         chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
         if len(chosen):
-            chosen['source'] = 'entire_region'
+            chosen['source'] = '3'
         sr14cap = sr14cap.append(chosen)
 
 
@@ -320,9 +320,9 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
 def summary(year):
     current_builds = orca.get_table('hu_forecast').to_frame()
     current_builds = current_builds.loc[(current_builds.year_built == year)]
-    sched_dev_built = (current_builds.loc[(current_builds.source == 'sched_dev')]).residential_units.sum()
-    subregional_control_built = (current_builds.loc[(current_builds.source == 'subregional_control')]).residential_units.sum()
-    entire_region_built = (current_builds.loc[(current_builds.source == 'entire_region')]).residential_units.sum()
+    sched_dev_built = (current_builds.loc[(current_builds.source == '1')]).residential_units.sum()
+    subregional_control_built = (current_builds.loc[(current_builds.source == '2')]).residential_units.sum()
+    entire_region_built = (current_builds.loc[(current_builds.source == '3')]).residential_units.sum()
     print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
     print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
