@@ -1,4 +1,4 @@
-import models, utils
+import models, utils, bulk_insert
 import orca
 from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
@@ -15,6 +15,7 @@ orca.run([
     "feasibility",
     "residential_developer",
     "summary"
+    #,"write_to_sql"
      ], iter_vars=range(2017, 2051))
 
 

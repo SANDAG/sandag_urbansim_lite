@@ -1,6 +1,7 @@
 import datasources
 import orca
 import utils
+import bulk_insert
 
 
 @orca.injectable()
@@ -44,3 +45,8 @@ def residential_developer(feasibility, households, hu_forecast, parcels, year, r
 @orca.step('summary')
 def summary(year):
     utils.summary(year)
+
+
+@orca.step('write_to_sql')
+def write_to_sql(year):
+    bulk_insert.run_insert(year)
