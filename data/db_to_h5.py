@@ -1,11 +1,11 @@
 import pandas as pd
+import numpy as np
 from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
 
 
 db_connection_string = get_connection_string('config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
-
 
 
 parcel_sql = '''
@@ -17,6 +17,15 @@ parcel_sql = '''
        FROM urbansim.urbansim.parcel p
       WHERE capacity > 0
 '''
+
+
+all_parcel_sql = '''
+      SELECT parcel_id, mgra_id as mgra, cap_jurisdiction_id as jur_reported, 
+        jurisdiction_id as jur, luz_id as luz, site_id, cap_remaining_new AS base_cap, 
+        du_2017 AS base_hu, (du_2017 + cap_remaining_new) as buildout
+        FROM urbansim.urbansim.parcel
+'''
+
 
 #########################################################################################
 # note: need to CHANGE when parcel_update_2017 has updated capacities for city and county
@@ -133,13 +142,23 @@ xref_geography_df['jur_or_cpa_id'] = xref_geography_df['jur_or_cpa_id'].astype(i
 # parcels_df = pd.concat([parcel_update_2017_df,parcel_city_and_county_df])
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 parcels = pd.merge(parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id','cocpa_13']],left_on='mgra_id',right_on='mgra_13')
-
-
 parcels.parcel_id = parcels.parcel_id.astype(int)
 parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)
 parcels.loc[parcels.jurisdiction_id != parcels.orig_jurisdiction_id,'jur_or_cpa_id'] = parcels['jurisdiction_id']
 parcels.loc[parcels.jur_or_cpa_id ==19,'jur_or_cpa_id'] = parcels['cocpa_13']
+
+all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
+all_parcels = pd.merge(all_parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id']],how='left',left_on='mgra',right_on='mgra_13')
+all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
+all_parcels.set_index('parcel_id',inplace=True)
+all_parcels.sort_index(inplace=True)
+all_parcels.loc[all_parcels.jur_reported.isnull(),'jur_reported'] = all_parcels['jur']
+all_parcels.loc[all_parcels.jur_or_cpa_id < 20, 'jur_or_cpa_id'] = np.nan
+all_parcels = all_parcels.drop(['mgra_13'],axis=1)
+all_parcels.mgra = all_parcels.mgra.astype(float)
+#There are missing MGRAs, spacecore has them but they are parcels with multiple MGRAs /other oddities
+
 
 parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
@@ -164,3 +183,4 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('jurisdictions', jurisdictions_df, format='table')
     store.put('devyear', devyear_df, format='table')
     store.put('negative_parcels', negative_parcels_df, format='table')
+    store.put('all_parcles', all_parcels, format='table')
