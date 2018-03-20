@@ -37,17 +37,26 @@ def jurisdictions(store):
     df = store['jurisdictions']
     return df
 
+
 @orca.table('devyear', cache=True)
 def devyear(store):
     df = store['devyear']
     return df
+
 
 @orca.table('scheduled_development', cache=True)
 def sched_dev(store):
     df = store['scheduled_development']
     return df
 
+
 @orca.table('negative_parcels', cache=True)
 def negative_parcels(store):
     df = store['negative_parcels']
+    return df
+
+
+@orca.table('all_parcels', cache=True)
+def all_parcels(store):
+    df = store['all_parcels']
     return df

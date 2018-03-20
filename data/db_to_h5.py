@@ -157,7 +157,7 @@ all_parcels.loc[all_parcels.jur_reported.isnull(),'jur_reported'] = all_parcels[
 all_parcels.loc[all_parcels.jur_or_cpa_id < 20, 'jur_or_cpa_id'] = np.nan
 all_parcels = all_parcels.drop(['mgra_13'],axis=1)
 all_parcels.mgra = all_parcels.mgra.astype(float)
-#There are missing MGRAs, spacecore has them but they are parcels with multiple MGRAs /other oddities
+#There are missing MGRAs / LUZs, spacecore has them but they are parcels with multiple MGRAs /other oddities
 
 
 parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']
@@ -183,4 +183,4 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('jurisdictions', jurisdictions_df, format='table')
     store.put('devyear', devyear_df, format='table')
     store.put('negative_parcels', negative_parcels_df, format='table')
-    store.put('all_parcles', all_parcels, format='table')
+    store.put('all_parcels', all_parcels, format='table')
