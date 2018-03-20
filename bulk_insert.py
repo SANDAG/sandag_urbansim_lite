@@ -3,7 +3,8 @@ import orca
 import numpy as np
 from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
-import pyodbc
+import time
+from datetime import timedelta
 
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
@@ -45,7 +46,7 @@ def run_insert(year):
                     [cap_hs] [int] NOT NULL,
                     [source] [smallint] NOT NULL,
                     [phase] [int] NULL
-                    CONSTRAINT [PK_sr14_residential_CAP_parcel_yearly] PRIMARY KEY CLUSTERED 
+                    CONSTRAINT [PK_sr14_residential_CAP_parcel_yearly] PRIMARY KEY CLUSTERED
                     (
                         [scenario] ASC,
                         [year] ASC,
@@ -62,34 +63,41 @@ def run_insert(year):
                     '''
         scenario_df = pd.read_sql(scenario_sql, mssql_engine)
         scenario = int(scenario_df.values)
-
+    #scenario = 1
     all_parcels = orca.get_table('all_parcels').to_frame()
     capacity_parcels = orca.get_table('parcels').to_frame()
     phase_year = orca.get_table('devyear').to_frame()
     hu_forecast = orca.get_table('hu_forecast').to_frame()
-    hu_forecast = hu_forecast.loc[~hu_forecast['year_built'] != year]
+    hu_forecast = hu_forecast[hu_forecast['year_built'] == year]
 
     #year_update = pd.merge(all_parcels, hu_forecast[['parcel_id','res_units','source']],how='left',left_index=True,
     #                       right_on='parcel_id')
-    year_update = pd.merge(capacity_parcels, hu_forecast[['parcel_id', 'res_units', 'source']], how='left', left_index=True,
-                           right_on='parcel_id')
-    year_update = year_update.join(phase_year,how='left')
+    '''Current form is only for cap > 0 parcels! May need (significant) modification for all parcel version!'''
+    year_update = pd.merge(capacity_parcels, hu_forecast[['parcel_id', 'residential_units', 'source']], how='left',
+                           left_index=True, right_on='parcel_id')
+    year_update = year_update.join(phase_year,how='left') ## check how phase year is being merged in
     year_update['scenario'] = scenario
     year_update['year'] = year
     year_update['taz'] = np.nan
     year_update['lu'] = np.nan
-    #year_update['hs'] =
-    year_update.rename(columns={"res_units":"chg_hs", "B": "c"},inplace=True)
-
-
-    # all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
-    # all_parcels.set_index('parcel_id', inplace=True)
-    # all_parcels.sort_index(inplace=True)
-    # all_parcels.loc[all_parcels.jur_reported.isnull(), 'jur_reported'] = all_parcels['jur']
-    # all_parcels.loc[all_parcels.jur_or_cpa_id < 20, 'jur_or_cpa_id'] = np.nan
-    # all_parcels = all_parcels.drop(['mgra_13'], axis=1)
-    # all_parcels.mgra = all_parcels.mgra.astype(float)
-
+    year_update.rename(columns={"orig_jurisdiction_id":"jur","jurisdiction_id":"jur_reported",
+                                "jur_or_cpa_id":"cpa","luz_id":"luz","residential_units_x":"hs","residential_units_y":
+                                "chg_hs","phase_yr_ctrl":"phase","mgra_id":"mgra"},inplace=True)
+    ## hs is wrong, currently only showing initial hs
+    year_update['cap_hs'] = year_update['buildout'] - year_update['hs']
+    year_update.loc[year_update.cpa < 20, 'cpa'] = np.nan
+    year_update = year_update.drop(['mgra_13','capacity_base_yr','partial_build','cocpa_13','buildout'], axis=1)
+    increment = int(5 * round(year/5))  ## needs to round down, never up
+    if increment == 2015:
+        increment = 2017
+    year_update['increment'] = increment
+    year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
+    year_update['source'] = year_update['source'].fillna(0)
+    start_time = time.monotonic()
+    year_update.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim', index=False,
+                       if_exists='append')
+    end_time = time.monotonic()
+    print(timedelta(seconds=end_time - start_time))
 
 
 
@@ -115,3 +123,20 @@ def run_insert(year):
     #     raise
     #
     # conn.close()
+
+
+# This creates a new file of parcel info for each year
+# parcels['year'] = year
+# yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
+# parcels.to_csv(yname)
+'''
+#This loop can write the all the parcels for each year as one (very large) .csv file.
+if year == 2020:
+    parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv')
+else:
+    parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv', mode='a', header=False)
+db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
+mssql_engine = create_engine(db_connection_string)
+parcels.to_sql(name='urbansim_lite_output_parcels', con=mssql_engine, schema='urbansim', if_exists='replace',
+                 index=True) #no run ID -> appending to database
+'''

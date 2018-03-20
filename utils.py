@@ -280,22 +280,6 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
         parcels = parcels.drop(['residential_units_sim_yr'], 1)
         orca.add_table("parcels", parcels)
 
-        #This creates a new file of parcel info for each year
-        # parcels['year'] = year
-        #yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
-        #parcels.to_csv(yname)
-        '''
-        #This loop can write the all the parcels for each year as one (very large) .csv file.
-        if year == 2020:
-            parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv')
-        else:
-            parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv', mode='a', header=False)
-        db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
-        mssql_engine = create_engine(db_connection_string)
-        parcels.to_sql(name='urbansim_lite_output_parcels', con=mssql_engine, schema='urbansim', if_exists='replace',
-                         index=True) #no run ID -> appending to database
-        '''
-
 
         sr14cap = sr14cap.reset_index()
         sr14cap['residential_units'] = sr14cap['residential_units_sim_yr']
