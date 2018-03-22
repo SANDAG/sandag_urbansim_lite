@@ -232,7 +232,9 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
     # for jur in jurs['jurisdiction_id'].tolist():
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id']==jur].max_units.values[0]
-        target_units_for_geo = min(subregion_targets, subregion_max)
+        # use nanmin to handle null values for max units
+        target_units_for_geo = np.nanmin(np.array([subregion_targets, subregion_max]))
+        # target_units_for_geo = min(subregion_targets, subregion_max)
         # geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
         target_units_for_geo = int(target_units_for_geo)
         geo_name = str(jur)
@@ -240,8 +242,10 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
         # parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
-        if subregion_targets > subregion_max: #if subregion_max is NaN, this gets skipped (which is fine)
-            feasible_parcels_df = feasible_parcels_df.drop(feasible_parcels_df[feasible_parcels_df.jur_or_cpa_id == jur].index)
+        if not np.isnan(subregion_max): # check not null before comparing to subregion targets
+            if subregion_targets > subregion_max: #if subregion_max is NaN, this gets skipped (which is fine)
+                # feasible_parcels_df = feasible_parcels_df.drop(feasible_parcels_df[feasible_parcels_df.jur_or_cpa_id == jur].index)
+                feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.jur_or_cpa_id!=jur].copy()
         if len(chosen):
             chosen['source'] = '2'
         sr14cap = sr14cap.append(chosen)
