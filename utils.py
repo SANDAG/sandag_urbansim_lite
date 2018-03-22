@@ -6,6 +6,30 @@ from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
 from urbansim.developer import developer
 import pandas as pd
+import yaml
+
+
+def yaml_to_dict(yaml_file, yaml_section):
+    """
+    Load YAML from a file
+    Read specific section to dictionary
+
+    Parameters
+    ----------
+    yaml_file : File name from which to load YAML
+    yaml_section : Section of YAML file to process
+
+    Returns
+    -------
+    dict
+        Conversion from YAML for a specific section.
+
+    """
+
+    with open(yaml_file,'r') as f:
+            d = yaml.load(f)[yaml_section]
+
+    return d
 
 
 def largest_remainder_allocation(df, k):
