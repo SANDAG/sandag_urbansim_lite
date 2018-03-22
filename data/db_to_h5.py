@@ -2,11 +2,13 @@ import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
+import utils
 
 
 db_connection_string = get_connection_string('config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
+scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenarios')
 
 parcel_sql = '''
       SELECT	parcel_id, p.mgra_id, cap_jurisdiction_id as jurisdiction_id, 
@@ -122,8 +124,9 @@ regional_capacity_controls_sql = '''
     SELECT scenario, yr, geo,
            geo_id, control, control_type, max_units
       FROM urbansim.urbansim.urbansim_lite_subregional_control
-     WHERE scenario = 1
+     WHERE scenario = %s
 '''
+regional_capacity_controls_sql = regional_capacity_controls_sql % scenarios['subregional_controls']
 
 parcel_dev_control_sql = '''
     SELECT parcel_id, phase as phase_yr_ctrl, scenario
