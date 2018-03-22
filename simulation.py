@@ -49,11 +49,13 @@ units_by_jur = orca.get_table('uj').to_frame()
 
 units_by_jur.to_csv('data/units_by_jur.csv')
 
+scenarios = utils.yaml_to_dict('data/scenario_config.yaml', 'scenarios')
+ctrl_scenario_id = scenarios['subregional_controls']
 
-output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date'])
+output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date','ctrl_scenario_id'])
 run_description = 'test sched_dev; urbansim.parcel capacities, not using 2017 update; phase yr for desert. incoporated neg capacities'
 run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-output_records.loc[run_id] = [run_id, run_description, run_date]
+output_records.loc[run_id] = [run_id, run_description, run_date,ctrl_scenario_id]
 # output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
 #
 # hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
