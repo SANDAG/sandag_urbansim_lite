@@ -8,7 +8,7 @@ import utils
 db_connection_string = get_connection_string('config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
-scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenarios')
+scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 
 parcel_sql = '''
       SELECT	parcel_id, p.mgra_id, cap_jurisdiction_id as jurisdiction_id, 

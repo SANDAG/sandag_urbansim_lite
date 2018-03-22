@@ -1,0 +1,3 @@
+scenario:
+    # database scenario to use in simulation
+    subregional_controls: 4

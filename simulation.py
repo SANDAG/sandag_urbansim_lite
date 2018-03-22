@@ -49,7 +49,7 @@ units_by_jur = orca.get_table('uj').to_frame()
 
 units_by_jur.to_csv('data/units_by_jur.csv')
 
-scenarios = utils.yaml_to_dict('data/scenario_config.yaml', 'scenarios')
+scenarios = utils.yaml_to_dict('data/scenario_config.yaml', 'scenario')
 ctrl_scenario_id = scenarios['subregional_controls']
 
 output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date','ctrl_scenario_id'])
