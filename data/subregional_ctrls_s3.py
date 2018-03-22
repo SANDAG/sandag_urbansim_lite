@@ -139,11 +139,39 @@ parcel_sql = '''
     p.capacity AS capacity_base_yr
       FROM urbansim.urbansim.parcel p 
       JOIN urbansim.ref.jurisdiction j on p.cap_jurisdiction_id = j.jurisdiction_id
-      WHERE capacity > 0 or capacity < 0 
+      WHERE (capacity > 0 or capacity < 0) and site_id IS NULL
   ORDER BY j.name,p.jurisdiction_id, site_id'''
 hs = pd.read_sql(parcel_sql,mssql_engine)
 # print("\n   capacity: {:,}".format(int(hs.capacity_base_yr.sum())))
 # capacity: 361,644
+# print("\n   parcels with capacity: {:,}".format(len(hs)))
+# parcels with capacity: 50,369
+# hs.head()
+#            site_id      name  cap_jurisdiction_id  jurisdiction_id  mgra_id  \
+# parcel_id
+# 5117537        NaN  Carlsbad                    1                1    18057
+# 5117616        NaN  Carlsbad                    1                1    18090
+# 337513         NaN  Carlsbad                    1                1    14337
+# 337514         NaN  Carlsbad                    1                1    14337
+# 337515         NaN  Carlsbad                    1                1    14337
+#            luz_id  capacity_base_yr
+# parcel_id
+# 5117537        15                 2
+# 5117616        15                 1
+# 337513         11                 3
+# 337514         11                 2
+# 337515         11                 2
+#
+
+# sched_dev_sql = '''
+#     SELECT  p.parcel_id, p.site_id, j.name,  p.cap_jurisdiction_id, p.jurisdiction_id, p.mgra_id, p.luz_id,
+#             sum([res_units]) AS capacity_base_yr
+#     FROM [urbansim].[urbansim].[scheduled_development_do_not_use] s
+#     JOIN urbansim.urbansim.parcel p on p.parcel_id = s.parcel_id
+#     JOIN urbansim.ref.jurisdiction j on p.cap_jurisdiction_id = j.jurisdiction_id
+#     GROUP BY p.parcel_id, p.site_id, j.name,  p.cap_jurisdiction_id, p.jurisdiction_id, p.mgra_id, p.luz_id'''
+# sched_dev_df = pd.read_sql(sched_dev_sql,mssql_engine)
+# hs = pd.concat([hs,sched_dev_df])
 
 xref_geography_sql = '''
     SELECT mgra_13, cocpa_2016, cicpa_13
@@ -152,15 +180,92 @@ xref_geography_sql = '''
 xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
 # remove mgras without a CPA (mgra_13 = 7259)
 xref_geography_df = xref_geography_df.loc[~((xref_geography_df.cocpa_2016.isnull()) & (xref_geography_df.cicpa_13.isnull()))].copy()
+#          cocpa_2016  cicpa_13
+# mgra_13
+# 2917            NaN    1442.0
+# 5834            NaN    1412.0
+# 11407        1907.0       NaN
+# 19897        1909.0       NaN
+# 1566            NaN    1444.0
 
 # get geo ids
+# use OUTER merge to get every CPA even those with no capacity
 units = pd.merge(hs,xref_geography_df,left_on='mgra_id',right_on='mgra_13',how = 'outer')
+# units.loc[units.cocpa_2016==1901].head()
+#            site_id            name  cap_jurisdiction_id  jurisdiction_id  \
+# parcel_id
+# 740288.0       NaN  Unincorporated                 19.0             19.0
+# 719586.0       NaN  Unincorporated                 19.0             19.0
+# 72333.0        NaN  Unincorporated                 19.0             19.0
+# 625400.0       NaN  Unincorporated                 19.0             19.0
+# 625401.0       NaN  Unincorporated                 19.0             19.0
+#            mgra_id  luz_id  capacity_base_yr  mgra_13  cocpa_2016  cicpa_13
+# parcel_id
+# 740288.0   22236.0   198.0               3.0  22236.0      1901.0       NaN
+# 719586.0   10202.0   198.0               2.0  10202.0      1901.0       NaN
+# 72333.0    10202.0   198.0               2.0  10202.0      1901.0       NaN
+# 625400.0   10202.0   198.0               8.0  10202.0      1901.0       NaN
+# 625401.0   10202.0   198.0               7.0  10202.0      1901.0       NaN
+
 units['jcid'] = units['cap_jurisdiction_id']
 units.loc[units.cap_jurisdiction_id == 19,'jcid'] = units['cocpa_2016']
 units.loc[units.cap_jurisdiction_id == 14,'jcid'] = units['cicpa_13']
+
+# cases where there are parcels with capacity in a CPA
+# (or parcel e.g. 5038426 without a CPA)
+# units.loc[units.jcid.isnull()].head()
+# parcel_id
+#  5038426.0      NaN  Unincorporated                 19.0             19.0
+# NaN             NaN             NaN                  NaN              NaN
+# NaN             NaN             NaN                  NaN              NaN
+# NaN             NaN             NaN                  NaN              NaN
+# NaN             NaN             NaN                  NaN              NaN
+#             mgra_id  luz_id  capacity_base_yr  mgra_13  cocpa_2016  cicpa_13  \
+# parcel_id
+#  5038426.0  19415.0    18.0               5.0      NaN         NaN       NaN
+# NaN             NaN     NaN               NaN  19897.0      1909.0       NaN
+# NaN             NaN     NaN               NaN   1566.0         NaN    1444.0
+# NaN             NaN     NaN               NaN     46.0         NaN    1442.0
+# NaN             NaN     NaN               NaN   5788.0         NaN    1435.0
+#             jcid
+# parcel_id
+#  5038426.0   NaN
+# NaN          NaN
+# NaN          NaN
+# NaN          NaN
+# NaN          NaN
+
 units.loc[units.jcid.isnull(),'jcid'] = units['cicpa_13']
 units.loc[units.jcid.isnull(),'jcid'] = units['cocpa_2016']
 units.fillna(0, inplace=True)
+# units.loc[units.parcel_id==0].head()
+#        parcel_id  site_id name  cap_jurisdiction_id  jurisdiction_id  mgra_id  \
+# 50369        0.0      0.0    0                  0.0              0.0      0.0
+# 50370        0.0      0.0    0                  0.0              0.0      0.0
+# 50371        0.0      0.0    0                  0.0              0.0      0.0
+# 50372        0.0      0.0    0                  0.0              0.0      0.0
+# 50373        0.0      0.0    0                  0.0              0.0      0.0
+#        luz_id  capacity_base_yr  mgra_13  cocpa_2016  cicpa_13    jcid
+# 50369     0.0               0.0  19897.0      1909.0       0.0  1909.0
+# 50370     0.0               0.0   1566.0         0.0    1444.0  1444.0
+# 50371     0.0               0.0     46.0         0.0    1442.0  1442.0
+# 50372     0.0               0.0   5788.0         0.0    1435.0  1435.0
+# 50373     0.0               0.0  11453.0         0.0    1431.0  1431.0
+
+######################################################################################
+# check for missing jcid (where jcid = 0)
+# units.loc[units.jcid==0]
+#            site_id            name  cap_jurisdiction_id  jurisdiction_id  \
+# parcel_id
+# 5038426.0      0.0  Unincorporated                 19.0             19.0
+#            mgra_id  luz_id  capacity_base_yr  mgra_13  cocpa_2016  cicpa_13  \
+# parcel_id
+# 5038426.0  19415.0    18.0               5.0      0.0         0.0       0.0
+#            jcid
+# parcel_id
+# 5038426.0   0.0
+
+# manually add CPA for mgra_id = 19415, missing CPA
 units.loc[units.mgra_id==19415,'jcid'] = 1909
 units.loc[units.mgra_id==19415,'cocpa_2016'] = 1909
 units['jcid'] = units['jcid'].astype(int)
@@ -344,7 +449,7 @@ sr13b['adj_forecast_hs'] = sr13b['sr14hu']/sr13b['unitsum']
 
 
 sr13ab = pd.merge(sr13aa,sr13b[['yr','adj_forecast_hs']],left_on='yr',right_on='yr',how = 'outer')
-sr13ab  = sr13ab [['jcid','yr','units','units_adj1','adj_forecast_hs']].copy()
+# sr13ab  = sr13ab [['jcid','yr','units','units_adj1','adj_forecast_hs']].copy()
 sr13ab['units_adj2'] = (sr13ab ['units_adj1'] * sr13ab ['adj_forecast_hs'])
 # sr13ab.set_index('jcid',inplace=True)
 # print(sr13ab.loc[1901])
@@ -406,11 +511,11 @@ sr13.drop(['units', 'units_adj1','adj_forecast_hs'], axis=1,inplace=True)
 
 sr13.fillna(0,inplace=True)
 
-sr13['scenario'] = 3
+sr13['scenario'] = 4
 sr13['geo_id'] = sr13['jcid']
 sr13['max_units'] = None
 sr13['geo'] = 'jur_and_cpa'
-sr13['scenario_desc'] = 'jurisdictions and CPAs'
+sr13['scenario_desc'] = 'jurisdictions and CPAs, no sched dev in sr14'
 sr13['control_type'] = 'percentage'
 
 sr13.loc[sr13.control < 0, 'control'] = 0
@@ -433,7 +538,7 @@ controls  = sr13[['scenario','yr','geo','geo_id','control','control_type','max_u
 # 491  jurisdictions and CPAs
 
 # to write to csv
-controls.to_csv('subregional_control_3.csv')
+# controls.to_csv('subregional_control_3.csv')
 # controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
 
 
