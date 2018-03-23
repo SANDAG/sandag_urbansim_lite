@@ -17,6 +17,16 @@ orca.run([
     "summary"
     #,"write_to_sql"
      ], iter_vars=range(2017, 2051))
+    # ], iter_vars = range(2017, 2019), data_out = 'data\\results.h5', out_interval = 1)
+
+    ## data_out writes output to .h5 every year (change out interval for increment)
+    ## to view contents of out file
+    # import h5py
+    # filename = 'data\\results.h5'
+    # f = h5py.File(filename, 'r')
+    # print("Keys: %s" % f.keys())
+    # a_group_key = list(f.keys())[0]
+    # data = list(f[a_group_key])
 
 
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
