@@ -99,7 +99,10 @@ xref_geography_sql = '''
 households_sql = '''
     SELECT  yr as year, households, housing_units_add 
       FROM  isam.economic_output.urbansim_housing_units
+      WHERE demographic_simulation_id  = %s
 '''
+households_sql = households_sql % scenarios['demographic_simulation_id']
+
 
 buildings_sql = '''
     SELECT building_id as hu_forecast_id
