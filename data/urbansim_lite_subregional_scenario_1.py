@@ -113,7 +113,7 @@ cpa_unincorp_df = pd.read_sql(unincorp_by_cpa_15_50, mssql_engine)
 
 sched_dev_sql = '''
     SELECT scenario, parcel_id, yr, site_id, 
-           res_units, job_spaces, households, jobs
+           res_units
       FROM urbansim.urbansim.scheduled_development_do_not_use
      WHERE scenario = 1 and yr > 2016
 '''
@@ -128,14 +128,14 @@ xref_geography_sql = '''
 '''
 
 parcel_update_2017_sql = '''
-    SELECT	parcelid_2015 as parcel_id, p.mgra_id, p.jurisdiction_id, 
-            p.luz_id, p.site_id, cap_remaining_new AS capacity_base_yr, 
-            du_2017 AS residential_units, 
+	  SELECT	parcelid_2015 as parcel_id, p.mgra_id, p.jurisdiction_id, 
+            p.luz_id, p.site_id, update2017.cap_remaining_new AS capacity_base_yr, 
+            update2017.du_2017 AS residential_units, 
             0 as partial_build
        FROM urbansim.urbansim.parcel_update_2017 update2017
        JOIN urbansim.urbansim.parcel p
          ON p.parcel_id = update2017.parcelid_2015
-      WHERE cap_remaining_new > 0 and jurisdiction_id NOT IN (14,19) and site_id IS NULL
+      WHERE update2017.cap_remaining_new > 0 and jurisdiction_id NOT IN (14,19) and site_id IS NULL
 '''
 
 # parcel_update_2017 does not have city and county capacity updates yet
@@ -194,7 +194,7 @@ add_cpa_df = add_cpa_df[add_cpa_df.jurisdiction_id != 19]
 sr13_hu_df = pd.concat([add_cpa_df, cpa_sd_df, cpa_unincorp_df], ignore_index=True)
 
 #sr13 units from 2020
-units_needed_sr13_2020 = sr13_hu_df.hu_change.sum()
+units_needed_sr13_2020 = sr13_hu_df.hu_change.sum() * 1.0
 
 # calculate adjustment for targets
 adj_to_totals = units_needed/units_needed_sr13_2020
@@ -202,6 +202,7 @@ adj_to_totals = units_needed/units_needed_sr13_2020
 # keep original hu calculation
 sr13_hu_df['orig_hu_change'] = sr13_hu_df['hu_change']
 
+sr13_hu_df[['jurisdiction_id','hu_change','orig_hu_change','yr_to']].head()
 # adjustment to meet target for sr14
 sr13_hu_df['hu_change'] = adj_to_totals * sr13_hu_df['hu_change']
 
@@ -210,7 +211,7 @@ sr13_hu_df['jurisdiction_id_orig'] = sr13_hu_df['jurisdiction_id']
 sr13_hu_df['jur_or_cpa_id'] = sr13_hu_df['jurisdiction_id']
 
 sr13_hu_df.loc[(sr13_hu_df.jurisdiction_id == 14) | (sr13_hu_df.jurisdiction_id == 19), 'jur_or_cpa_id'] = sr13_hu_df['cpa']
-
+sr13_hu_df.sort_values(by=['yr_to','jurisdiction_id'],inplace=True)
 # units by jursidiction
 geo_share = pd.DataFrame({'hu_change_sum': sr13_hu_df.
                        groupby(["jur_or_cpa_id"]).hu_change.sum()})
@@ -228,6 +229,7 @@ sr13_hu_df['jur_or_cpa_id'] = sr13_hu_df['jur_or_cpa_id'].astype('int')
 sr13_hu_df = sr13_hu_df.merge(compare_cap_to_forecast[['jur_or_cpa_id','sr14_cap','adj_per']],on='jur_or_cpa_id')
 
 # adjust hu by capacity differences
+sr13_hu_df['orig_hu_change2'] = sr13_hu_df['hu_change']
 sr13_hu_df['hu_change'] = sr13_hu_df['adj_per'] * sr13_hu_df['hu_change']
 
 # create control percentages per period as a share of total housing unit change in that period
@@ -276,7 +278,7 @@ sr14_res_control['control_type'] = 'percentage'
 sr14_res_control = sr14_res_control.reset_index()
 
 # to write to csv
-sr14_res_control.to_csv('sr14_res_control.csv')
+sr14_res_control.to_csv('sr14_res_control_1.csv')
 
 # keep only columns for db table
 sr14_res_control.fillna(0,inplace=True)
@@ -284,7 +286,7 @@ sr14_res_control['max_units'] = None
 sr14_res_control = sr14_res_control[['scenario','yr','geo','geo_id','control','control_type','max_units','scenario_desc']]
 
 # to write to database
-sr14_res_control.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='replace')
+# sr14_res_control.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
 
 ## set max units to 100
 # UPDATE [urbansim].[urbansim].[urbansim_lite_subregional_control]
