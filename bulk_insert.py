@@ -75,7 +75,7 @@ def run_insert(year):
     '''Current form is only for cap > 0 parcels! May need (significant) modification for all parcel version!'''
     year_update = pd.merge(capacity_parcels, hu_forecast[['parcel_id', 'residential_units', 'source']], how='left',
                            left_index=True, right_on='parcel_id')
-    year_update = year_update.join(phase_year,how='left') ## check how phase year is being merged in
+    year_update = pd.merge(year_update,phase_year[['phase_yr_ctrl']],how='left',left_on='parcel_id',right_index=True)
     year_update['scenario'] = scenario
     year_update['year'] = year
     year_update['taz'] = np.nan
@@ -83,22 +83,27 @@ def run_insert(year):
     year_update.rename(columns={"orig_jurisdiction_id":"jur","jurisdiction_id":"jur_reported",
                                 "jur_or_cpa_id":"cpa","luz_id":"luz","residential_units_x":"hs","residential_units_y":
                                 "chg_hs","phase_yr_ctrl":"phase","mgra_id":"mgra"},inplace=True)
-    ## hs is wrong, currently only showing initial hs
+    ## hs is wrong for sched_dev, currently only showing initial hs (works for stochastic)
     year_update['cap_hs'] = year_update['buildout'] - year_update['hs']
     year_update.loc[year_update.cpa < 20, 'cpa'] = np.nan
     year_update = year_update.drop(['mgra_13','capacity_base_yr','partial_build','cocpa_13','buildout'], axis=1)
-    increment = int(5 * round(year/5))  ## needs to round down, never up
+    increment = year - (year%5)
     if increment == 2015:
         increment = 2017
     year_update['increment'] = increment
     year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
     year_update['source'] = year_update['source'].fillna(0)
+    '''
     start_time = time.monotonic()
     year_update.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim', index=False,
                        if_exists='append')
     end_time = time.monotonic()
     print(timedelta(seconds=end_time - start_time))
-
+    '''
+    # This creates a new file of parcel info for each year
+    # parcels['year'] = year
+    # yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
+    #year_update.to_csv('C:\\Users\\noz\\Documents\\sandag_urbansim_lite\\outputs\\year_update_{}.csv'.format(year))
 
 
 
@@ -125,10 +130,7 @@ def run_insert(year):
     # conn.close()
 
 
-# This creates a new file of parcel info for each year
-# parcels['year'] = year
-# yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
-# parcels.to_csv(yname)
+
 '''
 #This loop can write the all the parcels for each year as one (very large) .csv file.
 if year == 2020:
