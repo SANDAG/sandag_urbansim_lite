@@ -17,14 +17,14 @@ parcel_sql = '''
             du AS residential_units, 
             0 as partial_build
        FROM urbansim.urbansim.parcel p
-      WHERE capacity > 0
+      WHERE capacity != 0 and capacity is not null
 '''
 
 
 all_parcel_sql = '''
       SELECT parcel_id, mgra_id as mgra, cap_jurisdiction_id as jur_reported, 
         jurisdiction_id as jur, luz_id as luz, site_id, cap_remaining_new AS base_cap, 
-        du_2017 AS base_hu, (du_2017 + cap_remaining_new) as buildout
+        du_2017 AS residential_units, (du_2017 + cap_remaining_new) as buildout
         FROM urbansim.urbansim.parcel
 '''
 
@@ -153,6 +153,7 @@ parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)
 parcels.loc[parcels.jurisdiction_id != parcels.orig_jurisdiction_id,'jur_or_cpa_id'] = parcels['jurisdiction_id']
 parcels.loc[parcels.jur_or_cpa_id ==19,'jur_or_cpa_id'] = parcels['cocpa_13']
+parcels = parcels.drop(['mgra_13','cocpa_13'], axis=1)
 
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
 all_parcels = pd.merge(all_parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id']],how='left',left_on='mgra',right_on='mgra_13')
