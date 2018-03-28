@@ -301,11 +301,11 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
         parcel_sr14_units.set_index('parcel_id', inplace=True)
         parcel_sr14_units['partial_build'] = parcel_sr14_units.buildout - parcel_sr14_units.residential_units_sim_yr - parcel_sr14_units.residential_units
         parcels = parcels.drop(['partial_build'], 1)
-        parcels = parcels.join(parcel_sr14_units[['residential_units_sim_yr','partial_build']])
-        parcels.residential_units_sim_yr = parcels.residential_units_sim_yr.fillna(0)
+        parcels = parcels.join(parcel_sr14_units[['partial_build']])
+        # parcels.residential_units_sim_yr = parcels.residential_units_sim_yr.fillna(0)
         parcels.partial_build = parcels.partial_build.fillna(0)
-        parcels['residential_units'] = parcels['residential_units'] + parcels['residential_units_sim_yr']
-        parcels = parcels.drop(['residential_units_sim_yr'], 1)
+        # parcels['residential_units'] = parcels['residential_units'] + parcels['residential_units_sim_yr']
+        # parcels = parcels.drop(['residential_units_sim_yr'], 1)
         orca.add_table("parcels", parcels)
 
 
@@ -332,9 +332,28 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
 def summary(year):
     current_builds = orca.get_table('hu_forecast').to_frame()
     current_builds = current_builds.loc[(current_builds.year_built == year)]
+    parcels = orca.get_table('parcels').to_frame()
     sched_dev_built = (current_builds.loc[(current_builds.source == '1')]).residential_units.sum()
     subregional_control_built = (current_builds.loc[(current_builds.source == '2')]).residential_units.sum()
     entire_region_built = (current_builds.loc[(current_builds.source == '3')]).residential_units.sum()
     print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
     print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
+    # Check if parcels occur multiple times (due to multiple sources). Will skip if false.
+    if any(current_builds.parcel_id.duplicated()):
+        repeated_parcels = pd.concat(g for _, g in current_builds.groupby("parcel_id") if len(g) > 1)  # df of repeats
+        for repeats in repeated_parcels['parcel_id'].unique().tolist():
+            current_builds.loc[current_builds.parcel_id == repeats, 'source'] = 5  # Change source for groupby
+            current_builds = pd.DataFrame({'residential_units': current_builds.
+                                          groupby(["parcel_id", "year_built", "hu_forecast_type_id", "source"]).
+                                          residential_units.sum()}).reset_index()
+    parcels = pd.merge(parcels, current_builds[['parcel_id', 'residential_units']], how='left', left_index=True,
+                       right_on='parcel_id')
+    parcels.set_index('parcel_id',inplace=True)
+    parcels.rename(columns={"residential_units_x": "residential_units", "residential_units_y": "updated_units"}, inplace=True)
+    parcels.updated_units = parcels.updated_units.fillna(0)
+    parcels['residential_units'] = parcels['residential_units'] + parcels['updated_units']
+    parcels = parcels.drop(['updated_units'], 1)
+    parcels.residential_units = parcels.residential_units.astype(int)
+    print(len(parcels))
+    orca.add_table("parcels", parcels)
