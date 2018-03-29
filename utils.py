@@ -75,28 +75,32 @@ def run_scheduled_development(hu_forecast, year):
 
 
 def run_reducer(hu_forecast, year):
-    reducible_parcels = orca.get_table('negative_parcels').to_frame()
-    dev = developer.Developer(hu_forecast.to_frame())
-    neg_cap_parcels = reducible_parcels[reducible_parcels['capacity'] < 0]
-    reduce_first_parcels = neg_cap_parcels[(neg_cap_parcels.yr==year)]
-    neg_cap_parcels = neg_cap_parcels[neg_cap_parcels['yr'].isnull()]
-    if len(neg_cap_parcels) > 0:
-        parcels_to_reduce = (len(neg_cap_parcels) / (2025-year)) + len(reduce_first_parcels)
-        parcels_to_reduce = min((len(neg_cap_parcels)+len(reduce_first_parcels)), int(np.ceil(parcels_to_reduce)))
-        random_neg_parcels = neg_cap_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
-        reducer = pd.concat([reduce_first_parcels, random_neg_parcels])
-        parcels_reduced = reducer.head(parcels_to_reduce)
-        parcels_reduced= parcels_reduced.set_index('index')
-        parcels_reduced['year_built'] = year
-        parcels_reduced['hu_forecast_type_id'] = ''
-        parcels_reduced['residential_units'] = parcels_reduced['capacity']
-        parcels_reduced['source'] = '4'
-        for parcel in parcels_reduced['parcel_id'].tolist():
-            reducible_parcels.loc[reducible_parcels.parcel_id == parcel, 'capacity'] = 0
-        orca.add_table("negative_parcels", reducible_parcels)
-        all_hu_forecast = dev.merge(hu_forecast.to_frame(hu_forecast.local_columns),
-                          parcels_reduced[hu_forecast.local_columns])
-        orca.add_table("hu_forecast", all_hu_forecast)
+    try:
+        reducible_parcels = orca.get_table('negative_parcels').to_frame()
+    except KeyError:
+        pass
+    else:
+        dev = developer.Developer(hu_forecast.to_frame())
+        neg_cap_parcels = reducible_parcels[reducible_parcels['capacity'] < 0]
+        reduce_first_parcels = neg_cap_parcels[(neg_cap_parcels.yr == year)]
+        neg_cap_parcels = neg_cap_parcels[neg_cap_parcels['yr'].isnull()]
+        if len(neg_cap_parcels) > 0:
+            parcels_to_reduce = (len(neg_cap_parcels) / (2025 - year)) + len(reduce_first_parcels)
+            parcels_to_reduce = min((len(neg_cap_parcels) + len(reduce_first_parcels)), int(np.ceil(parcels_to_reduce)))
+            random_neg_parcels = neg_cap_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
+            reducer = pd.concat([reduce_first_parcels, random_neg_parcels])
+            parcels_reduced = reducer.head(parcels_to_reduce)
+            parcels_reduced = parcels_reduced.set_index('index')
+            parcels_reduced['year_built'] = year
+            parcels_reduced['hu_forecast_type_id'] = ''
+            parcels_reduced['residential_units'] = parcels_reduced['capacity']
+            parcels_reduced['source'] = '4'
+            for parcel in parcels_reduced['parcel_id'].tolist():
+                reducible_parcels.loc[reducible_parcels.parcel_id == parcel, 'capacity'] = 0
+            orca.add_table("negative_parcels", reducible_parcels)
+            all_hu_forecast = dev.merge(hu_forecast.to_frame(hu_forecast.local_columns),
+                                        parcels_reduced[hu_forecast.local_columns])
+            orca.add_table("hu_forecast", all_hu_forecast)
     
 
 def run_feasibility(parcels, year=None):
