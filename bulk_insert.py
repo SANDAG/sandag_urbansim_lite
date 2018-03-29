@@ -24,6 +24,36 @@ def parcel_table_update(parcel_table, current_builds):
     return updated_parcel_table
 
 
+def year_update_formater(parcel_table, current_builds, phase_year, scenario, year):
+    parcel_table.rename(columns={"residential_units": "hs"}, inplace=True)
+    year_update = pd.merge(parcel_table, current_builds[['parcel_id', 'residential_units', 'source']], how='left',
+                           left_index=True, right_on='parcel_id')
+    year_update = pd.merge(year_update, phase_year[['phase_yr_ctrl']], how='left', left_on='parcel_id',
+                           right_index=True)
+    year_update.rename(columns={"residential_units": "chg_hs", "phase_yr_ctrl": "phase",
+                                "jur_or_cpa_id": "cpa"}, inplace=True)
+    year_update.loc[year_update.cpa < 20, 'cpa'] = np.nan
+    year_update['scenario'] = scenario
+    year_update['year'] = year
+    year_update['taz'] = np.nan
+    year_update['lu'] = np.nan
+    year_update['cap_hs'] = year_update['buildout'] - year_update['hs']
+    year_update = year_update.drop(['buildout'], axis=1)
+    increment = year - (year % 5)
+    if increment == 2015:
+        increment = 2017
+    year_update['increment'] = increment
+    year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
+    year_update['source'] = year_update['source'].fillna(0)
+    year_update['phase'] = year_update['phase'].fillna(2015)
+    year_update.loc[:, year_update.isnull().any() == False] = year_update.loc[:,
+                                                              year_update.isnull().any() == False].astype(int)
+    year_update = year_update[['scenario', 'increment', 'parcel_id', 'year', 'jur', 'jur_reported', 'cpa', 'mgra',
+                               'luz', 'taz', 'site_id', 'lu', 'hs', 'chg_hs', 'cap_hs', 'source', 'phase']]
+    year_update.sort_values(by=['parcel_id'])
+    year_update = year_update.reset_index(drop=True)
+    return year_update
+
 def run_insert(year):
     if year == 2017:
         try:
@@ -97,39 +127,30 @@ def run_insert(year):
     capacity_parcels = parcel_table_update(capacity_parcels, current_builds)
     orca.add_table("parcels", capacity_parcels)
 
+    # create capacity parcels yearly update table
+    year_update_cap = capacity_parcels.copy()
+    year_update_cap.rename(columns={"orig_jurisdiction_id": "jur", "jurisdiction_id": "jur_reported",
+                                    "luz_id": "luz", "mgra_id": "mgra"}, inplace=True)
+    year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
+    year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, scenario, year)
+
     # update all parcels table
     all_parcels = parcel_table_update(all_parcels, current_builds)
     orca.add_table("all_parcels", all_parcels)
 
-    '''
-    # year_update = pd.merge(all_parcels, hu_forecast[['parcel_id','res_units','source']],how='left',left_index=True,
-    #                       right_on='parcel_id')
-    year_update = pd.merge(capacity_parcels, current_builds[['parcel_id', 'residential_units', 'source']], how='left',
-                           left_index=True, right_on='parcel_id')
-    year_update = pd.merge(year_update,phase_year[['phase_yr_ctrl']],how='left',left_on='parcel_id',right_index=True)
-    year_update['scenario'] = scenario
-    year_update['year'] = year
-    year_update['taz'] = np.nan
-    year_update['lu'] = np.nan
-    year_update.rename(columns={"orig_jurisdiction_id":"jur","jurisdiction_id":"jur_reported",
-                                "jur_or_cpa_id":"cpa","luz_id":"luz","residential_units_x":"hs","residential_units_y":
-                                "chg_hs","phase_yr_ctrl":"phase","mgra_id":"mgra"},inplace=True)
-    year_update['cap_hs'] = year_update['buildout'] - year_update['hs']
-    year_update.loc[year_update.cpa < 20, 'cpa'] = np.nan
-    year_update = year_update.drop(['capacity_base_yr','partial_build','buildout'], axis=1)
-    increment = year - (year%5)
-    if increment == 2015:
-        increment = 2017
-    year_update['increment'] = increment
-    year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
-    year_update['source'] = year_update['source'].fillna(0)
-    '''
-    start_time = time.monotonic()
+    # create all parcels yearly update table
+    year_update_all = all_parcels.copy()
+    year_update_all = year_update_all.drop(['base_cap'], axis=1)
+    year_update_all = year_update_formater(year_update_all, current_builds, phase_year, scenario, year)
+
+
+    # Everything below is related to optimizing upload to sql
+    '''start_time = time.monotonic()
     year_update.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim', index=False,
                        if_exists='append')
     end_time = time.monotonic()
-    print(timedelta(seconds=end_time - start_time))
-    '''
+    print(timedelta(seconds=end_time - start_time))'''
+
     # This creates a new file of parcel info for each year
     # parcels['year'] = year
     # yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
