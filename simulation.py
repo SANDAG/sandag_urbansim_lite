@@ -15,7 +15,7 @@ orca.run([
     "feasibility",
     "residential_developer",
     "summary"
-    #,"write_to_sql"
+    ,"write_to_sql"
      ], iter_vars=range(2017, 2051))
     # ], iter_vars = range(2017, 2019), data_out = 'data\\results.h5', out_interval = 1)
 
@@ -48,7 +48,7 @@ SELECT max(run_id)
 run_id_df = pd.read_sql(run_id_sql, mssql_engine)
 try:
     run_id = int(run_id_df.values) + 1
-except:
+except KeyError:
     run_id = int(1)
 
 hu_forecast_out['run_id'] = run_id
