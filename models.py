@@ -11,7 +11,6 @@ def year(iter_var):
 
 @orca.step('scheduled_development_events')
 def scheduled_development_events(hu_forecast, year):
-# def scheduled_development_events(scheduled_development_events, hu_forecast):
     utils.run_scheduled_development(hu_forecast, year)
 
 
@@ -41,6 +40,7 @@ def residential_developer(feasibility, households, hu_forecast, parcels, year, r
                         form_to_btype_callback=None,
                         add_more_columns_callback=None,
                         bldg_sqft_per_job=400.0)
+
 
 @orca.step('summary')
 def summary(year):

@@ -5,7 +5,10 @@ from pysandag.database import get_connection_string
 import pandas as pd
 import sqlalchemy
 import datetime
+from datetime import timedelta
+import time
 
+start_time = time.monotonic()
 
 utils.initialize_tables()
 
@@ -14,8 +17,8 @@ orca.run([
     "negative_parcel_reducer",
     "feasibility",
     "residential_developer",
-    "summary"
-    ,"write_to_sql"
+    "summary",
+    "write_to_sql"
      ], iter_vars=range(2017, 2051))
     # ], iter_vars = range(2017, 2019), data_out = 'data\\results.h5', out_interval = 1)
 
@@ -74,3 +77,5 @@ run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 #                             'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
 #                             'run_id': sqlalchemy.types.INTEGER()})
 
+end_time = time.monotonic()
+print(timedelta(seconds=end_time - start_time))

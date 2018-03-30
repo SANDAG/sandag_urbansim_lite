@@ -54,59 +54,74 @@ def year_update_formater(parcel_table, current_builds, phase_year, scenario, yea
     year_update = year_update.reset_index(drop=True)
     return year_update
 
+
 def run_insert(year):
-    if year == 2017:
-        try:
-            scenario_sql = '''
+    # # This section below is for use in the first run / creation of the table. The method it uses to pull the
+    # # scenario is only valid if it is writing directly to the database every loop (either with a .to_sql() or by
+    # # writing to M: drive and bulk inserting with an append). Neither of these solutions are likely to be optimal.
+    # # Probably this will be better either as written to C: drive and uploaded with a batch method. It is unclear
+    # # whether we should be using one file per year or one large file appended with all years
+    # if year == 2017:
+    #     try:
+    #         scenario_sql = '''
+    #         SELECT max(scenario)
+    #           FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
+    #         '''
+    #         scenario_df = pd.read_sql(scenario_sql, mssql_engine)
+    #         scenario = int(scenario_df.values) + 1
+    #     except KeyError:
+    #         conn = mssql_engine.connect()
+    #         with conn.begin() as trans:
+    #             conn.execute('DROP TABLE IF EXISTS urbansim.urbansim.sr14_residential_CAP_parcel_results')
+    #         with conn.begin() as trans:
+    #             create_table_sql = '''
+    #             USE [urbansim]
+    #             SET ANSI_NULLS ON
+    #             SET QUOTED_IDENTIFIER ON
+    #             CREATE TABLE [urbansim].[sr14_residential_CAP_parcel_results](
+    #                 [scenario] [tinyint] NOT NULL,
+    #                 [increment] [int] NOT NULL,
+    #                 [parcel_id] [int] NOT NULL,
+    #                 [year] [int] NOT NULL,
+    #                 [jur] [smallint] NOT NULL,
+    #                 [jur_reported] [smallint] NOT NULL,
+    #                 [cpa] [int] NULL,
+    #                 [mgra] [int] NULL,
+    #                 [luz] [smallint] NULL,
+    #                 [taz] [int] NULL,
+    #                 [site_id] [smallint] NULL,
+    #                 [lu] [smallint] NULL,
+    #                 [hs] [int] NOT NULL,
+    #                 [chg_hs] [int] NOT NULL,
+    #                 [cap_hs] [int] NOT NULL,
+    #                 [source] [smallint] NOT NULL,
+    #                 [phase] [int] NULL
+    #                 CONSTRAINT [PK_sr14_residential_CAP_parcel_yearly] PRIMARY KEY CLUSTERED
+    #                 (
+    #                     [scenario] ASC,
+    #                     [year] ASC,
+    #                     [parcel_id] ASC,
+    #                     [source] ASC
+    #                 ))WITH (DATA_COMPRESSION = page)'''
+    #             conn.execute(create_table_sql)
+    #         conn.close()
+    #         scenario = int(1)
+    # else:
+    #     scenario_sql = '''
+    #                 SELECT max(scenario)
+    #                   FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
+    #                 '''
+    #     scenario_df = pd.read_sql(scenario_sql, mssql_engine)
+    #     scenario = int(scenario_df.values)
+    try:
+        scenario_sql = '''
             SELECT max(scenario)
               FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
             '''
-            scenario_df = pd.read_sql(scenario_sql, mssql_engine)
-            scenario = int(scenario_df.values) + 1
-        except KeyError:
-            conn = mssql_engine.connect()
-            with conn.begin() as trans:
-                conn.execute('DROP TABLE IF EXISTS urbansim.urbansim.sr14_residential_CAP_parcel_results')
-            with conn.begin() as trans:
-                create_table_sql = '''
-                USE [urbansim]
-                SET ANSI_NULLS ON
-                SET QUOTED_IDENTIFIER ON
-                CREATE TABLE [urbansim].[sr14_residential_CAP_parcel_results](
-                    [scenario] [tinyint] NOT NULL,
-                    [increment] [int] NOT NULL,
-                    [parcel_id] [int] NOT NULL,
-                    [year] [int] NOT NULL,
-                    [jur] [smallint] NOT NULL,
-                    [jur_reported] [smallint] NOT NULL,
-                    [cpa] [int] NULL,
-                    [mgra] [int] NULL,
-                    [luz] [smallint] NULL,
-                    [taz] [int] NULL,
-                    [site_id] [smallint] NULL,
-                    [lu] [smallint] NULL,
-                    [hs] [int] NOT NULL,
-                    [chg_hs] [int] NOT NULL,
-                    [cap_hs] [int] NOT NULL,
-                    [source] [smallint] NOT NULL,
-                    [phase] [int] NULL
-                    CONSTRAINT [PK_sr14_residential_CAP_parcel_yearly] PRIMARY KEY CLUSTERED
-                    (
-                        [scenario] ASC,
-                        [year] ASC,
-                        [parcel_id] ASC,
-                        [source] ASC
-                    ))WITH (DATA_COMPRESSION = page)'''
-                conn.execute(create_table_sql)
-            conn.close()
-            scenario = int(1)
-    else:
-        scenario_sql = '''
-                    SELECT max(scenario)
-                      FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
-                    '''
         scenario_df = pd.read_sql(scenario_sql, mssql_engine)
-        scenario = int(scenario_df.values)
+        scenario = int(scenario_df.values) + 1
+    except KeyError:
+        scenario = int(1)
 
     all_parcels = orca.get_table('all_parcels').to_frame()
     capacity_parcels = orca.get_table('parcels').to_frame()
@@ -134,27 +149,32 @@ def run_insert(year):
     year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
     year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, scenario, year)
 
-    # update all parcels table
-    all_parcels = parcel_table_update(all_parcels, current_builds)
-    orca.add_table("all_parcels", all_parcels)
-
-    # create all parcels yearly update table
-    year_update_all = all_parcels.copy()
-    year_update_all = year_update_all.drop(['base_cap'], axis=1)
-    year_update_all = year_update_formater(year_update_all, current_builds, phase_year, scenario, year)
+    # # update all parcels table
+    # all_parcels = parcel_table_update(all_parcels, current_builds)
+    # orca.add_table("all_parcels", all_parcels)
+    #
+    # # create all parcels yearly update table
+    # year_update_all = all_parcels.copy()
+    # year_update_all = year_update_all.drop(['base_cap'], axis=1)
+    # year_update_all = year_update_formater(year_update_all, current_builds, phase_year, scenario, year)
 
 
     # Everything below is related to optimizing upload to sql
-    '''start_time = time.monotonic()
-    year_update.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim', index=False,
-                       if_exists='append')
-    end_time = time.monotonic()
-    print(timedelta(seconds=end_time - start_time))'''
+    # start_time = time.monotonic()
+    # # path_name = 'C:\\Users\\noz\\Documents\\sandag_urbansim_lite\\outputs\\year_update_{}.csv'.format(year)
+    # # path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}.csv'.format(year)
+    # # year_update_cap.to_csv(path_name)
+    # year_update_cap.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim', index=False,
+    #                    if_exists='append')
+    # end_time = time.monotonic()
+    # print(timedelta(seconds=end_time - start_time))
+
+    # year_update.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim', index=False,
+    #                    if_exists='append')
 
     # This creates a new file of parcel info for each year
     # parcels['year'] = year
-    # yname = '\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels_{}.csv'.format(year)
-    #year_update.to_csv('C:\\Users\\noz\\Documents\\sandag_urbansim_lite\\outputs\\year_update_{}.csv'.format(year))
+    #
 
 
 
