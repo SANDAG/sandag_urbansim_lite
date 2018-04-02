@@ -125,7 +125,7 @@ def run_feasibility(parcels, year=None):
     for parcel in finished_dev['parcel_id'].tolist():
         parcels.loc[parcels.index == parcel, 'residential_units'] = finished_dev.loc[finished_dev.parcel_id== parcel]['residential_units']
         parcels.loc[parcels.index == parcel, 'site_id'] = np.nan
-    feasible_parcels = parcels.loc[parcels['buildout'] > parcels['residential_units']]
+    feasible_parcels = parcels.loc[parcels['buildout'] > parcels['residential_units']].copy()
     feasible_parcels.phase_yr_ctrl = feasible_parcels.phase_yr_ctrl.fillna(2015)
     # Restrict feasibility to specific years, based on scenario (TBD)
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr_ctrl'] <= year]

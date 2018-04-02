@@ -158,25 +158,48 @@ def run_insert(year):
     # year_update_all = year_update_all.drop(['base_cap'], axis=1)
     # year_update_all = year_update_formater(year_update_all, current_builds, phase_year, scenario, year)
 
+    ###########################################################
+    # Everything below is related to optimizing upload to sql #
+    ###########################################################
 
-    # Everything below is related to optimizing upload to sql
     # start_time = time.monotonic()
-    # # path_name = 'C:\\Users\\noz\\Documents\\sandag_urbansim_lite\\outputs\\year_update_{}.csv'.format(year)
-    # # path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}.csv'.format(year)
-    # # year_update_cap.to_csv(path_name)
-    # year_update_cap.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim', index=False,
-    #                    if_exists='append')
+    # # # This section writes files for individual years as .csv files
+    # # # This is only for capacity > 0 parcels at the moment, modify names and file uploaded for all parcels
+    # # C: drive method takes ~1 minute total (April 2, 2018)
+    # path_name = 'C:\\Users\\noz\\Documents\\sandag_urbansim_lite\\outputs\\year_update_{}.csv'.format(year)
+
+    # # M: drive method takes ~85 seconds per file, total of 55 minutes (April 2, 2018)
+    # # Have not added time for bulk insert run yet (should be quick once on M: drive and working)
+    # path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}.csv'.format(year)
+
+    # year_update_cap.to_csv(path_name)
+
+    # # .to_sql method takes ~70 seconds per file, total of 45 minutes (April 2, 2018)
+    # # Needs different method of scenario choosing, pick from sql in 2017 then continue after
+    # year_update_cap.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim',
+    #                        index=False, if_exists='append')
+
+    # # # This section writes one large .csv file with all years appended
+    # # C: drive method takes ~1 minute total (April 2, 2018)
+    # path_name = 'C:\\Users\\noz\\Documents\\sandag_urbansim_lite\\outputs\\cap_update_scenario_{}.csv'.format(scenario)
+
+    # # M: drive method takes ~60 seconds per iteration, total of 35 minutes (April 2, 2018)
+    # # Have not added time for bulk insert run yet (should be quick once on M: drive and working)
+    # path_name = 'M:\\TEMP\\noz\\outputs\\cap_update_scenario_{}.csv'.format(scenario)
+    #
+    # if year == 2017:
+    #     year_update_cap.to_csv(path_name)
+    # else:
+    #     year_update_cap.to_csv(path_name, mode='a', header=False)
+
+    # # .to_sql method should be indifferent for this approach, as it appends by year
+
     # end_time = time.monotonic()
     # print(timedelta(seconds=end_time - start_time))
 
-    # year_update.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim', index=False,
-    #                    if_exists='append')
-
-    # This creates a new file of parcel info for each year
-    # parcels['year'] = year
-    #
-
-
+    ####################################################################################
+    # End of upload section, below is the actual bulk insert, which needs modification #
+    ####################################################################################
 
     # tran = conn.begin()
     #
@@ -199,17 +222,3 @@ def run_insert(year):
     #     raise
     #
     # conn.close()
-
-
-
-'''
-#This loop can write the all the parcels for each year as one (very large) .csv file.
-if year == 2020:
-    parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv')
-else:
-    parcels.to_csv('M:/TEMP/NOZ/urbansim_lite_parcels.csv', mode='a', header=False)
-db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
-mssql_engine = create_engine(db_connection_string)
-parcels.to_sql(name='urbansim_lite_output_parcels', con=mssql_engine, schema='urbansim', if_exists='replace',
-                 index=True) #no run ID -> appending to database
-'''
