@@ -158,13 +158,14 @@ def run_insert(year):
     # year_update_all = year_update_all.drop(['base_cap'], axis=1)
     # year_update_all = year_update_formater(year_update_all, current_builds, phase_year, scenario, year)
 
-    ###########################################################
-    # Everything below is related to optimizing upload to sql #
-    ###########################################################
+    #########################################################################
+    # Everything below is related to uploading to sql in one way or another #
+    #########################################################################
 
     # start_time = time.monotonic()
-    # # # This section writes files for individual years as .csv files
     # # # This is only for capacity > 0 parcels at the moment, modify names and file uploaded for all parcels
+
+    # # # This section writes files for individual years as .csv files
     # # C: drive method takes ~1 minute total (April 2, 2018)
     # path_name = 'C:\\Users\\noz\\Documents\\sandag_urbansim_lite\\outputs\\year_update_{}.csv'.format(year)
 
@@ -172,7 +173,7 @@ def run_insert(year):
     # # Have not added time for bulk insert run yet (should be quick once on M: drive and working)
     # path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}.csv'.format(year)
 
-    # year_update_cap.to_csv(path_name)
+    # year_update_cap.to_csv(path_name, index=False)
 
     # # .to_sql method takes ~70 seconds per file, total of 45 minutes (April 2, 2018)
     # # Needs different method of scenario choosing, pick from sql in 2017 then continue after
@@ -188,9 +189,9 @@ def run_insert(year):
     # path_name = 'M:\\TEMP\\noz\\outputs\\cap_update_scenario_{}.csv'.format(scenario)
     #
     # if year == 2017:
-    #     year_update_cap.to_csv(path_name)
+    #     year_update_cap.to_csv(path_name, index=False)
     # else:
-    #     year_update_cap.to_csv(path_name, mode='a', header=False)
+    #     year_update_cap.to_csv(path_name, mode='a', header=False, index=False)
 
     # # .to_sql method should be indifferent for this approach, as it appends by year
 
@@ -200,6 +201,18 @@ def run_insert(year):
     ####################################################################################
     # End of upload section, below is the actual bulk insert, which needs modification #
     ####################################################################################
+    # # Currently having errors with manual bulk insert using the following code:
+    # BULK INSERT urbansim.urbansim.sr14_residential_CAP_parcel_results
+    # FROM '\\sandag.org\home\shared\TEMP\noz\outputs\cap_update_scenario_2.csv'
+    # WITH (
+    # FIRSTROW = 2,
+    # FIELDTERMINATOR = ',',
+    # ROWTERMINATOR = '0x0a'
+    # )
+    # GO
+    # # Error: (may have something to do with row terminator?)
+    # Msg 4864, Level 16, State 1, Line 1
+    # Bulk load data conversion error (type mismatch or invalid character for the specified codepage)
 
     # tran = conn.begin()
     #
