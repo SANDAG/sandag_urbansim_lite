@@ -129,25 +129,25 @@ def run_insert(year):
     hu_forecast = orca.get_table('hu_forecast').to_frame()
     current_builds = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
 
-    # Check if parcels occur multiple times (due to multiple sources). Will skip if false.
-    if any(current_builds.parcel_id.duplicated()):
-        repeated_parcels = pd.concat(g for _, g in current_builds.groupby("parcel_id") if len(g) > 1)  # df of repeats
-        for repeats in repeated_parcels['parcel_id'].unique():
-            current_builds.loc[current_builds.parcel_id == repeats, 'source'] = 5  # Change source for groupby
-        current_builds = pd.DataFrame({'residential_units': current_builds.
-                                      groupby(["parcel_id", "year_built", "hu_forecast_type_id", "source"]).
-                                      residential_units.sum()}).reset_index()
+    # # Check if parcels occur multiple times (due to multiple sources). Will skip if false.
+    # if any(current_builds.parcel_id.duplicated()):
+    #     repeated_parcels = pd.concat(g for _, g in current_builds.groupby("parcel_id") if len(g) > 1)  # df of repeats
+    #     for repeats in repeated_parcels['parcel_id'].unique():
+    #         current_builds.loc[current_builds.parcel_id == repeats, 'source'] = 5  # Change source for groupby
+    #     current_builds = pd.DataFrame({'residential_units': current_builds.
+    #                                   groupby(["parcel_id", "year_built", "hu_forecast_type_id", "source"]).
+    #                                   residential_units.sum()}).reset_index()
 
-    # update capacity parcels table
-    capacity_parcels = parcel_table_update(capacity_parcels, current_builds)
-    orca.add_table("parcels", capacity_parcels)
+    # # update capacity parcels table
+    # capacity_parcels = parcel_table_update(capacity_parcels, current_builds)
+    # orca.add_table("parcels", capacity_parcels)
 
-    # create capacity parcels yearly update table
-    year_update_cap = capacity_parcels.copy()
-    year_update_cap.rename(columns={"orig_jurisdiction_id": "jur", "jurisdiction_id": "jur_reported",
-                                    "luz_id": "luz", "mgra_id": "mgra"}, inplace=True)
-    year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
-    year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, scenario, year)
+    # # create capacity parcels yearly update table
+    # year_update_cap = capacity_parcels.copy()
+    # year_update_cap.rename(columns={"orig_jurisdiction_id": "jur", "jurisdiction_id": "jur_reported",
+    #                                 "luz_id": "luz", "mgra_id": "mgra"}, inplace=True)
+    # year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
+    # year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, scenario, year)
 
     # # update all parcels table
     # all_parcels = parcel_table_update(all_parcels, current_builds)

@@ -17,8 +17,8 @@ orca.run([
     "negative_parcel_reducer",
     "feasibility",
     "residential_developer",
-    "summary",
-    "write_to_sql"
+    "summary"
+    #,"write_to_sql"
      ], iter_vars=range(2017, 2051))
     # ], iter_vars = range(2017, 2019), data_out = 'data\\results.h5', out_interval = 1)
 
