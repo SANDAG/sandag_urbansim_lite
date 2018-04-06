@@ -23,8 +23,8 @@ parcel_sql = '''
 
 all_parcel_sql = '''
       SELECT parcel_id, mgra_id as mgra, cap_jurisdiction_id as jur_reported, 
-        jurisdiction_id as jur, luz_id as luz, site_id, cap_remaining_new AS base_cap, 
-        du_2017 AS residential_units, (du_2017 + cap_remaining_new) as buildout
+        jurisdiction_id as jur, luz_id as luz, site_id, remaining_cap AS base_cap, 
+        du_2017 AS residential_units, (du_2017 + remaining_cap) as buildout
         FROM urbansim.urbansim.parcel
 '''
 
