@@ -13,51 +13,21 @@ scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 parcel_sql = '''
       SELECT	parcel_id, p.mgra_id, cap_jurisdiction_id as jurisdiction_id, 
         jurisdiction_id as orig_jurisdiction_id,
-            p.luz_id, p.site_id, capacity AS capacity_base_yr, 
-            du AS residential_units, 
+            p.luz_id, p.site_id, capacity_2 AS capacity_base_yr, 
+            du_2017 AS residential_units, 
             0 as partial_build
        FROM urbansim.urbansim.parcel p
-      WHERE capacity != 0 and capacity is not null
+      WHERE capacity_2 != 0 and capacity_2 is not null
 '''
 
 
 all_parcel_sql = '''
       SELECT parcel_id, mgra_id as mgra, cap_jurisdiction_id as jur_reported, 
-        jurisdiction_id as jur, luz_id as luz, site_id, remaining_cap AS base_cap, 
-        du_2017 AS residential_units, (du_2017 + remaining_cap) as buildout
+        jurisdiction_id as jur, luz_id as luz, site_id, capacity_2 AS base_cap, 
+        du_2017 AS residential_units, (du_2017 + capacity_2) as buildout
         FROM urbansim.urbansim.parcel
 '''
 
-
-#########################################################################################
-# note: need to CHANGE when parcel_update_2017 has updated capacities for city and county
-#########################################################################################
-
-parcel_update_2017_sql = '''
-    SELECT	parcelid_2015 as parcel_id, p.mgra_id, p.jurisdiction_id, 
-            p.luz_id, p.site_id, cap_remaining_new AS capacity_base_yr, 
-            du_2017 AS residential_units, 
-            0 as partial_build
-       FROM urbansim.urbansim.parcel_update_2017 update2017
-       JOIN urbansim.urbansim.parcel p
-         ON p.parcel_id = update2017.parcelid_2015
-      WHERE cap_remaining_new > 0 and jurisdiction_id NOT IN (14,19)
-'''
-
-# parcel_update_2017 does not have city and county capacity updates yet
-# problematic since sched dev table has city and county update
-# was inflating capacity since site ids did not match
-# work around is to use city and county capacity prior to update to 2017
-# from urbansim.parcel
-# delete this code and get all capacities from parcel_update_2017 when avail
-parcel_city_and_county_sql = '''
-    SELECT	parcel_id, p.mgra_id, p.jurisdiction_id, 
-            p.luz_id, p.site_id, capacity AS capacity_base_yr, 
-            du AS residential_units, 
-            0 as partial_build
-       FROM urbansim.urbansim.parcel p
-      WHERE capacity > 0 and jurisdiction_id IN (14,19)
-'''
 
 sched_dev_sql = '''
     SELECT parcel_id, yr, site_id, 
