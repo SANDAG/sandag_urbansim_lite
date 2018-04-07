@@ -11,23 +11,20 @@ mssql_engine = create_engine(db_connection_string)
 scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 
 parcel_sql = '''
-      SELECT	parcel_id, p.mgra_id, cap_jurisdiction_id as jurisdiction_id, 
-        jurisdiction_id as orig_jurisdiction_id,
-            p.luz_id, p.site_id, capacity_2 AS capacity_base_yr, 
-            du_2017 AS residential_units, 
-            0 as partial_build
-       FROM urbansim.urbansim.parcel p
+      SELECT parcel_id, p.mgra_id, jurisdiction_id, cap_jurisdiction_id, 
+             p.luz_id, p.site_id, capacity_2 AS capacity_base_yr, 
+             du_2017 AS residential_units, 
+             0 as partial_build
+      FROM urbansim.urbansim.parcel p
       WHERE capacity_2 != 0 and capacity_2 is not null
 '''
 
-
 all_parcel_sql = '''
       SELECT parcel_id, mgra_id as mgra, cap_jurisdiction_id as jur_reported, 
-        jurisdiction_id as jur, luz_id as luz, site_id, capacity_2 AS base_cap, 
-        du_2017 AS residential_units, (du_2017 + capacity_2) as buildout
-        FROM urbansim.urbansim.parcel
+             jurisdiction_id as jur, luz_id as luz, site_id, capacity_2 AS base_cap, 
+             du_2017 AS residential_units, (du_2017 + capacity_2) as buildout
+      FROM urbansim.urbansim.parcel
 '''
-
 
 sched_dev_sql = '''
     SELECT parcel_id, yr, site_id, 
@@ -71,6 +68,7 @@ households_sql = '''
       FROM  isam.economic_output.urbansim_housing_units
       WHERE demographic_simulation_id  = %s
 '''
+
 households_sql = households_sql % scenarios['demographic_simulation_id']
 
 
@@ -88,9 +86,9 @@ negative_capacity_parcels = '''
     SELECT parcel_id, 
         p.site_id,
         null as yr,
-        capacity
+        capacity_2
     FROM urbansim.urbansim.parcel p
-    WHERE capacity < 0 and site_id is null
+    WHERE capacity_2 < 0 and site_id is null
 '''
 
 regional_capacity_controls_sql = '''
@@ -104,8 +102,9 @@ regional_capacity_controls_sql = regional_capacity_controls_sql % scenarios['sub
 parcel_dev_control_sql = '''
     SELECT parcel_id, phase as phase_yr_ctrl, scenario
       FROM urbansim.urbansim.urbansim_lite_parcel_control
-     WHERE scenario = 1
+     WHERE scenario = %s
 '''
+parcel_dev_control_sql  = parcel_dev_control_sql % scenarios['parcel_phase_yr']
 
 xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
 xref_geography_df['jur_or_cpa_id'] = xref_geography_df['cocpa_13']
@@ -121,7 +120,6 @@ parcels = pd.merge(parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id','cocp
 parcels.parcel_id = parcels.parcel_id.astype(int)
 parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)
-parcels.loc[parcels.jurisdiction_id != parcels.orig_jurisdiction_id,'jur_or_cpa_id'] = parcels['jurisdiction_id']
 parcels.loc[parcels.jur_or_cpa_id ==19,'jur_or_cpa_id'] = parcels['cocpa_13']
 parcels = parcels.drop(['mgra_13','cocpa_13'], axis=1)
 
