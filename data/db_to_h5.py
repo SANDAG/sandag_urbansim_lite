@@ -92,12 +92,12 @@ negative_capacity_parcels = '''
 '''
 
 regional_capacity_controls_sql = '''
-    SELECT scenario, yr, geo,
+    SELECT subregional_crtl_id, yr, geo,
            geo_id, control, control_type, max_units
       FROM urbansim.urbansim.urbansim_lite_subregional_control
-     WHERE scenario = %s
+     WHERE subregional_crtl_id = %s
 '''
-regional_capacity_controls_sql = regional_capacity_controls_sql % scenarios['subregional_controls']
+regional_capacity_controls_sql = regional_capacity_controls_sql % scenarios['subregional_ctrl_id']
 
 parcel_dev_control_sql = '''
     SELECT parcel_id, phase as phase_yr_ctrl, scenario
