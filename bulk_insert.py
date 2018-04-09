@@ -113,15 +113,23 @@ def run_insert(year):
     #                 '''
     #     scenario_df = pd.read_sql(scenario_sql, mssql_engine)
     #     scenario = int(scenario_df.values)
-    try:
+    if year == 2017:
+        try:
+            scenario_sql = '''
+                SELECT max(scenario)
+                  FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
+                '''
+            scenario_df = pd.read_sql(scenario_sql, mssql_engine)
+            scenario = int(scenario_df.values) + 1
+        except KeyError:
+            scenario = int(1)
+    else:
         scenario_sql = '''
-            SELECT max(scenario)
-              FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
-            '''
+                        SELECT max(scenario)
+                          FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
+                        '''
         scenario_df = pd.read_sql(scenario_sql, mssql_engine)
-        scenario = int(scenario_df.values) + 1
-    except KeyError:
-        scenario = int(1)
+        scenario = int(scenario_df.values)
 
     all_parcels = orca.get_table('all_parcels').to_frame()
     capacity_parcels = orca.get_table('parcels').to_frame()
@@ -142,12 +150,12 @@ def run_insert(year):
     # capacity_parcels = parcel_table_update(capacity_parcels, current_builds)
     # orca.add_table("parcels", capacity_parcels)
 
-    # # create capacity parcels yearly update table
-    # year_update_cap = capacity_parcels.copy()
-    # year_update_cap.rename(columns={"orig_jurisdiction_id": "jur", "jurisdiction_id": "jur_reported",
-    #                                 "luz_id": "luz", "mgra_id": "mgra"}, inplace=True)
-    # year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
-    # year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, scenario, year)
+    # create capacity parcels yearly update table
+    year_update_cap = capacity_parcels.copy()
+    year_update_cap.rename(columns={"orig_jurisdiction_id": "jur", "jurisdiction_id": "jur_reported",
+                                    "luz_id": "luz", "mgra_id": "mgra"}, inplace=True)
+    year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
+    year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, scenario, year)
 
     # # update all parcels table
     # all_parcels = parcel_table_update(all_parcels, current_builds)
@@ -162,7 +170,7 @@ def run_insert(year):
     # Everything below is related to uploading to sql in one way or another #
     #########################################################################
 
-    # start_time = time.monotonic()
+    start_time = time.monotonic()
     # # # This is only for capacity > 0 parcels at the moment, modify names and file uploaded for all parcels
 
     # # # This section writes files for individual years as .csv files
@@ -171,9 +179,9 @@ def run_insert(year):
 
     # # M: drive method takes ~85 seconds per file, total of 55 minutes (April 2, 2018)
     # # Have not added time for bulk insert run yet (should be quick once on M: drive and working)
-    # path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}.csv'.format(year)
+    path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}.csv'.format(year)
 
-    # year_update_cap.to_csv(path_name, index=False)
+    year_update_cap.to_csv(path_name, index=False)
 
     # # .to_sql method takes ~70 seconds per file, total of 45 minutes (April 2, 2018)
     # # Needs different method of scenario choosing, pick from sql in 2017 then continue after
@@ -195,12 +203,35 @@ def run_insert(year):
 
     # # .to_sql method should be indifferent for this approach, as it appends by year
 
-    # end_time = time.monotonic()
-    # print(timedelta(seconds=end_time - start_time))
+    end_time = time.monotonic()
+    print(timedelta(seconds=end_time - start_time))
 
-    ####################################################################################
-    # End of upload section, below is the actual bulk insert, which needs modification #
-    ####################################################################################
+    ##########################################################
+    # End of upload section, below is the actual bulk insert #
+    ##########################################################
+
+    '''
+    To create format file, use the following script in the command shell from the folder where you want the 
+    format file to be located (M:\TEMP\noz\outputs): 
+    bcp urbansim.urbansim.sr14_residential_CAP_parcel_results format nul -f parcels_update.fmt -c -t , -T -S SQL2014A8
+
+    You need to open the .fmt file and edit the top row to be 13.0 instead of 14.0. This should be possible by adding
+    -V 130 to the original bcp command but it was giving me an error.
+    '''
+
+    start_time = time.monotonic()
+    conn = mssql_engine.connect()
+    with conn.begin() as trans:
+        bulk_insert = '''
+        BULK INSERT urbansim.urbansim.sr14_residential_CAP_parcel_results
+        FROM '\\sandag.org\home\shared\TEMP\noz\outputs\year_update_{}.csv'
+        WITH (FIRSTROW = 2, FORMATFILE = '\\sandag.org\home\shared\TEMP\noz\outputs\parcels_update.fmt')
+        '''.format(year)
+        conn.execute(bulk_insert)
+    conn.close()
+    end_time = time.monotonic()
+    print(timedelta(seconds=end_time - start_time))
+
     # # Currently having errors with manual bulk insert using the following code:
     # BULK INSERT urbansim.urbansim.sr14_residential_CAP_parcel_results
     # FROM '\\sandag.org\home\shared\TEMP\noz\outputs\cap_update_scenario_2.csv'
@@ -235,3 +266,4 @@ def run_insert(year):
     #     raise
     #
     # conn.close()
+
