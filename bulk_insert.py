@@ -37,6 +37,7 @@ def year_update_formater(parcel_table, current_builds, phase_year, scenario, yea
     year_update['year'] = year
     year_update['taz'] = np.nan
     year_update['lu'] = np.nan
+    year_update['plu'] = np.nan
     year_update['cap_hs'] = year_update['buildout'] - year_update['hs']
     year_update = year_update.drop(['buildout'], axis=1)
     increment = year - (year % 5)
@@ -49,7 +50,7 @@ def year_update_formater(parcel_table, current_builds, phase_year, scenario, yea
     year_update.loc[:, year_update.isnull().any() == False] = year_update.loc[:,
                                                               year_update.isnull().any() == False].astype(int)
     year_update = year_update[['scenario', 'increment', 'parcel_id', 'year', 'jur', 'jur_reported', 'cpa', 'mgra',
-                               'luz', 'taz', 'site_id', 'lu', 'hs', 'chg_hs', 'cap_hs', 'source', 'phase']]
+                               'luz', 'taz', 'site_id', 'lu', 'plu', 'hs', 'chg_hs', 'cap_hs', 'source', 'phase']]
     year_update.sort_values(by=['parcel_id'])
     year_update = year_update.reset_index(drop=True)
     return year_update
@@ -57,11 +58,55 @@ def year_update_formater(parcel_table, current_builds, phase_year, scenario, yea
 
 def run_insert(year):
     # # This section below is for use in the first run / creation of the table. The method it uses to pull the
-    # # scenario is only valid if it is writing directly to the database every loop (either with a .to_sql() or by
-    # # writing to M: drive and bulk inserting with an append). Neither of these solutions are likely to be optimal.
-    # # Probably this will be better either as written to C: drive and uploaded with a batch method. It is unclear
-    # # whether we should be using one file per year or one large file appended with all years
-    # if year == 2017:
+    # # scenario is only valid if it is writing directly to the database every loop by writing to M: drive and bulk
+    # # inserting with an append. This segment only needs to be run when the underlying data (ie. urbansim.parcels)
+    # # is updated, otherwise differing scenarios can be generated and appended.
+    if year == 2017: # this if / else is only needed for restarting the table
+        conn = mssql_engine.connect()
+        with conn.begin() as trans:
+            conn.execute('DROP TABLE IF EXISTS urbansim.urbansim.sr14_residential_CAP_parcel_results')
+        with conn.begin() as trans:
+            create_table_sql = '''
+            USE [urbansim]
+            SET ANSI_NULLS ON
+            SET QUOTED_IDENTIFIER ON
+            CREATE TABLE [urbansim].[sr14_residential_CAP_parcel_results](
+                [scenario] [tinyint] NOT NULL,
+                [increment] [smallint] NOT NULL,
+                [parcel_id] [int] NOT NULL,
+                [year] [smallint] NOT NULL,
+                [jur] [tinyint] NOT NULL,
+                [jur_reported] [tinyint] NOT NULL,
+                [cpa] [smallint] NULL,
+                [mgra] [smallint] NULL,
+                [luz] [tinyint] NULL,
+                [taz] [tinyint] NULL,
+                [site_id] [smallint] NULL,
+                [lu] [tinyint] NULL,
+                [plu] [tinyint] NULL,
+                [hs] [smallint] NOT NULL,
+                [chg_hs] [smallint] NOT NULL,
+                [cap_hs] [smallint] NOT NULL,
+                [source] [tinyint] NOT NULL,
+                [phase] [smallint] NULL
+                CONSTRAINT [PK_sr14_residential_CAP_parcel_yearly] PRIMARY KEY CLUSTERED
+                (
+                    [scenario] ASC,
+                    [year] ASC,
+                    [parcel_id] ASC,
+                    [source] ASC
+                ))WITH (DATA_COMPRESSION = page)'''
+            conn.execute(create_table_sql)
+        conn.close()
+        scenario = int(1)
+    else:
+        scenario_sql = '''
+        SELECT max(scenario)
+            FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
+        '''
+        scenario_df = pd.read_sql(scenario_sql, mssql_engine)
+        scenario = int(scenario_df.values)
+    # if year == 2017: # this if / else can be used for appending to the table
     #     try:
     #         scenario_sql = '''
     #         SELECT max(scenario)
@@ -70,66 +115,14 @@ def run_insert(year):
     #         scenario_df = pd.read_sql(scenario_sql, mssql_engine)
     #         scenario = int(scenario_df.values) + 1
     #     except KeyError:
-    #         conn = mssql_engine.connect()
-    #         with conn.begin() as trans:
-    #             conn.execute('DROP TABLE IF EXISTS urbansim.urbansim.sr14_residential_CAP_parcel_results')
-    #         with conn.begin() as trans:
-    #             create_table_sql = '''
-    #             USE [urbansim]
-    #             SET ANSI_NULLS ON
-    #             SET QUOTED_IDENTIFIER ON
-    #             CREATE TABLE [urbansim].[sr14_residential_CAP_parcel_results](
-    #                 [scenario] [tinyint] NOT NULL,
-    #                 [increment] [int] NOT NULL,
-    #                 [parcel_id] [int] NOT NULL,
-    #                 [year] [int] NOT NULL,
-    #                 [jur] [smallint] NOT NULL,
-    #                 [jur_reported] [smallint] NOT NULL,
-    #                 [cpa] [int] NULL,
-    #                 [mgra] [int] NULL,
-    #                 [luz] [smallint] NULL,
-    #                 [taz] [int] NULL,
-    #                 [site_id] [smallint] NULL,
-    #                 [lu] [smallint] NULL,
-    #                 [hs] [int] NOT NULL,
-    #                 [chg_hs] [int] NOT NULL,
-    #                 [cap_hs] [int] NOT NULL,
-    #                 [source] [smallint] NOT NULL,
-    #                 [phase] [int] NULL
-    #                 CONSTRAINT [PK_sr14_residential_CAP_parcel_yearly] PRIMARY KEY CLUSTERED
-    #                 (
-    #                     [scenario] ASC,
-    #                     [year] ASC,
-    #                     [parcel_id] ASC,
-    #                     [source] ASC
-    #                 ))WITH (DATA_COMPRESSION = page)'''
-    #             conn.execute(create_table_sql)
-    #         conn.close()
     #         scenario = int(1)
     # else:
     #     scenario_sql = '''
-    #                 SELECT max(scenario)
-    #                   FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
-    #                 '''
+    #     SELECT max(scenario)
+    #         FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
+    #     '''
     #     scenario_df = pd.read_sql(scenario_sql, mssql_engine)
     #     scenario = int(scenario_df.values)
-    if year == 2017:
-        try:
-            scenario_sql = '''
-                SELECT max(scenario)
-                  FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
-                '''
-            scenario_df = pd.read_sql(scenario_sql, mssql_engine)
-            scenario = int(scenario_df.values) + 1
-        except KeyError:
-            scenario = int(1)
-    else:
-        scenario_sql = '''
-                        SELECT max(scenario)
-                          FROM [urbansim].[urbansim].[sr14_residential_CAP_parcel_results]
-                        '''
-        scenario_df = pd.read_sql(scenario_sql, mssql_engine)
-        scenario = int(scenario_df.values)
 
     all_parcels = orca.get_table('all_parcels').to_frame()
     capacity_parcels = orca.get_table('parcels').to_frame()
@@ -152,7 +145,7 @@ def run_insert(year):
 
     # create capacity parcels yearly update table
     year_update_cap = capacity_parcels.copy()
-    year_update_cap.rename(columns={"orig_jurisdiction_id": "jur", "jurisdiction_id": "jur_reported",
+    year_update_cap.rename(columns={"cap_jurisdiction_id": "jur", "jurisdiction_id": "jur_reported",
                                     "luz_id": "luz", "mgra_id": "mgra"}, inplace=True)
     year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
     year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, scenario, year)
@@ -166,104 +159,35 @@ def run_insert(year):
     # year_update_all = year_update_all.drop(['base_cap'], axis=1)
     # year_update_all = year_update_formater(year_update_all, current_builds, phase_year, scenario, year)
 
-    #########################################################################
-    # Everything below is related to uploading to sql in one way or another #
-    #########################################################################
-
+    ###################################################
+    # Everything below is related to uploading to sql #
+    ###################################################
     start_time = time.monotonic()
-    # # # This is only for capacity > 0 parcels at the moment, modify names and file uploaded for all parcels
-
-    # # # This section writes files for individual years as .csv files
-    # # C: drive method takes ~1 minute total (April 2, 2018)
-    # path_name = 'C:\\Users\\noz\\Documents\\sandag_urbansim_lite\\outputs\\year_update_{}.csv'.format(year)
-
-    # # M: drive method takes ~85 seconds per file, total of 55 minutes (April 2, 2018)
-    # # Have not added time for bulk insert run yet (should be quick once on M: drive and working)
     path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}.csv'.format(year)
-
     year_update_cap.to_csv(path_name, index=False)
-
-    # # .to_sql method takes ~70 seconds per file, total of 45 minutes (April 2, 2018)
-    # # Needs different method of scenario choosing, pick from sql in 2017 then continue after
-    # year_update_cap.to_sql(name='sr14_residential_CAP_parcel_results', con=mssql_engine, schema='urbansim',
-    #                        index=False, if_exists='append')
-
-    # # # This section writes one large .csv file with all years appended
-    # # C: drive method takes ~1 minute total (April 2, 2018)
-    # path_name = 'C:\\Users\\noz\\Documents\\sandag_urbansim_lite\\outputs\\cap_update_scenario_{}.csv'.format(scenario)
-
-    # # M: drive method takes ~60 seconds per iteration, total of 35 minutes (April 2, 2018)
-    # # Have not added time for bulk insert run yet (should be quick once on M: drive and working)
-    # path_name = 'M:\\TEMP\\noz\\outputs\\cap_update_scenario_{}.csv'.format(scenario)
-    #
-    # if year == 2017:
-    #     year_update_cap.to_csv(path_name, index=False)
-    # else:
-    #     year_update_cap.to_csv(path_name, mode='a', header=False, index=False)
-
-    # # .to_sql method should be indifferent for this approach, as it appends by year
-
     end_time = time.monotonic()
     print(timedelta(seconds=end_time - start_time))
-
     ##########################################################
     # End of upload section, below is the actual bulk insert #
     ##########################################################
-
     '''
     To create format file, use the following script in the command shell from the folder where you want the 
-    format file to be located (M:\TEMP\noz\outputs): 
+    format file to be located ("M:\\RES\\estimates & forecast\\SR14 Forecast\\UrbanSim\\Capacity_Parcel_Updates"): 
     bcp urbansim.urbansim.sr14_residential_CAP_parcel_results format nul -f parcels_update.fmt -c -t , -T -S SQL2014A8
 
     You need to open the .fmt file and edit the top row to be 13.0 instead of 14.0. This should be possible by adding
     -V 130 to the original bcp command but it was giving me an error.
     '''
-
     start_time = time.monotonic()
     conn = mssql_engine.connect()
     with conn.begin() as trans:
         bulk_insert = '''
         BULK INSERT urbansim.urbansim.sr14_residential_CAP_parcel_results
-        FROM '\\sandag.org\home\shared\TEMP\noz\outputs\year_update_{}.csv'
-        WITH (FIRSTROW = 2, FORMATFILE = '\\sandag.org\home\shared\TEMP\noz\outputs\parcels_update.fmt')
+        FROM '\\\\sandag.org\\home\\shared\\TEMP\\noz\\outputs\\year_update_{}.csv'
+        WITH (FIRSTROW = 2, 
+        FORMATFILE = '\\\\sandag.org\\home\\shared\\TEMP\\noz\\outputs\\parcels_update.fmt')
         '''.format(year)
         conn.execute(bulk_insert)
     conn.close()
     end_time = time.monotonic()
     print(timedelta(seconds=end_time - start_time))
-
-    # # Currently having errors with manual bulk insert using the following code:
-    # BULK INSERT urbansim.urbansim.sr14_residential_CAP_parcel_results
-    # FROM '\\sandag.org\home\shared\TEMP\noz\outputs\cap_update_scenario_2.csv'
-    # WITH (
-    # FIRSTROW = 2,
-    # FIELDTERMINATOR = ',',
-    # ROWTERMINATOR = '0x0a'
-    # )
-    # GO
-    # # Error: (may have something to do with row terminator?)
-    # Msg 4864, Level 16, State 1, Line 1
-    # Bulk load data conversion error (type mismatch or invalid character for the specified codepage)
-
-    # tran = conn.begin()
-    #
-    # # check out batch size
-    # try:
-    #     conn.execute(
-    #         """
-    #         BULK INSERT urbansim.urbansim.residential_control
-    #         FROM "\\\\sandag.org\\home\\shared\\TEMP\\NOZ\\urbansim_lite_parcels.csv"
-    #         WITH (
-    #         FIRSTROW = 2,
-    #         FIELDTERMINATOR = ',',
-    #         ROWTERMINATOR = '0x0a'
-    #         )
-    #         """
-    #     )
-    #     tran.commit()
-    # except:
-    #     tran.rollback()
-    #     raise
-    #
-    # conn.close()
-
