@@ -1,5 +1,5 @@
 scenario:
     # database scenario to use in simulation
-    subregional_crtl_id: 4
+    subregional_ctrl_id: 4
     demographic_simulation_id: 2001
     parcel_phase_yr: 1

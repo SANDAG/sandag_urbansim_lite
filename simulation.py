@@ -63,7 +63,7 @@ units_by_jur = orca.get_table('uj').to_frame()
 units_by_jur.to_csv('data/units_by_jur.csv')
 
 scenarios = utils.yaml_to_dict('data/scenario_config.yaml', 'scenario')
-subregional_ctrl_id = scenarios['subregional_crtl_id']
+subregional_ctrl_id = scenarios['subregional_ctrl_id']
 demographic_simulation_id = scenarios['demographic_simulation_id']
 phase_yr_id = scenarios['parcel_phase_yr']
 
