@@ -11,7 +11,9 @@ mssql_engine = create_engine(db_connection_string)
 scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 
 parcel_sql = '''
-      SELECT parcel_id, p.mgra_id, jurisdiction_id, cap_jurisdiction_id, 
+      SELECT parcel_id, p.mgra_id, 
+             cap_jurisdiction_id AS jurisdiction_id,
+             jurisdiction_id AS orig_jur_id,
              p.luz_id, p.site_id, capacity_2 AS capacity_base_yr, 
              du_2017 AS residential_units, 
              0 as partial_build
@@ -107,14 +109,12 @@ parcel_dev_control_sql = '''
 parcel_dev_control_sql  = parcel_dev_control_sql % scenarios['parcel_phase_yr']
 
 xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
-xref_geography_df['jur_or_cpa_id'] = xref_geography_df['cocpa_13']
+xref_geography_df['jur_or_cpa_id'] = xref_geography_df['cocpa_2016']
 xref_geography_df['jur_or_cpa_id'].fillna(xref_geography_df['cicpa_13'],inplace=True)
 xref_geography_df['jur_or_cpa_id'].fillna(xref_geography_df['jurisdiction_2016'],inplace=True)
 xref_geography_df['jur_or_cpa_id'] = xref_geography_df['jur_or_cpa_id'].astype(int)
 
-# parcel_update_2017_df = pd.read_sql(parcel_update_2017_sql, mssql_engine)
-# parcel_city_and_county_df= pd.read_sql(parcel_city_and_county_sql, mssql_engine)
-# parcels_df = pd.concat([parcel_update_2017_df,parcel_city_and_county_df])
+
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 parcels = pd.merge(parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id','cocpa_13']],left_on='mgra_id',right_on='mgra_13')
 parcels.parcel_id = parcels.parcel_id.astype(int)
