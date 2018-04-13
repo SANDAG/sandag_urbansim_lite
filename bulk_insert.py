@@ -145,8 +145,7 @@ def run_insert(year):
 
     # create capacity parcels yearly update table
     year_update_cap = capacity_parcels.copy()
-    year_update_cap.rename(columns={"cap_jurisdiction_id": "jur", "jurisdiction_id": "jur_reported",
-                                    "luz_id": "luz", "mgra_id": "mgra"}, inplace=True)
+    year_update_cap.rename(columns={"luz_id": "luz", "mgra_id": "mgra"}, inplace=True)
     year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
     year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, scenario, year)
 

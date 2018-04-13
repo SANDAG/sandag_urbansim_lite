@@ -181,7 +181,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             one_row_per_unit = priority_then_random.reindex(priority_then_random.index.repeat(priority_then_random.units_for_year)).reset_index(drop=True)
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
             parcels_picked = pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
-                                          groupby(["parcel_id", "jurisdiction_id", "capacity_base_yr",
+                                          groupby(["parcel_id", "cap_jurisdiction_id", "capacity_base_yr",
                                                    "residential_units", "buildout"])
                                           .size()}).reset_index()
             parcels_picked.set_index('parcel_id', inplace=True)
@@ -272,13 +272,13 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
     feasible_parcels_df['remaining_capacity'] = (feasible_parcels_df.buildout - feasible_parcels_df.residential_units)
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
     for jur in control_totals.geo_id.unique().tolist():
-    # for jur in jurs['jurisdiction_id'].tolist():
+    # for jur in jurs['cap_jurisdiction_id'].tolist():
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id']==jur].max_units.values[0]
         # use nanmin to handle null values for max units
         target_units_for_geo = np.nanmin(np.array([subregion_targets, subregion_max]))
         # target_units_for_geo = min(subregion_targets, subregion_max)
-        # geo_name = jurs.loc[jurs.jurisdiction_id == jur].name.values[0]
+        # geo_name = jurs.loc[jurs.cap_jurisdiction_id == jur].name.values[0]
         target_units_for_geo = int(target_units_for_geo)
         geo_name = str(jur)
         print("Jurisdiction %s target units: %d" % (geo_name,target_units_for_geo))
@@ -315,7 +315,7 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
         # group by parcel id again if same parcel was picked
         sr14cap.reset_index(inplace=True)
         parcel_sr14_units = pd.DataFrame({'residential_units_sim_yr': sr14cap.
-                                            groupby(["parcel_id", "jurisdiction_id",
+                                            groupby(["parcel_id", "cap_jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
                                                      "buildout"]).residential_units_sim_yr.sum()}).reset_index()
         parcel_sr14_units.set_index('parcel_id', inplace=True)
