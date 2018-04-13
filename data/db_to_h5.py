@@ -20,6 +20,7 @@ parcel_sql = '''
       FROM urbansim.urbansim.parcel p
       WHERE capacity_2 != 0 and capacity_2 is not null
 '''
+parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 
 all_parcel_sql = '''
       SELECT parcel_id, mgra_id as mgra, cap_jurisdiction_id as jur_reported, 
@@ -27,6 +28,7 @@ all_parcel_sql = '''
              du_2017 AS residential_units, (du_2017 + capacity_2) as buildout
       FROM urbansim.urbansim.parcel
 '''
+all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
 
 sched_dev_sql = '''
     SELECT parcel_id, yr, site_id, 
@@ -64,6 +66,7 @@ xref_geography_sql = '''
            jurisdiction_2016, cicpa_13
       FROM data_cafe.ref.vi_xref_geography_mgra_13
 '''
+xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
 
 households_sql = '''
     SELECT  yr as year, households, housing_units_add 
@@ -108,32 +111,28 @@ parcel_dev_control_sql = '''
 '''
 parcel_dev_control_sql  = parcel_dev_control_sql % scenarios['parcel_phase_yr']
 
-xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
-xref_geography_df['jur_or_cpa_id'] = xref_geography_df['cocpa_2016']
-xref_geography_df['jur_or_cpa_id'].fillna(xref_geography_df['cicpa_13'],inplace=True)
-xref_geography_df['jur_or_cpa_id'].fillna(xref_geography_df['jurisdiction_2016'],inplace=True)
-xref_geography_df['jur_or_cpa_id'] = xref_geography_df['jur_or_cpa_id'].astype(int)
-
-
-parcels_df = pd.read_sql(parcel_sql, mssql_engine)
-parcels = pd.merge(parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id','cocpa_13']],left_on='mgra_id',right_on='mgra_13')
+parcels = pd.merge(parcels_df,xref_geography_df,left_on='mgra_id',right_on='mgra_13')
+parcels.loc[parcels.jurisdiction_id == 19,'jur_or_cpa_id'] = parcels['cocpa_2016']
+parcels.loc[((parcels.jurisdiction_id == 19) & (parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = parcels['cocpa_13']
+parcels.loc[parcels.jurisdiction_id == 14,'jur_or_cpa_id'] = parcels['cicpa_13']
+parcels['jur_or_cpa_id'].fillna(parcels['jurisdiction_id'],inplace=True)
 parcels.parcel_id = parcels.parcel_id.astype(int)
+parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)
-parcels.loc[parcels.jur_or_cpa_id ==19,'jur_or_cpa_id'] = parcels['cocpa_13']
-parcels = parcels.drop(['mgra_13','cocpa_13'], axis=1)
+parcels.loc[parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
+parcels = parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
 
-all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
-all_parcels = pd.merge(all_parcels_df,xref_geography_df[['mgra_13','jur_or_cpa_id']],how='left',left_on='mgra',right_on='mgra_13')
+all_parcels = pd.merge(all_parcels_df,xref_geography_df,how='left',left_on='mgra',right_on='mgra_13')
 all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
 all_parcels.set_index('parcel_id',inplace=True)
 all_parcels.sort_index(inplace=True)
-all_parcels.loc[all_parcels.jur_reported.isnull(),'jur_reported'] = all_parcels['jur']
-all_parcels.loc[all_parcels.jur_or_cpa_id < 20, 'jur_or_cpa_id'] = np.nan
-all_parcels = all_parcels.drop(['mgra_13'],axis=1)
+all_parcels.loc[all_parcels.jur_reported == 19,'jur_or_cpa_id'] = all_parcels['cocpa_2016']
+all_parcels.loc[((all_parcels.jur_reported == 19) & (all_parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = all_parcels['cocpa_13']
+all_parcels.loc[all_parcels.jur_reported == 14,'jur_or_cpa_id'] = all_parcels['cicpa_13']
+all_parcels = all_parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'],axis=1)
 all_parcels.mgra = all_parcels.mgra.astype(float)
 #There are missing MGRAs / LUZs, spacecore has them but they are parcels with multiple MGRAs /other oddities
-
 
 parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
