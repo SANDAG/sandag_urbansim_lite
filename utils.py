@@ -312,7 +312,10 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
 
 
     if len(sr14cap) > 0:
+        if (year > 2042):
+            print(year)
         # group by parcel id again if same parcel was picked
+        sr14cap.reset_index(inplace=True)
         parcel_sr14_units = pd.DataFrame({'residential_units_sim_yr': sr14cap.
                                             groupby(["parcel_id", "jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
