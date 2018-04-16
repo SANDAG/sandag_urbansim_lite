@@ -113,9 +113,12 @@ parcel_dev_control_sql  = parcel_dev_control_sql % scenarios['parcel_phase_yr']
 
 parcels = pd.merge(parcels_df,xref_geography_df,left_on='mgra_id',right_on='mgra_13')
 parcels.loc[parcels.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = parcels['cocpa_2016']
-parcels.loc[((parcels.cap_jurisdiction_id == 19) & (parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = parcels['cocpa_13']
+# parcels.loc[((parcels.cap_jurisdiction_id == 19) & (parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = parcels['cocpa_13']
 parcels.loc[parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = parcels['cicpa_13']
 parcels['jur_or_cpa_id'].fillna(parcels['cap_jurisdiction_id'],inplace=True)
+print(parcels.loc[parcels.jur_or_cpa_id==19])
+parcels.loc[parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
+parcels.loc[parcels.mgra_id==18831,'jur_or_cpa_id'] = 1909
 parcels.parcel_id = parcels.parcel_id.astype(int)
 parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels.set_index('parcel_id',inplace=True)
