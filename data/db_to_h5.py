@@ -23,8 +23,8 @@ parcel_sql = '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 
 all_parcel_sql = '''
-      SELECT parcel_id, mgra_id as mgra, cap_jurisdiction_id, 
-             jurisdiction_id, luz_id as luz, site_id, capacity_2 AS base_cap, 
+      SELECT parcel_id, mgra_id, cap_jurisdiction_id, 
+             jurisdiction_id, luz_id, site_id, capacity_2 AS base_cap, 
              du_2017 AS residential_units, (du_2017 + capacity_2) as buildout
       FROM urbansim.urbansim.parcel
 '''
@@ -123,7 +123,7 @@ parcels.sort_index(inplace=True)
 parcels.loc[parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
 parcels = parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
 
-all_parcels = pd.merge(all_parcels_df,xref_geography_df,how='left',left_on='mgra',right_on='mgra_13')
+all_parcels = pd.merge(all_parcels_df,xref_geography_df,how='left',left_on='mgra_id',right_on='mgra_13')
 all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
 all_parcels.set_index('parcel_id',inplace=True)
 all_parcels.sort_index(inplace=True)
@@ -131,7 +131,7 @@ all_parcels.loc[all_parcels.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = all_par
 all_parcels.loc[((all_parcels.cap_jurisdiction_id == 19) & (all_parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = all_parcels['cocpa_13']
 all_parcels.loc[all_parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = all_parcels['cicpa_13']
 all_parcels = all_parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'],axis=1)
-all_parcels.mgra = all_parcels.mgra.astype(float)
+all_parcels.mgra_id = all_parcels.mgra_id.astype(float)
 #There are missing MGRAs / LUZs, spacecore has them but they are parcels with multiple MGRAs /other oddities
 
 parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']

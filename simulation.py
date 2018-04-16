@@ -9,7 +9,7 @@ from datetime import timedelta
 import time
 
 
-
+# start_time = time.monotonic()
 utils.initialize_tables()
 
 orca.run([
@@ -77,3 +77,5 @@ output_records.loc[run_id] = [run_id, run_description, run_date,subregional_ctrl
 #                    dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'unit_change': sqlalchemy.types.INTEGER(),
 #                             'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
 #                             'run_id': sqlalchemy.types.INTEGER()})
+# end_time = time.monotonic()
+# print("Total time to run Simulation:", timedelta(seconds=end_time - start_time))
