@@ -22,6 +22,20 @@ parcel_sql = '''
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 
+
+assigned_parcel_sql = '''
+SELECT [version_id]
+      ,[jur_id]
+      ,[parcel_id]
+      ,[type]
+      ,[name]
+      ,[du]
+  FROM [urbansim].[urbansim].[additional_capacity]
+  where version_id = 1
+'''
+assigned_df = pd.read_sql(assigned_parcel_sql, mssql_engine)
+
+
 all_parcel_sql = '''
       SELECT parcel_id, mgra_id, cap_jurisdiction_id, 
              jurisdiction_id, luz_id, site_id, capacity_2 AS base_cap, 
@@ -69,9 +83,11 @@ xref_geography_sql = '''
 xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
 
 households_sql = '''
-    SELECT  yr as year, households, housing_units_add 
-      FROM  isam.economic_output.urbansim_housing_units
-      WHERE demographic_simulation_id  = %s
+    SELECT [yr]
+          ,[version_id]
+          ,[housing_units_add]
+    FROM [isam].[economic_output].[urbansim_housing_units]
+    WHERE version_id = %s
 '''
 
 households_sql = households_sql % scenarios['demographic_simulation_id']
@@ -105,9 +121,12 @@ regional_capacity_controls_sql = '''
 regional_capacity_controls_sql = regional_capacity_controls_sql % scenarios['subregional_ctrl_id']
 
 parcel_dev_control_sql = '''
-    SELECT parcel_id, phase as phase_yr_ctrl, scenario
-      FROM urbansim.urbansim.urbansim_lite_parcel_control
-     WHERE scenario = %s
+SELECT [parcel_id]
+      ,[phase_yr]
+      ,[phase_yr_version_id]
+      ,[type]
+FROM  [urbansim].[urbansim].[urbansim_lite_parcel_control]
+     WHERE phase_yr_version_id = %s
 '''
 parcel_dev_control_sql  = parcel_dev_control_sql % scenarios['parcel_phase_yr']
 
@@ -136,11 +155,13 @@ all_parcels.mgra_id = all_parcels.mgra_id.astype(float)
 
 parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
-households_df = pd.read_sql(households_sql, mssql_engine, index_col='year')
+households_df = pd.read_sql(households_sql, mssql_engine, index_col='yr')
 households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
 hu_forecast_df = pd.read_sql(buildings_sql, mssql_engine, index_col='hu_forecast_id')
 hu_forecast_df['source'] = 'existing'
 devyear_df = pd.read_sql(parcel_dev_control_sql, mssql_engine, index_col='parcel_id')
+devyear_df['type'] = devyear_df['type'].astype(str)
+
 regional_controls_df = pd.read_sql(regional_capacity_controls_sql, mssql_engine)
 regional_controls_df['control_type'] = regional_controls_df['control_type'].astype(str)
 regional_controls_df['geo'] = regional_controls_df['geo'].astype(str)
