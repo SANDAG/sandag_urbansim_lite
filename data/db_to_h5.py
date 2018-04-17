@@ -32,8 +32,9 @@ SELECT [version_id]
       ,[name]
       ,[du]
   FROM [urbansim].[urbansim].[additional_capacity]
-  where version_id = 1
+  where version_id = %s
 '''
+assigned_parcel_sql = assigned_parcel_sql % scenarios['additional_capacity_version']
 assigned_df = pd.read_sql(assigned_parcel_sql, mssql_engine)
 
 
