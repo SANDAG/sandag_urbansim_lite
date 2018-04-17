@@ -16,7 +16,8 @@ parcel_sql = '''
              jurisdiction_id,
              p.luz_id, p.site_id, capacity_2 AS capacity_base_yr, 
              du_2017 AS residential_units, 
-             0 as partial_build
+             0 as partial_build,
+             'jur' as type
       FROM urbansim.urbansim.parcel p
       WHERE capacity_2 != 0 and capacity_2 is not null
 '''
@@ -136,6 +137,7 @@ parcels.loc[((parcels.cap_jurisdiction_id == 19) & (parcels.jur_or_cpa_id.isnull
 parcels.loc[parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = parcels['cicpa_13']
 parcels['jur_or_cpa_id'].fillna(parcels['cap_jurisdiction_id'],inplace=True)
 parcels.parcel_id = parcels.parcel_id.astype(int)
+parcels.type = parcels.type.astype(str)
 parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)

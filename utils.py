@@ -134,15 +134,18 @@ def run_feasibility(parcels, year=None):
     print("Computing feasibility")
     parcels = orca.get_table('parcels').to_frame()
     devyear = orca.get_table('devyear').to_frame()
-    parcels = parcels.join(devyear)
+    parcels.reset_index(inplace=True,drop=False)
+    devyear.reset_index(inplace=True, drop=False)
+    parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'type'], right_on=['parcel_id', 'type'])
+    parcels.set_index('parcel_id',inplace=True)
     finished_dev = orca.get_table('final_sched_dev').to_frame()
     for parcel in finished_dev['parcel_id'].tolist():
         parcels.loc[parcels.index == parcel, 'residential_units'] = finished_dev.loc[finished_dev.parcel_id== parcel]['residential_units']
         parcels.loc[parcels.index == parcel, 'site_id'] = np.nan
     feasible_parcels = parcels.loc[parcels['buildout'] > parcels['residential_units']].copy()
-    feasible_parcels.phase_yr_ctrl = feasible_parcels.phase_yr_ctrl.fillna(2015)
+    feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
     # Restrict feasibility to specific years, based on scenario (TBD)
-    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr_ctrl'] <= year]
+    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year]
     # remove scheduled developments from feasibility table
     feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
     orca.add_table("feasibility", feasible_parcels)
