@@ -25,18 +25,25 @@ parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 
 
 assigned_parcel_sql = '''
-SELECT [version_id]
-      ,[jur_id]
-      ,[parcel_id]
-      ,[type]
-      ,[name]
-      ,[du]
-  FROM [urbansim].[urbansim].[additional_capacity]
+SELECT  a.parcel_id,
+        p.mgra_id, 
+        jur_id as cap_jurisdiction_id,
+        jur_id as jurisdiction_id,
+        p.luz_id,
+        p.site_id,
+        a.du as capacity_base_yr,
+        p.du_2017 as residential_units,
+        0 as partial_build,
+        type
+  FROM [urbansim].[urbansim].[additional_capacity] a
+  join urbansim.parcel p on p.parcel_id = a.parcel_id
   where version_id = %s
 '''
 assigned_parcel_sql = assigned_parcel_sql % scenarios['additional_capacity_version']
 assigned_df = pd.read_sql(assigned_parcel_sql, mssql_engine)
+assigned_df['site_id'] = assigned_df.site_id.astype(float)
 
+parcels_df = pd.concat([parcels_df,assigned_df])
 
 all_parcel_sql = '''
       SELECT parcel_id, mgra_id, cap_jurisdiction_id, 
