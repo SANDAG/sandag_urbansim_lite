@@ -66,26 +66,18 @@ def initialize_tables():
 
 
 def run_scheduled_development(hu_forecast, year):
-    print('\n Now in year: %d' % (year))
+    print('\n Adding scheduled developments in year: %d' % (year))
     sched_dev = orca.get_table('scheduled_development').to_frame()
-    completed_devs = sched_dev[sched_dev.final_year == year].copy()
-    final_sched_dev = pd.DataFrame({'residential_units': completed_devs.groupby(["parcel_id"]).res_units.sum()}).reset_index()
-    orca.add_table("final_sched_dev", final_sched_dev)
-    sched_dev = sched_dev[(sched_dev.yr==year) & (sched_dev.res_units > 0)]
+    sched_dev = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity_3 > 0)]
     if len(sched_dev) > 0:
-        max_bid = hu_forecast.index.values.max()
-        idx = np.arange(max_bid + 1,max_bid+len(sched_dev)+1)
-        sched_dev['hu_forecast_id'] = idx
-        sched_dev = sched_dev.set_index('hu_forecast_id')
         sched_dev['year_built'] = year
-        sched_dev['residential_units'] = sched_dev['res_units']
+        sched_dev['residential_units'] = sched_dev['capacity_3']
         sched_dev['hu_forecast_type_id'] = ''
         sched_dev['source'] = '1'
-        from urbansim.developer.developer import Developer
-        merge = Developer(pd.DataFrame({})).merge
         b = hu_forecast.to_frame(hu_forecast.local_columns)
-        all_hu_forecast = merge(b,sched_dev[b.columns])
-        orca.add_table("hu_forecast", all_hu_forecast)
+        units = pd.concat([b,sched_dev[b.columns]])
+        units.reset_index(drop=True,inplace=True)
+        orca.add_table("hu_forecast",units)
 
 
 def run_reducer(hu_forecast, year):
