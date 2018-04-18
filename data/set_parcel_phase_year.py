@@ -122,11 +122,6 @@ sched_dev_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schem
 
 # create sched dev table
 
-#select 10 as scenario,p.parcel_id,2017 as yr, p.site_id ,p.capacity as res_units
-#   from urbansim.parcel p
-#  where site_id IS NOT NULL and capacity > 0
-
-
 
 # sched_dev = pd.read_csv('sched_dev_load2.csv')
-# sched_dev.to_sql(name='scheduled_development_do_not_use', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
+# sched_dev.to_sql(name='scheduled_development_do_not_use', con=mssql_engine, schema='urbansim', index=False,if_exists='replace')
