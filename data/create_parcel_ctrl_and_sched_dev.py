@@ -18,7 +18,7 @@ parcel_sql = '''
              du_2017 AS residential_units, 
              0 as partial_build
       FROM urbansim.urbansim.parcel p
-      WHERE capacity_2 != 0 and capacity_2 is not null
+      WHERE capacity_2 != 0 and capacity_2 is not null and site_id is NULL
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 
@@ -42,13 +42,15 @@ parcels_df.parcel_id = parcels_df.parcel_id.astype(int)
 parcels_df.set_index('parcel_id',inplace=True)
 #
 parcels_df['phase_yr'] = 2017
-parcels_df['phase_yr_version_id'] = 2
+parcels_df['phase_yr_version_id'] = 1
 parcels_df['type'] = 'jur'
 parcels_df.loc[parcels_df.cocpa_2016==1904,'phase_yr'] = 2034
 parcels_df = parcels_df[['phase_yr','phase_yr_version_id','type']]
 
 
-# parcels_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
+parcels_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='replace')
+
+
 assigned_parcel_sql = '''
 SELECT [version_id]
       ,[jur_id]
@@ -70,10 +72,52 @@ assigned_df.parcel_id = assigned_df.parcel_id.astype(int)
 assigned_df.set_index('parcel_id',inplace=True)
 #
 assigned_df['phase_yr'] = 2035
-assigned_df['phase_yr_version_id'] = 2
+assigned_df['phase_yr_version_id'] = 1
+
+# The following jurisdictions have agreed to make their ADUs available for "realization" beginning from 2019
+# the City of San Diego
+# Chula Vista
+# Oceanside
+# El Cajon
+# see https://sandag.atlassian.net/wiki/spaces/LUM/pages/726302736/Additional+Capacity
+
+assigned_df.loc[((assigned_df.jur_id==14) & (assigned_df.type=='adu')),'phase_yr'] = 2019
+assigned_df.loc[((assigned_df.jur_id==2) & (assigned_df.type=='adu')),'phase_yr'] = 2019
+assigned_df.loc[((assigned_df.jur_id==12) & (assigned_df.type=='adu')),'phase_yr'] = 2019
+assigned_df.loc[((assigned_df.jur_id==5) & (assigned_df.type=='adu')),'phase_yr'] = 2019
+
+
 assigned_df = assigned_df[['phase_yr','phase_yr_version_id','type']]
 
 assigned_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
+
+
+sched_dev_parcel_sql = '''SELECT  [site_id]
+      ,[parcel_id]
+      ,[capacity_3]
+      ,[sfu_effective_adj]
+      ,[mfu_effective_adj]
+      ,[mhu_effective_adj]
+      ,[notes]
+      ,[editor]
+  FROM [urbansim].[urbansim].[scheduled_development_parcel]
+'''
+
+sched_dev_df = pd.read_sql(sched_dev_parcel_sql, mssql_engine)
+
+
+sched_dev_df.reset_index(inplace=True, drop=False)
+
+sched_dev_df.parcel_id = sched_dev_df.parcel_id.astype(int)
+#
+sched_dev_df.set_index('parcel_id',inplace=True)
+#
+sched_dev_df['phase_yr'] = 2017
+sched_dev_df['phase_yr_version_id'] = 1
+sched_dev_df['type'] = 'sch'
+sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','type']]
+sched_dev_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
+
 
 
 # create sched dev table
