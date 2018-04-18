@@ -54,10 +54,12 @@ all_parcel_sql = '''
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
 
 sched_dev_sql = '''
-    SELECT parcel_id, yr, site_id, 
-           res_units, max(yr) over (partition by site_id) as final_year
+    SELECT  [parcel_id]
+            ,[yr]
+            ,[site_id]
+            ,[capacity_3]
       FROM urbansim.urbansim.scheduled_development_do_not_use
-     WHERE scenario = 1 and yr > 2016
+     WHERE sched_version_id = 1
 '''
 
 luz_names_sql = '''
