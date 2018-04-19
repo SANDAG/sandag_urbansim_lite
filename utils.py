@@ -74,6 +74,7 @@ def run_scheduled_development(hu_forecast, year):
         sched_dev['residential_units'] = sched_dev['capacity_3']
         sched_dev['hu_forecast_type_id'] = ''
         sched_dev['source'] = '1'
+        sched_dev['capacity_type'] = 'sched_dev'
         b = hu_forecast.to_frame(hu_forecast.local_columns)
         units = pd.concat([b,sched_dev[b.columns]])
         units.reset_index(drop=True,inplace=True)
@@ -130,7 +131,7 @@ def run_feasibility(parcels, year=None):
     devyear = orca.get_table('devyear').to_frame()
     parcels.reset_index(inplace=True,drop=False)
     devyear.reset_index(inplace=True, drop=False)
-    parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'type'], right_on=['parcel_id', 'type'])
+    parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
     parcels.set_index('parcel_id',inplace=True)
     feasible_parcels = parcels.loc[parcels['max_res_units'] > parcels['residential_units']].copy()
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
@@ -175,7 +176,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
             parcels_picked = pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
                                           groupby(["parcel_id", "cap_jurisdiction_id", "capacity_base_yr",
-                                                   "residential_units", "max_res_units"])
+                                                   "residential_units", "max_res_units",'capacity_type'])
                                           .size()}).reset_index()
             parcels_picked.set_index('parcel_id', inplace=True)
     return parcels_picked
@@ -310,7 +311,7 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
         parcel_sr14_units = pd.DataFrame({'residential_units_sim_yr': sr14cap.
                                             groupby(["parcel_id", "cap_jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
-                                                     "max_res_units"]).residential_units_sim_yr.sum()}).reset_index()
+                                                     "max_res_units","capacity_type"]).residential_units_sim_yr.sum()}).reset_index()
         parcel_sr14_units.set_index('parcel_id', inplace=True)
         parcel_sr14_units['partial_build'] = parcel_sr14_units.max_res_units - parcel_sr14_units.residential_units_sim_yr - parcel_sr14_units.residential_units
         parcels = parcels.drop(['partial_build'], 1)

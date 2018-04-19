@@ -38,7 +38,7 @@ mssql_engine = create_engine(db_connection_string)
 hu_forecast = orca.get_table('hu_forecast').to_frame()
 hu_forecast = hu_forecast.reset_index(drop=False)
 hu_forecast = hu_forecast.loc[(hu_forecast['year_built'] > 2016)]
-hu_forecast_out = hu_forecast[['parcel_id','residential_units','year_built','source']].copy()
+hu_forecast_out = hu_forecast[['parcel_id','residential_units','year_built','source','capacity_type']].copy()
 hu_forecast_out.reset_index(drop=True,inplace=True)
 
 hu_forecast_out.rename(columns = {'year_built': 'year_simulation'},inplace=True)
@@ -72,11 +72,12 @@ output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date','
 run_description = 'test sched_dev; capacity_2'
 run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 output_records.loc[run_id] = [run_id, run_description, run_date,subregional_ctrl_id,housing_units_version_id,phase_yr_id,additional_capacity_version_id]
-output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
-
-hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
-                   dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'unit_change': sqlalchemy.types.INTEGER(),
-                            'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
-                            'run_id': sqlalchemy.types.INTEGER()})
+# output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
+#
+# hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
+#                    dtype = {'parcel_id': sqlalchemy.types.INTEGER(),'unit_change': sqlalchemy.types.INTEGER(),
+#                             'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
+#                             'capacity_type': sqlalchemy.types.VARCHAR(length=50),
+#                             'run_id': sqlalchemy.types.INTEGER()})
 # end_time = time.monotonic()
 # print("Total time to run Simulation:", timedelta(seconds=end_time - start_time))
