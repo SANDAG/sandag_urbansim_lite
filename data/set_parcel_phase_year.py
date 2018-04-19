@@ -43,9 +43,9 @@ parcels_df.set_index('parcel_id',inplace=True)
 #
 parcels_df['phase_yr'] = 2017
 parcels_df['phase_yr_version_id'] = 1
-parcels_df['type'] = 'jur'
+parcels_df['capacity_type'] = 'jur'
 parcels_df.loc[parcels_df.cocpa_2016==1904,'phase_yr'] = 2034
-parcels_df = parcels_df[['phase_yr','phase_yr_version_id','type']]
+parcels_df = parcels_df[['phase_yr','phase_yr_version_id','capacity_type']]
 
 
 parcels_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='replace')
@@ -55,7 +55,7 @@ assigned_parcel_sql = '''
 SELECT [version_id]
       ,[jur_id]
       ,[parcel_id]
-      ,[type]
+      ,[type] as capacity_type
       ,[name]
       ,[du]
   FROM [urbansim].[urbansim].[additional_capacity]
@@ -81,13 +81,13 @@ assigned_df['phase_yr_version_id'] = 1
 # El Cajon
 # see https://sandag.atlassian.net/wiki/spaces/LUM/pages/726302736/Additional+Capacity
 
-assigned_df.loc[((assigned_df.jur_id==14) & (assigned_df.type=='adu')),'phase_yr'] = 2019
-assigned_df.loc[((assigned_df.jur_id==2) & (assigned_df.type=='adu')),'phase_yr'] = 2019
-assigned_df.loc[((assigned_df.jur_id==12) & (assigned_df.type=='adu')),'phase_yr'] = 2019
-assigned_df.loc[((assigned_df.jur_id==5) & (assigned_df.type=='adu')),'phase_yr'] = 2019
+assigned_df.loc[((assigned_df.jur_id==14) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
+assigned_df.loc[((assigned_df.jur_id==2) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
+assigned_df.loc[((assigned_df.jur_id==12) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
+assigned_df.loc[((assigned_df.jur_id==5) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
 
 
-assigned_df = assigned_df[['phase_yr','phase_yr_version_id','type']]
+assigned_df = assigned_df[['phase_yr','phase_yr_version_id','capacity_type']]
 
 assigned_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
 
@@ -114,8 +114,8 @@ sched_dev_df.set_index('parcel_id',inplace=True)
 #
 sched_dev_df['phase_yr'] = 2017
 sched_dev_df['phase_yr_version_id'] = 1
-sched_dev_df['type'] = 'sch'
-sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','type']]
+sched_dev_df['capacity_type'] = 'sch'
+sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','capacity_type']]
 sched_dev_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
 
 
