@@ -16,10 +16,11 @@ parcel_sql = '''
              jurisdiction_id,
              p.luz_id, p.site_id, capacity_2 AS capacity_base_yr, 
              du_2017 AS residential_units, 
+             COALESCE(du_2017,0)  + COALESCE(capacity_2,0) as max_res_units,
              0 as partial_build,
              'jur' as type
       FROM urbansim.urbansim.parcel p
-      WHERE capacity_2 != 0 and capacity_2 is not null
+      WHERE capacity_2 > 0 and site_id IS NULL
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 
@@ -33,6 +34,7 @@ SELECT  a.parcel_id,
         p.site_id,
         a.du as capacity_base_yr,
         p.du_2017 as residential_units,
+        COALESCE(p.du_2017,0)  + COALESCE(a.du,0) as max_res_units,
         0 as partial_build,
         type
   FROM [urbansim].[urbansim].[additional_capacity] a
@@ -44,6 +46,9 @@ assigned_df = pd.read_sql(assigned_parcel_sql, mssql_engine)
 assigned_df['site_id'] = assigned_df.site_id.astype(float)
 
 parcels_df = pd.concat([parcels_df,assigned_df])
+
+
+
 
 all_parcel_sql = '''
       SELECT parcel_id, mgra_id, cap_jurisdiction_id, 
@@ -165,7 +170,7 @@ all_parcels = all_parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','juri
 all_parcels.mgra_id = all_parcels.mgra_id.astype(float)
 #There are missing MGRAs / LUZs, spacecore has them but they are parcels with multiple MGRAs /other oddities
 
-parcels['buildout'] = parcels['residential_units'] + parcels['capacity_base_yr']
+
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='yr')
 households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
