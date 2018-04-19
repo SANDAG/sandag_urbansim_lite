@@ -18,7 +18,7 @@ parcel_sql = '''
              du_2017 AS residential_units, 
              COALESCE(du_2017,0)  + COALESCE(capacity_2,0) as max_res_units,
              0 as partial_build,
-             'jur' as type
+             'jur' as capacity_type
       FROM urbansim.urbansim.parcel p
       WHERE capacity_2 > 0 and site_id IS NULL
 '''
@@ -36,7 +36,7 @@ SELECT  a.parcel_id,
         p.du_2017 as residential_units,
         COALESCE(p.du_2017,0)  + COALESCE(a.du,0) as max_res_units,
         0 as partial_build,
-        type
+        type as capacity_type
   FROM [urbansim].[urbansim].[additional_capacity] a
   join urbansim.parcel p on p.parcel_id = a.parcel_id
   where version_id = %s
@@ -115,9 +115,12 @@ buildings_sql = '''
         ,COALESCE(development_type_id,0) AS hu_forecast_type_id
         ,COALESCE(residential_units,0) AS residential_units
         ,COALESCE(year_built,0) AS year_built
+        ,'existing' as source
+        ,'no cap' as capacity_type
      FROM urbansim.urbansim.building
      where year_built > 2015
 '''
+
 
 negative_capacity_parcels = '''
     SELECT parcel_id, 
@@ -140,7 +143,7 @@ parcel_dev_control_sql = '''
 SELECT [parcel_id]
       ,[phase_yr]
       ,[phase_yr_version_id]
-      ,[type]
+      ,[capacity_type]
 FROM  [urbansim].[urbansim].[urbansim_lite_parcel_control]
      WHERE phase_yr_version_id = %s
 '''
@@ -152,7 +155,7 @@ parcels.loc[((parcels.cap_jurisdiction_id == 19) & (parcels.jur_or_cpa_id.isnull
 parcels.loc[parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = parcels['cicpa_13']
 parcels['jur_or_cpa_id'].fillna(parcels['cap_jurisdiction_id'],inplace=True)
 parcels.parcel_id = parcels.parcel_id.astype(int)
-parcels.type = parcels.type.astype(str)
+parcels.capacity_type = parcels.capacity_type.astype(str)
 parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)
@@ -175,9 +178,10 @@ sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='yr')
 households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
 hu_forecast_df = pd.read_sql(buildings_sql, mssql_engine, index_col='hu_forecast_id')
-hu_forecast_df['source'] = 'existing'
+hu_forecast_df.source = hu_forecast_df.source.astype(str)
+hu_forecast_df.capacity_type = hu_forecast_df.capacity_type.astype(str)
 devyear_df = pd.read_sql(parcel_dev_control_sql, mssql_engine, index_col='parcel_id')
-devyear_df['type'] = devyear_df['type'].astype(str)
+devyear_df['capacity_type'] = devyear_df['capacity_type'].astype(str)
 
 regional_controls_df = pd.read_sql(regional_capacity_controls_sql, mssql_engine)
 regional_controls_df['control_type'] = regional_controls_df['control_type'].astype(str)
