@@ -116,7 +116,7 @@ buildings_sql = '''
         ,COALESCE(residential_units,0) AS residential_units
         ,COALESCE(year_built,0) AS year_built
         ,'existing' as source
-        ,'no cap' as capacity_type
+        ,'no_cap' as capacity_type
      FROM urbansim.urbansim.building
      where year_built > 2015
 '''
