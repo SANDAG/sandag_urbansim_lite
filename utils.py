@@ -47,10 +47,12 @@ def largest_remainder_allocation(df, k):
 def parcel_table_update(parcel_table, current_builds):
     # This is the new parcel update section
     # Now merges parcels that were updated in the current year with existing parcel table
-    updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'residential_units']], how='left', left_index=True,
-                       right_on='parcel_id')
+    parcel_table.reset_index(inplace=True, drop=False)
+
+    current_builds.rename(columns={"residential_units": "updated_units"}, inplace=True)
+    updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'capacity_type','updated_units']], how='left', \
+                                    left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
     updated_parcel_table.set_index('parcel_id',inplace=True)
-    updated_parcel_table.rename(columns={"residential_units_x": "residential_units", "residential_units_y": "updated_units"}, inplace=True)
     updated_parcel_table.updated_units = updated_parcel_table.updated_units.fillna(0)
     updated_parcel_table['residential_units'] = updated_parcel_table['residential_units'] + updated_parcel_table['updated_units']
     updated_parcel_table = updated_parcel_table.drop(['updated_units'], 1)
