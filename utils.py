@@ -312,15 +312,16 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
                                             groupby(["parcel_id", "cap_jurisdiction_id",
                                                      "capacity_base_yr", "residential_units",
                                                      "max_res_units","capacity_type"]).residential_units_sim_yr.sum()}).reset_index()
-        parcel_sr14_units.set_index('parcel_id', inplace=True)
         parcel_sr14_units['partial_build'] = parcel_sr14_units.max_res_units - parcel_sr14_units.residential_units_sim_yr - parcel_sr14_units.residential_units
         parcels = parcels.drop(['partial_build'], 1)
-        parcels = parcels.join(parcel_sr14_units[['partial_build']])
+        parcels.reset_index(inplace=True,drop=False)
+        parcels = pd.merge(parcels, parcel_sr14_units[['parcel_id','capacity_type','partial_build']], how='left',\
+                           left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
         parcels.partial_build = parcels.partial_build.fillna(0)
+        parcels.set_index('parcel_id', inplace=True)
         orca.add_table("parcels", parcels)
 
 
-        sr14cap = sr14cap.reset_index()
         sr14cap['residential_units'] = sr14cap['residential_units_sim_yr']
         # temporarily assign hu_forecast type id
         sr14cap['hu_forecast_type_id'] = ''
