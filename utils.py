@@ -364,5 +364,14 @@ def summary(year):
     print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
     print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
+    # The below section is also run in bulk_insert. Will comment out the section in bulk_insert
+    # Check if parcels occur multiple times (due to multiple sources). Will skip if false.
+    if any(current_builds.parcel_id.duplicated()):
+        repeated_parcels = pd.concat(g for _, g in current_builds.groupby("parcel_id") if len(g) > 1)  # df of repeats
+        for repeats in repeated_parcels['parcel_id'].unique():
+            current_builds.loc[current_builds.parcel_id == repeats, 'source'] = 5  # Change source for groupby
+        current_builds = pd.DataFrame({'residential_units': current_builds.
+                                      groupby(["parcel_id", "year_built", "hu_forecast_type_id", "source", "capacity_type"]).
+                                      residential_units.sum()}).reset_index()
     parcels = parcel_table_update(parcels, current_builds)
     orca.add_table("parcels", parcels)

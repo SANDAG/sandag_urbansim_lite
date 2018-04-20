@@ -28,18 +28,18 @@ def year_update_formater(parcel_table, current_builds, phase_year, scenario, yea
     parcel_table.rename(columns={"residential_units": "hs"}, inplace=True)
     year_update = pd.merge(parcel_table, current_builds[['parcel_id', 'residential_units', 'source']], how='left',
                            left_index=True, right_on='parcel_id')
-    year_update = pd.merge(year_update, phase_year[['phase_yr_ctrl']], how='left', left_on='parcel_id',
+    year_update = pd.merge(year_update, phase_year[['phase_yr']], how='left', left_on='parcel_id',
                            right_index=True)
-    year_update.rename(columns={"residential_units": "chg_hs", "phase_yr_ctrl": "phase",
-                                "jur_or_cpa_id": "cpa_id", "source": "source_id"}, inplace=True)
+    year_update.rename(columns={"residential_units": "chg_hs", "phase_yr": "phase",
+                                "jur_or_cpa_id": "cpa_id", "source": "source_id", "capacity_type": "cap_type"}, inplace=True)
     year_update.loc[year_update.cpa_id < 20, 'cpa_id'] = np.nan
     year_update['scenario_id'] = scenario
     year_update['year'] = year
     year_update['taz'] = np.nan
     year_update['lu'] = np.nan
     year_update['plu'] = np.nan
-    year_update['cap_hs'] = year_update['buildout'] - year_update['hs']
-    year_update = year_update.drop(['buildout'], axis=1)
+    year_update['cap_hs'] = year_update['max_res_units'] - year_update['hs']
+    year_update = year_update.drop(['max_res_units'], axis=1)
     increment = year - (year % 5)
     if increment == 2015:
         increment = 2017
@@ -47,11 +47,10 @@ def year_update_formater(parcel_table, current_builds, phase_year, scenario, yea
     year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
     year_update['source_id'] = year_update['source_id'].fillna(0)
     year_update['phase'] = year_update['phase'].fillna(2015)
-    year_update.loc[:, year_update.isnull().any() == False] = year_update.loc[:,
-                                                              year_update.isnull().any() == False].astype(int)
+    year_update['cap_type'] = year_update['cap_type'].fillna("no capacity")
     year_update = year_update[['scenario_id', 'increment', 'parcel_id', 'year', 'jurisdiction_id', 'cap_jurisdiction_id',
                                'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id', 'lu', 'plu', 'hs', 'chg_hs', 'cap_hs',
-                               'source_id', 'phase']]
+                               'source_id', 'cap_type', 'phase']]
     year_update.sort_values(by=['parcel_id'])
     year_update = year_update.reset_index(drop=True)
     return year_update
@@ -89,15 +88,20 @@ def table_setup(table_type, conn):
                         [chg_hs] [smallint] NOT NULL,
                         [cap_hs] [smallint] NOT NULL,
                         [source_id] [tinyint] NOT NULL,
-                        [phase] [smallint] NULL
-                        CONSTRAINT [PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED
-                        (
-                            [scenario_id] ASC,
-                            [year] ASC,
-                            [parcel_id] ASC,
-                            [source_id] ASC
-                        ))WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
+                        [cap_type] [character] (10) NOT NULL,
+                        [phase] [smallint] NOT NULL
+                        )WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
                 conn.execute(create_table_sql)
+                # The section below should be added right below the phase column label above to create primary key
+                # CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
+                # [scenario_id] ASC,
+                # [year] ASC,
+                # [parcel_id] ASC,
+                # [chg_hs] ASC,
+                # [source_id] ASC,
+                # [cap_type] ASC,
+                # [phase] ASC
+                # )
             scenario = int(1)
             break
         elif setup == "r":
@@ -118,7 +122,7 @@ def table_setup(table_type, conn):
                 scenario = int(1)
             break
         else:
-            print("Please insert only 'w', 'r' or 'a' as a response")
+            print("Please insert only lowercase 'w', 'r' or 'a' as a response.")
             continue
     return scenario
 
@@ -200,6 +204,7 @@ def run_insert(year):
                            [chg_hs] [float] NOT NULL,
                            [cap_hs] [float] NOT NULL,
                            [source_id] [float] NOT NULL,
+                           [cap_type] [character] (10) NULL,
                            [phase] [float] NULL
                            )'''
             conn.execute(staging_table_sql)
