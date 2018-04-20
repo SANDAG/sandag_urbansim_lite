@@ -127,8 +127,9 @@ def run_feasibility(parcels, year=None):
     """
 
     print("Computing feasibility")
-    if year==2036:
-        print(year)
+    # for debugging purposes
+    # if year==2049:
+        # print(year)
     parcels = orca.get_table('parcels').to_frame()
     devyear = orca.get_table('devyear').to_frame()
     parcels.reset_index(inplace=True,drop=False)
@@ -271,6 +272,9 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
     for jur in control_totals.geo_id.unique().tolist():
     # for jur in jurs['cap_jurisdiction_id'].tolist():
+    # for debugging purposes
+        # if ((jur==1999) and (year==2050)):
+            # print(jur)
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id']==jur].max_units.values[0]
         # use nanmin to handle null values for max units
