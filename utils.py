@@ -172,6 +172,8 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             priority_then_random.loc[large_build_checker, 'units_for_year'] = 250
             max_build_checker = priority_then_random.partial_build >= 500
             priority_then_random.loc[max_build_checker, 'units_for_year'] = 500
+            if priority_then_random.units_for_year.sum() < target_number_of_units:
+                priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
             one_row_per_unit = priority_then_random.reindex(priority_then_random.index.repeat(priority_then_random.units_for_year)).reset_index(drop=True)
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
             parcels_picked = pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
