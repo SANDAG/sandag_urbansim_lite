@@ -162,6 +162,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             #    large_projects = shuffled_parcels.loc[shuffled_parcels.project_urgency > 500]
             #    priority_parcels = pd.concat([previously_picked, large_projects])
             #else:
+
             priority_parcels = pd.concat([previously_picked])
             shuffled_parcels = shuffled_parcels[
                 ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
@@ -179,6 +180,9 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
             one_row_per_unit = priority_then_random.reindex(priority_then_random.index.repeat(priority_then_random.units_for_year)).reset_index(drop=True)
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
+            # for debugging purposes
+            if len(one_row_per_unit_picked .loc[one_row_per_unit_picked.parcel_id==5048607]) > 0:
+                print(one_row_per_unit_picked)
             parcels_picked = pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
                                           groupby(["parcel_id", "cap_jurisdiction_id", "capacity_base_yr",
                                                    "residential_units", "max_res_units",'capacity_type'])
@@ -305,7 +309,7 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
         feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.max_res_units - feasible_parcels_df.residential_units\
                                                     - feasible_parcels_df.residential_units_sim_yr
         feasible_parcels_df['remaining_capacity'] = feasible_parcels_df['remaining_capacity'].astype(int)
-        feasible_parcels_df= feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0]
+        feasible_parcels_df= feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0].copy()
         feasible_parcels_df['partial_build'] = feasible_parcels_df.residential_units_sim_yr
         chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
         if len(chosen):
