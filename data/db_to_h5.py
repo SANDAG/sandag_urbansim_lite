@@ -59,12 +59,12 @@ all_parcel_sql = '''
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
 
 sched_dev_sql = '''
-    SELECT  [parcel_id]
-            ,[yr]
-            ,[site_id]
-            ,[capacity_3]
-      FROM urbansim.urbansim.scheduled_development_do_not_use
-     WHERE sched_version_id = 1
+    SELECT s.parcel_id, p.mgra_id, p.cap_jurisdiction_id, p.jurisdiction_id, p.luz_id, s.site_id, s.capacity_3, 
+        p.du_2017 as residential_units, s.yr, (p.du_2017 + s.capacity_3) as max_res_units, 'sch' as capacity_type
+    FROM urbansim.urbansim.parcel as p
+        inner join urbansim.urbansim.scheduled_development_do_not_use as s
+        on p.parcel_id = s.parcel_id
+        WHERE s.sched_version_id = 1
 '''
 
 luz_names_sql = '''
@@ -172,7 +172,13 @@ all_parcels.mgra_id = all_parcels.mgra_id.astype(float)
 #There are missing MGRAs / LUZs, spacecore has them but they are parcels with multiple MGRAs /other oddities
 
 
-sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine, index_col='site_id')
+sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine)
+sched_dev = pd.merge(sched_dev_df,xref_geography_df,how='left',left_on='mgra_id',right_on='mgra_13')
+sched_dev.loc[sched_dev.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = sched_dev['cocpa_2016']
+sched_dev.loc[((sched_dev.cap_jurisdiction_id == 19) & (sched_dev.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = sched_dev['cocpa_13']
+sched_dev.loc[sched_dev.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = sched_dev['cicpa_13']
+sched_dev = sched_dev.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'],axis=1)
+
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='yr')
 households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
 hu_forecast_df = pd.read_sql(buildings_sql, mssql_engine, index_col='hu_forecast_id')
@@ -189,7 +195,7 @@ jurisdictions_df['name'] = jurisdictions_df['name'].astype(str)
 negative_parcels_df = pd.read_sql(negative_capacity_parcels, mssql_engine)
 
 with pd.HDFStore('urbansim.h5', mode='w') as store:
-    store.put('scheduled_development', sched_dev_df, format='table')
+    store.put('scheduled_development', sched_dev, format='table')
     store.put('parcels', parcels, format='table')
     store.put('households',households_df,format='table')
     store.put('hu_forecast', hu_forecast_df, format='table')

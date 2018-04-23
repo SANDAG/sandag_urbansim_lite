@@ -24,17 +24,25 @@ def parcel_table_update(parcel_table, current_builds):
     return updated_parcel_table
 
 
-def year_update_formater(parcel_table, current_builds, phase_year, scenario, year):
+def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, scenario, year):
+    sched_dev.rename(columns={"residential_units": "hs", "yr": "phase_yr"}, inplace=True)
+    sched_dev_nyr = sched_dev.drop(['phase_yr', 'capacity_3'], axis=1)
     parcel_table.rename(columns={"residential_units": "hs"}, inplace=True)
-    year_update = pd.merge(parcel_table, current_builds[['parcel_id', 'residential_units', 'source']], how='left',
-                           left_index=True, right_on='parcel_id')
-    year_update = pd.merge(year_update, phase_year[['phase_yr']], how='left', left_on='parcel_id',
-                           right_index=True)
+    parcel_table.reset_index(inplace=True)
+    phase_year.reset_index(inplace=True)
+    parcel_table = pd.concat([parcel_table, sched_dev_nyr])
+    #phase_year = pd.concat([phase_year, sched_dev[['parcel_id', 'phase_yr', 'capacity_type']]])
+    year_update = pd.merge(parcel_table, current_builds[['parcel_id', 'residential_units', 'source', 'capacity_type']],
+                           how='left', on=['parcel_id', 'capacity_type'])
+    year_update = pd.merge(year_update, phase_year[['parcel_id', 'phase_yr', 'capacity_type']], how='left',
+                           on=['parcel_id', 'capacity_type'])
+    year_update = pd.merge(year_update, sched_dev[['parcel_id', 'capacity_type', 'phase_yr']], how='left',
+                           on=['parcel_id', 'capacity_type', 'phase_yr'])
     year_update.rename(columns={"residential_units": "chg_hs", "phase_yr": "phase",
                                 "jur_or_cpa_id": "cpa_id", "source": "source_id", "capacity_type": "cap_type"}, inplace=True)
     year_update.loc[year_update.cpa_id < 20, 'cpa_id'] = np.nan
     year_update['scenario_id'] = scenario
-    year_update['year'] = year
+    year_update['yr'] = year
     year_update['taz'] = np.nan
     year_update['lu'] = np.nan
     year_update['plu'] = np.nan
@@ -48,7 +56,7 @@ def year_update_formater(parcel_table, current_builds, phase_year, scenario, yea
     year_update['source_id'] = year_update['source_id'].fillna(0)
     year_update['phase'] = year_update['phase'].fillna(2015)
     year_update['cap_type'] = year_update['cap_type'].fillna("no capacity")
-    year_update = year_update[['scenario_id', 'increment', 'parcel_id', 'year', 'jurisdiction_id', 'cap_jurisdiction_id',
+    year_update = year_update[['scenario_id', 'increment', 'parcel_id', 'yr', 'jurisdiction_id', 'cap_jurisdiction_id',
                                'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id', 'lu', 'plu', 'hs', 'chg_hs', 'cap_hs',
                                'source_id', 'cap_type', 'phase']]
     year_update.sort_values(by=['parcel_id'])
@@ -74,7 +82,7 @@ def table_setup(table_type, conn):
                         [scenario_id] [tinyint] NOT NULL,
                         [increment] [smallint] NOT NULL,
                         [parcel_id] [int] NOT NULL,
-                        [year] [smallint] NOT NULL,
+                        [yr] [smallint] NOT NULL,
                         [jurisdiction_id] [tinyint] NOT NULL,
                         [cap_jurisdiction_id] [tinyint] NOT NULL,
                         [cpa_id] [smallint] NULL,
@@ -95,9 +103,8 @@ def table_setup(table_type, conn):
                 # The section below should be added right below the phase column label above to create primary key
                 # CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
                 # [scenario_id] ASC,
-                # [year] ASC,
+                # [yr] ASC,
                 # [parcel_id] ASC,
-                # [chg_hs] ASC,
                 # [source_id] ASC,
                 # [cap_type] ASC,
                 # [phase] ASC
@@ -175,6 +182,7 @@ def run_insert(year):
     all_parcels = orca.get_table('all_parcels').to_frame()
     capacity_parcels = orca.get_table('parcels').to_frame()
     phase_year = orca.get_table('devyear').to_frame()
+    sched_dev = orca.get_table('scheduled_development').to_frame()
     hu_forecast = orca.get_table('hu_forecast').to_frame()
     current_builds = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
 
@@ -190,7 +198,7 @@ def run_insert(year):
                            [scenario_id] [float] NOT NULL,
                            [increment] [float] NOT NULL,
                            [parcel_id] [float] NOT NULL,
-                           [year] [float] NOT NULL,
+                           [yr] [float] NOT NULL,
                            [jurisdiction_id] [float] NOT NULL,
                            [cap_jurisdiction_id] [float] NOT NULL,
                            [cpa_id] [float] NULL,
@@ -216,7 +224,7 @@ def run_insert(year):
         scenario = scenario_grab("cap")
     year_update_cap = capacity_parcels.copy()
     year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
-    year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, scenario, year)
+    year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, sched_dev, scenario, year)
     table_insert(year_update_cap, year, "cap", conn)
 
     # # update all parcels table

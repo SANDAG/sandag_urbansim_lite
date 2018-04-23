@@ -76,7 +76,7 @@ def run_scheduled_development(hu_forecast, year):
         sched_dev['residential_units'] = sched_dev['capacity_3']
         sched_dev['hu_forecast_type_id'] = ''
         sched_dev['source'] = '1'
-        sched_dev['capacity_type'] = 'sched_dev'
+        # sched_dev['capacity_type'] = 'sched_dev'
         b = hu_forecast.to_frame(hu_forecast.local_columns)
         units = pd.concat([b,sched_dev[b.columns]])
         units.reset_index(drop=True,inplace=True)
