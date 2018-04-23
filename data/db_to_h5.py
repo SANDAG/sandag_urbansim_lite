@@ -99,11 +99,9 @@ xref_geography_sql = '''
 xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
 
 households_sql = '''
-    SELECT [yr]
-          ,[version_id]
-          ,[housing_units_add]
-    FROM [isam].[economic_output].[urbansim_housing_units]
-    WHERE version_id = %s
+  SELECT  [yr],[housing_units_add]
+     FROM [urbansim].[urbansim].[urbansim_target_housing_units]
+    WHERE [version_id] = %s
 '''
 
 households_sql = households_sql % scenarios['demographic_simulation_id']
