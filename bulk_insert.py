@@ -61,15 +61,26 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, sc
                                'source_id', 'cap_type', 'phase']]
     year_update.sort_values(by=['parcel_id'])
     year_update = year_update.reset_index(drop=True)
+    year_update.fillna(-99, inplace=True) # pivot does not handle null
+    # TO DO:
+    # ADD source column with remaining used or not (yes, no)
+    # pivot cap_hs and chg_hs
+    # sum cap_hs and chg_hs
+    # change -99 back to NULL
+    # edit sql and staging table column names and data types
+    year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr', 'jurisdiction_id', \
+                                                           'cap_jurisdiction_id','cpa_id', 'mgra_id','site_id'],\
+                                       columns='cap_type',values='cap_hs').reset_index()
+    # 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id', 'lu', 'plu', 'hs', 'chg_hs','source_id', 'phase'
     return year_update
-
 
 def table_setup(table_type, conn):
     # Once this is up and running, it would be wise to remove (or at least dead-end) the 'write' and 'replace' options.
     while True:
         print("Write (w), Replace (r) or Append (a) to the SQL {}_parcels table?".format(table_type))
         print("Write will drop and re-create the table, while replace will truncate the existing table.")
-        setup = input()
+        #setup = input()
+        setup = 'r'
         if setup == "w":
             with conn.begin() as trans:
                 conn.execute('DROP TABLE IF EXISTS urbansim.urbansim.sr14_residential_{}_parcel_results'.format(table_type))
