@@ -177,7 +177,13 @@ sched_dev = pd.merge(sched_dev_df,xref_geography_df,how='left',left_on='mgra_id'
 sched_dev.loc[sched_dev.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = sched_dev['cocpa_2016']
 sched_dev.loc[((sched_dev.cap_jurisdiction_id == 19) & (sched_dev.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = sched_dev['cocpa_13']
 sched_dev.loc[sched_dev.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = sched_dev['cicpa_13']
+sched_dev['jur_or_cpa_id'].fillna(sched_dev['cap_jurisdiction_id'],inplace=True)
 sched_dev = sched_dev.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'],axis=1)
+#sched_dev.jur_or_cpa_id = sched_dev.jur_or_cpa_id.astype(int)
+
+sched_dev.jur_or_cpa_id = sched_dev.jur_or_cpa_id.astype(int)
+sched_dev.parcel_id = sched_dev.parcel_id.astype(int)
+sched_dev.capacity_type = sched_dev.capacity_type.astype(str)
 
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='yr')
 households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
