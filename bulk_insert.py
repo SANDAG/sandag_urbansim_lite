@@ -62,25 +62,39 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, sc
     year_update.sort_values(by=['parcel_id'])
     year_update = year_update.reset_index(drop=True)
     year_update.fillna(-99, inplace=True) # pivot does not handle null
+    year_update['regional_overflow'] = False
+    year_update.loc[year_update.source_id == 3, 'regional_overflow'] = True
     # TO DO:
-    # ADD source column with remaining used or not (yes, no)
-    # pivot cap_hs and chg_hs
-    # sum cap_hs and chg_hs
-    # change -99 back to NULL
     # edit sql and staging table column names and data types
-    year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr', 'jurisdiction_id', \
-                                                           'cap_jurisdiction_id','cpa_id', 'mgra_id','site_id'],\
-                                       columns='cap_type',values='cap_hs').reset_index()
-    # 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id', 'lu', 'plu', 'hs', 'chg_hs','source_id', 'phase'
-    return year_update
+    year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr',
+                            'jurisdiction_id', 'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id',
+                            'lu', 'plu', 'hs', 'regional_overflow'], columns='cap_type',
+                            values=['cap_hs', 'chg_hs']).reset_index()
+    year_update_pivot.replace(to_replace=-99, value=np.nan, inplace=True)
+    year_update_pivot['tot_cap_hs'] = year_update_pivot['cap_hs'].sum(axis=1)
+    year_update_pivot['cap_hs'] = year_update_pivot['cap_hs'].fillna(0)
+    year_update_pivot['tot_chg_hs'] = year_update_pivot['chg_hs'].sum(axis=1)
+    year_update_pivot['chg_hs'] = year_update_pivot['chg_hs'].fillna(0)
+    year_update_pivot.rename(columns={"chg_hs": "chg_hs_", "cap_hs": "cap_hs_"}, inplace=True)
+    colnames = year_update_pivot.columns
+    ind = pd.Index([e[0] + e[1] for e in colnames.tolist()])
+    year_update_pivot.columns = ind
+    year_update_pivot = year_update_pivot[['scenario_id', 'increment', 'parcel_id', 'yr', 'jurisdiction_id',
+                                           'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id', 'lu',
+                                           'plu', 'hs', 'tot_cap_hs', 'tot_chg_hs', 'regional_overflow', 'cap_hs_adu',
+                                           'cap_hs_cc', 'cap_hs_jur', 'cap_hs_mc', 'cap_hs_sch', 'cap_hs_tc',
+                                           'cap_hs_tco', 'cap_hs_uc', 'chg_hs_adu', 'chg_hs_cc', 'chg_hs_jur',
+                                           'chg_hs_mc', 'chg_hs_sch', 'chg_hs_tc', 'chg_hs_tco', 'chg_hs_uc']]
+    return year_update_pivot
+
 
 def table_setup(table_type, conn):
     # Once this is up and running, it would be wise to remove (or at least dead-end) the 'write' and 'replace' options.
     while True:
         print("Write (w), Replace (r) or Append (a) to the SQL {}_parcels table?".format(table_type))
         print("Write will drop and re-create the table, while replace will truncate the existing table.")
-        #setup = input()
-        setup = 'r'
+        setup = input()
+        #setup = 'r'
         if setup == "w":
             with conn.begin() as trans:
                 conn.execute('DROP TABLE IF EXISTS urbansim.urbansim.sr14_residential_{}_parcel_results'.format(table_type))
@@ -189,7 +203,7 @@ def table_insert(parcel_table, year, table_type, conn):
 
 
 def run_insert(year):
-    all_parcels = orca.get_table('all_parcels').to_frame()
+    #all_parcels = orca.get_table('all_parcels').to_frame()
     capacity_parcels = orca.get_table('parcels').to_frame()
     phase_year = orca.get_table('devyear').to_frame()
     sched_dev = orca.get_table('scheduled_development').to_frame()
@@ -238,13 +252,9 @@ def run_insert(year):
     table_insert(year_update_cap, year, "cap", conn)
 
     # # update all parcels table
-    # if any(current_builds.parcel_id.duplicated()):
-    #     repeated_parcels = pd.concat(g for _, g in current_builds.groupby("parcel_id") if len(g) > 1)  # df of repeats
-    #     for repeats in repeated_parcels['parcel_id'].unique():
-    #         current_builds.loc[current_builds.parcel_id == repeats, 'source'] = 5  # Change source for groupby
-    #     current_builds = pd.DataFrame({'residential_units': current_builds.
-    #                                   groupby(["parcel_id", "year_built", "hu_forecast_type_id", "source"]).
-    #                                   residential_units.sum()}).reset_index()
+    # current_builds = pd.DataFrame({'residential_units': current_builds.
+    #                               groupby(["parcel_id", "year_built", "hu_forecast_type_id", "source"]).
+    #                               residential_units.sum()}).reset_index()
     # all_parcels = parcel_table_update(all_parcels, current_builds)
     # orca.add_table("all_parcels", all_parcels)
     #
