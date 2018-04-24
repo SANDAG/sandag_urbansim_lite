@@ -98,17 +98,16 @@ def table_setup(table_type, conn):
                         [source_id] [tinyint] NOT NULL,
                         [cap_type] [character] (10) NOT NULL,
                         [phase] [smallint] NOT NULL
-                        )WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
+                        CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
+                            [scenario_id] ASC,
+                            [yr] ASC,
+                            [parcel_id] ASC,
+                            [source_id] ASC,
+                            [cap_type] ASC,
+                            [phase] ASC
+                        ))WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
                 conn.execute(create_table_sql)
-                # The section below should be added right below the phase column label above to create primary key
-                # CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
-                # [scenario_id] ASC,
-                # [yr] ASC,
-                # [parcel_id] ASC,
-                # [source_id] ASC,
-                # [cap_type] ASC,
-                # [phase] ASC
-                # )
+
             scenario = int(1)
             break
         elif setup == "r":
