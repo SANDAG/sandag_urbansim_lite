@@ -60,11 +60,11 @@ def parcel_table_update(parcel_table, current_builds):
     return updated_parcel_table
 
 
-def initialize_tables():
-    units_per_j = pd.DataFrame()
-    orca.add_table("uj", units_per_j)
-    cap_results= pd.DataFrame()
-    orca.add_table('sr14cap_out',cap_results)
+#def initialize_tables():
+#    units_per_j = pd.DataFrame()
+#    orca.add_table("uj", units_per_j)
+#    cap_results= pd.DataFrame()
+#    orca.add_table('sr14cap_out',cap_results)
 
 
 def run_scheduled_development(hu_forecast, year):
