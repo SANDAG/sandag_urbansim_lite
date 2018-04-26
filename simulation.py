@@ -5,6 +5,7 @@ from pysandag.database import get_connection_string
 import pandas as pd
 import sqlalchemy
 import datetime
+import subprocess
 from datetime import timedelta
 import time
 
@@ -68,10 +69,14 @@ housing_units_version_id = scenarios['demographic_simulation_id']
 phase_yr_id = scenarios['parcel_phase_yr']
 additional_capacity_version_id = scenarios['additional_capacity_version']
 
-output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date','subregional_ctrl_id','housing_units_version_id','phase_yr_id','additional_capacity_version_id'])
-run_description = 'test sched_dev; capacity_2'
+last_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).rstrip()
+
+output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date','subregional_ctrl_id',\
+                                       'housing_units_version_id','phase_yr_id','additional_capacity_version_id','git'])
+run_description = 'sch dev phasing from urbansim.scheduled_development_do_not_use'
 run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-output_records.loc[run_id] = [run_id, run_description, run_date,subregional_ctrl_id,housing_units_version_id,phase_yr_id,additional_capacity_version_id]
+output_records.loc[run_id] = [run_id, run_description, run_date,subregional_ctrl_id,\
+                              housing_units_version_id,phase_yr_id,additional_capacity_version_id,last_commit]
 # output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
 #
 # hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
