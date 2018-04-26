@@ -18,7 +18,7 @@ parcel_sql = '''
              du_2017 AS residential_units, 
              0 as partial_build
       FROM urbansim.urbansim.parcel p
-      WHERE capacity_2 != 0 and capacity_2 is not null and site_id is NULL
+      WHERE capacity_2 > 0 and site_id is NULL
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 
@@ -101,6 +101,7 @@ sched_dev_parcel_sql = '''SELECT  [site_id]
       ,[notes]
       ,[editor]
   FROM [urbansim].[urbansim].[scheduled_development_parcel]
+  where capacity_3 > 0
 '''
 
 sched_dev_df = pd.read_sql(sched_dev_parcel_sql, mssql_engine)
@@ -117,11 +118,3 @@ sched_dev_df['phase_yr_version_id'] = 1
 sched_dev_df['capacity_type'] = 'sch'
 sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','capacity_type']]
 sched_dev_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
-
-
-
-# create sched dev table
-
-
-# sched_dev = pd.read_csv('sched_dev_load2.csv')
-# sched_dev.to_sql(name='scheduled_development_do_not_use', con=mssql_engine, schema='urbansim', index=False,if_exists='replace')
