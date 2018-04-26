@@ -191,7 +191,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
     return parcels_picked
 
 
-def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictions, supply_fname,
+def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdictions, supply_fname,
                   total_units, feasibility, year=None,
                   target_vacancy=.03, form_to_btype_callback=None,
                   add_more_columns_callback=None, max_parcel_size=200000,
@@ -234,21 +234,14 @@ def run_developer(forms, parcels, agents, hu_forecast, reg_controls, jurisdictio
     jurs = jurisdictions.to_frame()
 
     control_totals_by_year =  control_totals.loc[control_totals.yr == year].copy()
-
-    # target units is num of households minus existing residential units
-    # note: num of households is first adjusted by vacancy rate using:  num of households/(1-vacancy rate)
-    # target vacancy from call to run_developer in models
-
-    print("Agents are households. Agent spaces are dwelling units")
-    # current vacancy = 1 - num_agents / float(num_units)
-    # target_units = dev.\
-    #     compute_units_to_build(agents.to_frame().housing_units_add.get_value(year),
-    #                            hu_forecast[supply_fname].sum(),
-    #                            target_vacancy)
-    target_units = dev.\
-        compute_units_to_build(agents.to_frame().total_housing_units.get_value(year),
-                               hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum(),
-                               target_vacancy)
+    hh = households.to_frame().total_housing_units.get_value(year)
+    num_units = hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum()
+    print("Number of households: {:,}".format(int(hh)))
+    print("Number of units: {:,}".format(int(num_units)))
+    target_vacancy = 0
+    target_units = int(max(hh / (1 - target_vacancy) - num_units, 0))
+    print("Target of new units = {:,}"
+          .format(target_units))
 
     feasible_parcels_df = feasibility.to_frame()
 
