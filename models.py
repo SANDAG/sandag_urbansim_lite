@@ -28,7 +28,7 @@ def feasibility(parcels, year):
 def residential_developer(feasibility, households, hu_forecast, parcels, year, regional_controls, jurisdictions):
     utils.run_developer(forms=None,
                         parcels=parcels,
-                        agents=households,
+                        households=households,
                         hu_forecast=hu_forecast,
                         reg_controls=regional_controls,
                         jurisdictions=jurisdictions,
