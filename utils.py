@@ -4,7 +4,6 @@ import numpy as np
 import orca
 from sqlalchemy import create_engine
 from pysandag.database import get_connection_string
-from urbansim.developer import developer
 import pandas as pd
 import yaml
 
@@ -89,8 +88,7 @@ def run_reducer(hu_forecast, year):
     except KeyError:
         pass
     else:
-        dev = developer.Developer(hu_forecast.to_frame())
-        neg_cap_parcels = reducible_parcels[reducible_parcels['capacity'] < 0]
+        neg_cap_parcels = reducible_parcels[reducible_parcels['capacity_2'] < 0]
         reduce_first_parcels = neg_cap_parcels[(neg_cap_parcels.yr == year)]
         neg_cap_parcels = neg_cap_parcels[neg_cap_parcels['yr'].isnull()]
         if len(neg_cap_parcels) > 0:
@@ -102,13 +100,14 @@ def run_reducer(hu_forecast, year):
             parcels_reduced = parcels_reduced.set_index('index')
             parcels_reduced['year_built'] = year
             parcels_reduced['hu_forecast_type_id'] = ''
-            parcels_reduced['residential_units'] = parcels_reduced['capacity']
+            parcels_reduced['residential_units'] = parcels_reduced['capacity_2']
             parcels_reduced['source'] = '4'
             for parcel in parcels_reduced['parcel_id'].tolist():
-                reducible_parcels.loc[reducible_parcels.parcel_id == parcel, 'capacity'] = 0
+                reducible_parcels.loc[reducible_parcels.parcel_id == parcel, 'capacity_2'] = 0
             orca.add_table("negative_parcels", reducible_parcels)
-            all_hu_forecast = dev.merge(hu_forecast.to_frame(hu_forecast.local_columns),
-                                        parcels_reduced[hu_forecast.local_columns])
+            all_hu_forecast = pd.concat([hu_forecast.to_frame(hu_forecast.local_columns),\
+                                         parcels_reduced[hu_forecast.local_columns]])
+            all_hu_forecast .reset_index(drop=True,inplace=True)
             orca.add_table("hu_forecast", all_hu_forecast)
     
 
@@ -229,7 +228,6 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     """
 
     parcels = parcels.to_frame()
-    dev = developer.Developer(feasibility.to_frame())
     control_totals = reg_controls.to_frame()
     jurs = jurisdictions.to_frame()
 
@@ -256,7 +254,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     '''
         Do not pick or develop if there are no feasible parcels
     '''
-    if len(dev.feasibility) == 0:
+    if len(feasible_parcels_df) == 0:
         print ('0 feasible parcels')
         return
 
@@ -341,9 +339,9 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
             Merge old hu_forecast with the new hu_forecast
         '''
 
-        all_hu_forecast = dev.merge(hu_forecast.to_frame(hu_forecast.local_columns),
-                                  sr14cap[hu_forecast.local_columns])
-
+        all_hu_forecast = pd.concat([hu_forecast.to_frame(hu_forecast.local_columns), \
+                                     sr14cap[hu_forecast.local_columns]])
+        all_hu_forecast.reset_index(drop=True, inplace=True)
         orca.add_table("hu_forecast", all_hu_forecast)
 
 
