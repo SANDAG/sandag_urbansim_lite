@@ -50,10 +50,11 @@ SELECT max(run_id)
   FROM [urbansim].[urbansim].[urbansim_lite_output]
 '''
 run_id_df = pd.read_sql(run_id_sql, mssql_engine)
-try:
+
+if run_id_df.values:
     run_id = int(run_id_df.values) + 1
-except KeyError:
-    run_id = int(1)
+else:
+    run_id = 1
 
 hu_forecast_out['run_id'] = run_id
 
