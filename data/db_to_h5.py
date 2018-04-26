@@ -122,7 +122,8 @@ negative_capacity_parcels = '''
     SELECT parcel_id, 
         p.site_id,
         null as yr,
-        capacity_2
+        capacity_2,
+        'neg_cap' as capacity_type
     FROM urbansim.urbansim.parcel p
     WHERE capacity_2 < 0 and site_id is null
 '''
@@ -197,6 +198,7 @@ regional_controls_df['geo'] = regional_controls_df['geo'].astype(str)
 jurisdictions_df = pd.read_sql(jurisdictions_names_sql, mssql_engine)
 jurisdictions_df['name'] = jurisdictions_df['name'].astype(str)
 negative_parcels_df = pd.read_sql(negative_capacity_parcels, mssql_engine)
+negative_parcels_df.capacity_type = negative_parcels_df.capacity_type.astype(str)
 
 with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('scheduled_development', sched_dev, format='table')
