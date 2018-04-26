@@ -107,10 +107,8 @@ households_sql = '''
 households_sql = households_sql % scenarios['demographic_simulation_id']
 
 
-buildings_sql = '''
-    SELECT building_id as hu_forecast_id
-        ,parcel_id
-        ,COALESCE(development_type_id,0) AS hu_forecast_type_id
+hu_forecast_sql = '''
+    SELECT parcel_id
         ,COALESCE(residential_units,0) AS residential_units
         ,COALESCE(year_built,0) AS year_built
         ,'existing' as source
@@ -187,7 +185,7 @@ sched_dev.capacity_type = sched_dev.capacity_type.astype(str)
 
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='yr')
 households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
-hu_forecast_df = pd.read_sql(buildings_sql, mssql_engine, index_col='hu_forecast_id')
+hu_forecast_df = pd.read_sql(hu_forecast_sql, mssql_engine)
 hu_forecast_df.source = hu_forecast_df.source.astype(str)
 hu_forecast_df.capacity_type = hu_forecast_df.capacity_type.astype(str)
 devyear_df = pd.read_sql(parcel_dev_control_sql, mssql_engine, index_col='parcel_id')

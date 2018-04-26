@@ -73,7 +73,6 @@ def run_scheduled_development(hu_forecast, year):
     if len(sched_dev) > 0:
         sched_dev['year_built'] = year
         sched_dev['residential_units'] = sched_dev['capacity_3']
-        sched_dev['hu_forecast_type_id'] = ''
         sched_dev['source'] = '1'
         # sched_dev['capacity_type'] = 'sched_dev'
         b = hu_forecast.to_frame(hu_forecast.local_columns)
@@ -327,7 +326,6 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
 
         sr14cap['residential_units'] = sr14cap['residential_units_sim_yr']
         # temporarily assign hu_forecast type id
-        sr14cap['hu_forecast_type_id'] = ''
         if year is not None:
             sr14cap["year_built"] = year
 
@@ -358,7 +356,7 @@ def summary(year):
     # The below section is also run in bulk_insert. Will comment out the section in bulk_insert
     # Check if parcels occur multiple times (due to multiple sources). Will skip if false.
     current_builds = pd.DataFrame({'residential_units': current_builds.
-                                       groupby(["parcel_id", "year_built", "hu_forecast_type_id", "capacity_type"]).
+                                       groupby(["parcel_id", "year_built", "capacity_type"]).
                                        residential_units.sum()}).reset_index()
     parcels = parcel_table_update(parcels, current_builds)
     orca.add_table("parcels", parcels)
