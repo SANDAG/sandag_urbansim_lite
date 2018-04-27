@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
-from pysandag.database import get_connection_string
+from database import get_connection_string
+# from pysandag.database import get_connection_string
 import utils
+import database
 
 
 db_connection_string = get_connection_string('config.yml', 'mssql_db')

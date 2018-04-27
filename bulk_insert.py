@@ -2,7 +2,7 @@ import pandas as pd
 import orca
 import numpy as np
 from sqlalchemy import create_engine
-from pysandag.database import get_connection_string
+from database import get_connection_string
 import time
 from datetime import timedelta
 

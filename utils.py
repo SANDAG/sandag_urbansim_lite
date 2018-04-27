@@ -2,8 +2,6 @@ from __future__ import print_function
 
 import numpy as np
 import orca
-from sqlalchemy import create_engine
-from pysandag.database import get_connection_string
 import pandas as pd
 import yaml
 
