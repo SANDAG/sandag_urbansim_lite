@@ -56,14 +56,14 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, sc
     year_update['source_id'] = year_update['source_id'].fillna(0)
     year_update['phase'] = year_update['phase'].fillna(2015)
     year_update['cap_type'] = year_update['cap_type'].fillna("no capacity")
-    year_update = year_update[['scenario_id', 'increment', 'parcel_id', 'yr', 'jurisdiction_id', 'cap_jurisdiction_id',
-                               'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id', 'lu', 'plu', 'hs', 'chg_hs', 'cap_hs',
-                               'source_id', 'cap_type', 'phase']]
+    # year_update = year_update[['scenario_id', 'increment', 'parcel_id', 'yr', 'jurisdiction_id', 'cap_jurisdiction_id',
+    #                            'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id', 'lu', 'plu', 'hs', 'chg_hs', 'cap_hs',
+    #                            'source_id', 'cap_type', 'phase']]
     year_update.sort_values(by=['parcel_id'])
     year_update = year_update.reset_index(drop=True)
     year_update.fillna(-99, inplace=True) # pivot does not handle null
-    year_update['regional_overflow'] = False
-    year_update.loc[year_update.source_id == 3, 'regional_overflow'] = True
+    year_update['regional_overflow'] = 0
+    year_update.loc[year_update.source_id == 3, 'regional_overflow'] = 1
     # TO DO:
     # edit sql and staging table column names and data types
     year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr',
@@ -118,20 +118,34 @@ def table_setup(table_type, conn):
                         [lu] [tinyint] NULL,
                         [plu] [tinyint] NULL,
                         [hs] [smallint] NOT NULL,
-                        [chg_hs] [smallint] NOT NULL,
-                        [cap_hs] [smallint] NOT NULL,
-                        [source_id] [tinyint] NOT NULL,
-                        [cap_type] [character] (10) NOT NULL,
-                        [phase] [smallint] NOT NULL
+                        [tot_cap_hs] [smallint] NOT NULL,
+                        [tot_chg_hs] [smallint] NOT NULL,
+                        [regional_overflow] [bit] NOT NULL,
+                        [cap_hs_adu] [smallint] NULL,
+                        [cap_hs_cc] [smallint] NULL,
+                        [cap_hs_jur] [smallint] NULL,
+                        [cap_hs_mc] [smallint] NULL,
+                        [cap_hs_sch] [smallint] NULL,
+                        [cap_hs_tc] [smallint] NULL,
+                        [cap_hs_tco] [smallint] NULL,
+                        [cap_hs_uc] [smallint] NULL,
+                        [chg_hs_adu] [smallint] NULL,
+                        [chg_hs_cc] [smallint] NULL,
+                        [chg_hs_jur] [smallint] NULL,
+                        [chg_hs_mc] [smallint] NULL,
+                        [chg_hs_sch] [smallint] NULL,
+                        [chg_hs_tc] [smallint] NULL,
+                        [chg_hs_tco] [smallint] NULL,
+                        [chg_hs_uc] [smallint] NULL
                         CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
                             [scenario_id] ASC,
                             [yr] ASC,
                             [parcel_id] ASC,
-                            [source_id] ASC,
-                            [cap_type] ASC,
-                            [phase] ASC
+                            [jurisdiction_id] ASC,
+                            [hs] ASC
                         ))WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
                 conn.execute(create_table_sql)
+                #Would prefer to remove jur_id and hs from the table, but there is a discrepancy in additional units atm
 
             scenario = int(1)
             break
@@ -219,26 +233,40 @@ def run_insert(year):
             staging_table_sql = '''
                         IF OBJECT_ID(N'urbansim.sr14_residential_parcel_staging', N'U') IS NULL
                         CREATE TABLE [urbansim].[sr14_residential_parcel_staging](
-                           [scenario_id] [float] NOT NULL,
-                           [increment] [float] NOT NULL,
-                           [parcel_id] [float] NOT NULL,
-                           [yr] [float] NOT NULL,
-                           [jurisdiction_id] [float] NOT NULL,
-                           [cap_jurisdiction_id] [float] NOT NULL,
-                           [cpa_id] [float] NULL,
-                           [mgra_id] [float] NULL,
-                           [luz_id] [float] NULL,
-                           [taz] [float] NULL,
-                           [site_id] [float] NULL,
-                           [lu] [float] NULL,
-                           [plu] [float] NULL,
-                           [hs] [float] NOT NULL,
-                           [chg_hs] [float] NOT NULL,
-                           [cap_hs] [float] NOT NULL,
-                           [source_id] [float] NOT NULL,
-                           [cap_type] [character] (10) NULL,
-                           [phase] [float] NULL
-                           )'''
+                        [scenario_id] [float] NOT NULL,
+                        [increment] [float] NOT NULL,
+                        [parcel_id] [float] NOT NULL,
+                        [yr] [float] NOT NULL,
+                        [jurisdiction_id] [float] NOT NULL,
+                        [cap_jurisdiction_id] [float] NOT NULL,
+                        [cpa_id] [float] NULL,
+                        [mgra_id] [float] NULL,
+                        [luz_id] [float] NULL,
+                        [taz] [float] NULL,
+                        [site_id] [float] NULL,
+                        [lu] [float] NULL,
+                        [plu] [float] NULL,
+                        [hs] [float] NOT NULL,
+                        [tot_cap_hs] [float] NOT NULL,
+                        [tot_chg_hs] [float] NOT NULL,
+                        [regional_overflow] [bit] NOT NULL,
+                        [cap_hs_adu] [float] NULL,
+                        [cap_hs_cc] [float] NULL,
+                        [cap_hs_jur] [float] NULL,
+                        [cap_hs_mc] [float] NULL,
+                        [cap_hs_sch] [float] NULL,
+                        [cap_hs_tc] [float] NULL,
+                        [cap_hs_tco] [float] NULL,
+                        [cap_hs_uc] [float] NULL,
+                        [chg_hs_adu] [float] NULL,
+                        [chg_hs_cc] [float] NULL,
+                        [chg_hs_jur] [float] NULL,
+                        [chg_hs_mc] [float] NULL,
+                        [chg_hs_sch] [float] NULL,
+                        [chg_hs_tc] [float] NULL,
+                        [chg_hs_tco] [float] NULL,
+                        [chg_hs_uc] [float] NULL
+                        )'''
             conn.execute(staging_table_sql)
 
     # create capacity parcels yearly update table
