@@ -10,6 +10,9 @@ import subprocess
 from datetime import timedelta
 import time
 
+
+start_time = time.monotonic()
+
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
@@ -64,8 +67,8 @@ output_records.loc[run_id] = [run_id, run_description, run_date,subregional_ctrl
 #                             'year_simulation': sqlalchemy.types.INTEGER(), 'source': sqlalchemy.types.VARCHAR(length=50),
 #                             'capacity_type': sqlalchemy.types.VARCHAR(length=50),
 #                             'run_id': sqlalchemy.types.INTEGER()})
-# end_time = time.monotonic()
-# print("Total time to run Simulation:", timedelta(seconds=end_time - start_time))
+end_time = time.monotonic()
+print("Total time to run Simulation:", timedelta(seconds=end_time - start_time))
 
 # ], iter_vars = range(2017, 2051), data_out = 'data\\results.h5', out_interval = 1)
     ## data_out writes output to .h5 every year (change out interval for increment)
