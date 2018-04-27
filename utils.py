@@ -67,7 +67,7 @@ def parcel_table_update(parcel_table, current_builds):
 def run_scheduled_development(hu_forecast, year):
     print('\n Adding scheduled developments in year: %d' % (year))
     sched_dev = orca.get_table('scheduled_development').to_frame()
-    sched_dev = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity_3 > 0)]
+    sched_dev = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity_3 > 0)].copy()
     if len(sched_dev) > 0:
         sched_dev['year_built'] = year
         sched_dev['residential_units'] = sched_dev['capacity_3']
@@ -229,7 +229,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     jurs = jurisdictions.to_frame()
 
     control_totals_by_year =  control_totals.loc[control_totals.yr == year].copy()
-    hh = households.to_frame().total_housing_units.get_value(year)
+    hh = households.to_frame().at[year, 'total_housing_units']
     num_units = hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum()
     print("Number of households: {:,}".format(int(hh)))
     print("Number of units: {:,}".format(int(num_units)))
