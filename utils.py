@@ -47,11 +47,13 @@ def parcel_table_update(parcel_table, current_builds):
     parcel_table.reset_index(inplace=True, drop=False)
 
     current_builds.rename(columns={"residential_units": "updated_units"}, inplace=True)
-    updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'capacity_type','updated_units']], how='left', \
-                                    left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
+    updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'capacity_type', 'updated_units']],\
+                                    how='left', left_on=['parcel_id', 'capacity_type'],\
+                                    right_on=['parcel_id', 'capacity_type'])
     updated_parcel_table.set_index('parcel_id',inplace=True)
     updated_parcel_table.updated_units = updated_parcel_table.updated_units.fillna(0)
     updated_parcel_table['residential_units'] = updated_parcel_table['residential_units'] + updated_parcel_table['updated_units']
+    updated_parcel_table['lu'].where(updated_parcel_table.updated_units == 0, other=updated_parcel_table['plu'], inplace=True)
     updated_parcel_table = updated_parcel_table.drop(['updated_units'], 1)
     updated_parcel_table.residential_units = updated_parcel_table.residential_units.astype(int)
     return updated_parcel_table

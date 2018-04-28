@@ -24,7 +24,7 @@ def parcel_table_update(parcel_table, current_builds):
     return updated_parcel_table
 
 
-def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, scenario, year):
+def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, dev_lu_table, scenario, year):
     sched_dev.rename(columns={"residential_units": "hs", "yr": "phase_yr"}, inplace=True)
     sched_dev_nyr = sched_dev.drop(['phase_yr', 'capacity_3'], axis=1)
     parcel_table.rename(columns={"residential_units": "hs"}, inplace=True)
@@ -44,8 +44,7 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, sc
     year_update['scenario_id'] = scenario
     year_update['yr'] = year
     year_update['taz'] = np.nan
-    year_update['lu'] = np.nan
-    year_update['plu'] = np.nan
+    year_update['lu_2017'] = np.nan
     year_update['cap_hs'] = year_update['max_res_units'] - year_update['hs']
     year_update = year_update.drop(['max_res_units'], axis=1)
     increment = year - (year % 5)
@@ -64,9 +63,7 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, sc
     year_update.fillna(-99, inplace=True) # pivot does not handle null
     year_update['regional_overflow'] = 0
     year_update.loc[year_update.source_id == 3, 'regional_overflow'] = 1
-    # TO DO:
-    # edit sql and staging table column names and data types
-    year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr',
+    year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr', 'lu_2017',
                             'jurisdiction_id', 'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id',
                             'lu', 'plu', 'hs', 'regional_overflow'], columns='cap_type',
                             values=['cap_hs', 'chg_hs']).reset_index()
@@ -79,12 +76,14 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, sc
     colnames = year_update_pivot.columns
     ind = pd.Index([e[0] + e[1] for e in colnames.tolist()])
     year_update_pivot.columns = ind
-    year_update_pivot = year_update_pivot[['scenario_id', 'increment', 'parcel_id', 'yr', 'jurisdiction_id',
-                                           'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id', 'lu',
-                                           'plu', 'hs', 'tot_cap_hs', 'tot_chg_hs', 'regional_overflow', 'cap_hs_adu',
-                                           'cap_hs_cc', 'cap_hs_jur', 'cap_hs_mc', 'cap_hs_sch', 'cap_hs_tc',
-                                           'cap_hs_tco', 'cap_hs_uc', 'chg_hs_adu', 'chg_hs_cc', 'chg_hs_jur',
-                                           'chg_hs_mc', 'chg_hs_sch', 'chg_hs_tc', 'chg_hs_tco', 'chg_hs_uc']]
+    year_update_pivot = pd.merge(year_update_pivot, dev_lu_table, how='left', on='lu')
+    year_update_pivot = year_update_pivot[['scenario_id', 'parcel_id', 'yr', 'increment', 'jurisdiction_id',
+                                           'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'site_id', 'taz',
+                                           'hs', 'tot_cap_hs', 'tot_chg_hs', 'lu', 'plu', 'lu_2017', 'dev_type',
+                                           'regional_overflow', 'cap_hs_adu', 'cap_hs_cc', 'cap_hs_jur', 'cap_hs_mc',
+                                           'cap_hs_sch', 'cap_hs_tc', 'cap_hs_tco', 'cap_hs_uc', 'chg_hs_adu',
+                                           'chg_hs_cc', 'chg_hs_jur', 'chg_hs_mc', 'chg_hs_sch', 'chg_hs_tc',
+                                           'chg_hs_tco', 'chg_hs_uc']]
     return year_update_pivot
 
 
@@ -105,21 +104,23 @@ def table_setup(table_type, conn):
                     SET QUOTED_IDENTIFIER ON
                     CREATE TABLE [urbansim].[sr14_residential_{}_parcel_results](
                         [scenario_id] [tinyint] NOT NULL,
-                        [increment] [smallint] NOT NULL,
                         [parcel_id] [int] NOT NULL,
                         [yr] [smallint] NOT NULL,
+                        [increment] [smallint] NOT NULL,
                         [jurisdiction_id] [tinyint] NOT NULL,
                         [cap_jurisdiction_id] [tinyint] NOT NULL,
                         [cpa_id] [smallint] NULL,
                         [mgra_id] [smallint] NULL,
                         [luz_id] [tinyint] NULL,
-                        [taz] [tinyint] NULL,
                         [site_id] [smallint] NULL,
-                        [lu] [tinyint] NULL,
-                        [plu] [tinyint] NULL,
+                        [taz] [tinyint] NULL,
                         [hs] [smallint] NOT NULL,
                         [tot_cap_hs] [smallint] NOT NULL,
                         [tot_chg_hs] [smallint] NOT NULL,
+                        [lu] [smallint] NULL,
+                        [plu] [smallint] NULL,
+                        [lu_2017] [smallint] NULL,
+                        [dev_type] [tinyint] NULL,
                         [regional_overflow] [bit] NOT NULL,
                         [cap_hs_adu] [smallint] NULL,
                         [cap_hs_cc] [smallint] NULL,
@@ -220,6 +221,7 @@ def run_insert(year):
     #all_parcels = orca.get_table('all_parcels').to_frame()
     capacity_parcels = orca.get_table('parcels').to_frame()
     phase_year = orca.get_table('devyear').to_frame()
+    dev_lu_table = orca.get_table('dev_lu_table').to_frame()
     sched_dev = orca.get_table('scheduled_development').to_frame()
     hu_forecast = orca.get_table('hu_forecast').to_frame()
     current_builds = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
@@ -231,24 +233,26 @@ def run_insert(year):
             conn.execute('DROP TABLE IF EXISTS urbansim.sr14_residential_parcel_staging')
         with conn.begin() as trans:
             staging_table_sql = '''
-                        IF OBJECT_ID(N'urbansim.sr14_residential_parcel_staging', N'U') IS NULL
-                        CREATE TABLE [urbansim].[sr14_residential_parcel_staging](
+                    IF OBJECT_ID(N'urbansim.sr14_residential_parcel_staging', N'U') IS NULL
+                    CREATE TABLE [urbansim].[sr14_residential_parcel_staging](
                         [scenario_id] [float] NOT NULL,
-                        [increment] [float] NOT NULL,
                         [parcel_id] [float] NOT NULL,
                         [yr] [float] NOT NULL,
+                        [increment] [float] NOT NULL,
                         [jurisdiction_id] [float] NOT NULL,
                         [cap_jurisdiction_id] [float] NOT NULL,
                         [cpa_id] [float] NULL,
                         [mgra_id] [float] NULL,
                         [luz_id] [float] NULL,
-                        [taz] [float] NULL,
                         [site_id] [float] NULL,
-                        [lu] [float] NULL,
-                        [plu] [float] NULL,
+                        [taz] [float] NULL,
                         [hs] [float] NOT NULL,
                         [tot_cap_hs] [float] NOT NULL,
                         [tot_chg_hs] [float] NOT NULL,
+                        [lu] [float] NULL,
+                        [plu] [float] NULL,
+                        [lu_2017] [float] NULL,
+                        [dev_type] [float] NULL,
                         [regional_overflow] [bit] NOT NULL,
                         [cap_hs_adu] [float] NULL,
                         [cap_hs_cc] [float] NULL,
@@ -276,7 +280,7 @@ def run_insert(year):
         scenario = scenario_grab("cap")
     year_update_cap = capacity_parcels.copy()
     year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
-    year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, sched_dev, scenario, year)
+    year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, sched_dev, dev_lu_table, scenario, year)
     table_insert(year_update_cap, year, "cap", conn)
 
     # # update all parcels table

@@ -58,3 +58,8 @@ def negative_parcels(store):
 def all_parcels(store):
     df = store['all_parcels']
     return df
+
+@orca.table('dev_lu_table', cache=True)
+def dev_lu_table(store):
+    df = store['dev_lu_table']
+    return df

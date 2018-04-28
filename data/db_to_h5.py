@@ -20,7 +20,9 @@ parcel_sql = '''
              du_2017 AS residential_units, 
              COALESCE(du_2017,0)  + COALESCE(capacity_2,0) as max_res_units,
              0 as partial_build,
-             'jur' as capacity_type
+             'jur' as capacity_type,
+             development_type_id as dev_type,
+             NULL as lu
       FROM urbansim.urbansim.parcel p
       WHERE capacity_2 > 0 and site_id IS NULL
 '''
@@ -30,15 +32,17 @@ parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 assigned_parcel_sql = '''
 SELECT  a.parcel_id,
         p.mgra_id, 
-        jur_id as cap_jurisdiction_id,
-        jur_id as jurisdiction_id,
+        p.cap_jurisdiction_id,
+        p.jurisdiction_id,
         p.luz_id,
         p.site_id,
         a.du as capacity_base_yr,
         p.du_2017 as residential_units,
         COALESCE(p.du_2017,0)  + COALESCE(a.du,0) as max_res_units,
         0 as partial_build,
-        type as capacity_type
+        type as capacity_type,
+        p.development_type_id as dev_type,
+        NULL as lu
   FROM [urbansim].[urbansim].[additional_capacity] a
   join urbansim.parcel p on p.parcel_id = a.parcel_id
   where version_id = %s
@@ -148,6 +152,19 @@ FROM  [urbansim].[urbansim].[urbansim_lite_parcel_control]
 '''
 parcel_dev_control_sql  = parcel_dev_control_sql % scenarios['parcel_phase_yr']
 
+
+gplu_sql = '''
+SELECT parcel_id, gplu as plu
+  FROM [urbansim].[urbansim].[general_plan_parcel]
+'''
+gplu_df = pd.read_sql(gplu_sql, mssql_engine)
+
+dev_lu_sql = '''
+SELECT development_type_id as dev_type, lu_code as lu
+    FROM urbansim.ref.development_type_lu_code
+'''
+dev_lu_df = pd.read_sql(dev_lu_sql, mssql_engine)
+
 parcels = pd.merge(parcels_df,xref_geography_df,left_on='mgra_id',right_on='mgra_13')
 parcels.loc[parcels.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = parcels['cocpa_2016']
 parcels.loc[((parcels.cap_jurisdiction_id == 19) & (parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = parcels['cocpa_13']
@@ -160,6 +177,7 @@ parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)
 parcels.loc[parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
 parcels = parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
+parcels = pd.merge(parcels, gplu_df, left_index=True, right_on='parcel_id', how='left')
 
 all_parcels = pd.merge(all_parcels_df,xref_geography_df,how='left',left_on='mgra_id',right_on='mgra_13')
 all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
@@ -212,3 +230,4 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('devyear', devyear_df, format='table')
     store.put('negative_parcels', negative_parcels_df, format='table')
     store.put('all_parcels', all_parcels, format='table')
+    store.put('dev_lu_table', dev_lu_df, format='table')
