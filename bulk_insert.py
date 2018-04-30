@@ -55,13 +55,11 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, de
     year_update['source_id'] = year_update['source_id'].fillna(0)
     year_update['phase'] = year_update['phase'].fillna(2015)
     year_update['cap_type'] = year_update['cap_type'].fillna("no capacity")
-    # year_update = year_update[['scenario_id', 'increment', 'parcel_id', 'yr', 'jurisdiction_id', 'cap_jurisdiction_id',
-    #                            'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id', 'lu', 'plu', 'hs', 'chg_hs', 'cap_hs',
-    #                            'source_id', 'cap_type', 'phase']]
     year_update.sort_values(by=['parcel_id'])
     year_update = year_update.reset_index(drop=True)
     year_update.fillna(-99, inplace=True) # pivot does not handle null
     year_update['regional_overflow'] = 0
+    year_update['source_id'] = year_update['source_id'].astype(str).astype(int)
     year_update.loc[year_update.source_id == 3, 'regional_overflow'] = 1
     year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr', 'lu_2017',
                             'jurisdiction_id', 'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id',
@@ -138,16 +136,25 @@ def table_setup(table_type, conn):
                         [chg_hs_tc] [smallint] NULL,
                         [chg_hs_tco] [smallint] NULL,
                         [chg_hs_uc] [smallint] NULL
-                        CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
-                            [scenario_id] ASC,
-                            [yr] ASC,
-                            [parcel_id] ASC,
-                            [jurisdiction_id] ASC,
-                            [hs] ASC
-                        ))WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
+                    )WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
                 conn.execute(create_table_sql)
-                #Would prefer to remove jur_id and hs from the table, but there is a discrepancy in additional units atm
-
+                #Would prefer to remove jur_id and hs from the key, but there is a discrepancy in additional units atm
+            # CONSTRAINT[PK_sr14_residential_
+            # {}
+            # _parcel_yearly] PRIMARY
+            # KEY
+            # CLUSTERED(
+            #     [scenario_id]
+            # ASC,
+            # [yr]
+            # ASC,
+            # [parcel_id]
+            # ASC,
+            # [jurisdiction_id]
+            # ASC,
+            # [hs]
+            # ASC
+            # )
             scenario = int(1)
             break
         elif setup == "r":
