@@ -64,20 +64,14 @@ def parcel_table_update(parcel_table, current_builds):
     return updated_parcel_table
 
 
-#def initialize_tables():
-#    units_per_j = pd.DataFrame()
-#    orca.add_table("uj", units_per_j)
-#    cap_results= pd.DataFrame()
-#    orca.add_table('sr14cap_out',cap_results)
-
-
 def run_scheduled_development(hu_forecast, year):
     print('\n Adding scheduled developments in year: %d' % (year))
     sched_dev = orca.get_table('scheduled_development').to_frame()
     sched_dev = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity_3 > 0)].copy()
     if len(sched_dev) > 0:
         sched_dev['year_built'] = year
-        sched_dev['residential_units'] = sched_dev['capacity_3']
+        # sched_dev['residential_units'] = sched_dev['capacity_3']
+        sched_dev['units_added'] = sched_dev['capacity_3']
         sched_dev['source'] = '1'
         # sched_dev['capacity_type'] = 'sched_dev'
         b = hu_forecast.to_frame(hu_forecast.local_columns)
