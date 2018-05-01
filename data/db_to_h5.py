@@ -119,14 +119,13 @@ households_sql = households_sql % scenarios['demographic_simulation_id']
 
 hu_forecast_sql = '''
     SELECT parcel_id
-        ,COALESCE(residential_units,0) AS residential_units
+        ,0 as units_added
         ,COALESCE(year_built,0) AS year_built
         ,'existing' as source
         ,'no_cap' as capacity_type
      FROM urbansim.urbansim.building
-     where year_built > 2015
+     where year_built > 2016
 '''
-
 
 negative_capacity_parcels = '''
     SELECT parcel_id, 
@@ -227,7 +226,7 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('scheduled_development', sched_dev, format='table')
     store.put('parcels', parcels, format='table')
     store.put('households',households_df,format='table')
-    store.put('hu_forecast', hu_forecast_df, format='table')
+    store.put('hu_forecast', hu_forecast_df)
     store.put('regional_controls', regional_controls_df, format='table')
     store.put('jurisdictions', jurisdictions_df, format='table')
     store.put('devyear', devyear_df, format='table')
