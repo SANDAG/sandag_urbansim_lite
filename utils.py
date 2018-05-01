@@ -46,21 +46,30 @@ def largest_remainder_allocation(df, k):
     return df
 
 
-def parcel_table_update(parcel_table, current_builds):
+
+
+def parcel_table_update_units(parcel_table, current_builds):
     # This is the new parcel update section
     # Now merges parcels that were updated in the current year with existing parcel table
     parcel_table.reset_index(inplace=True, drop=False)
-
-    current_builds.rename(columns={"residential_units": "updated_units"}, inplace=True)
-    updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'capacity_type', 'updated_units']],\
+    updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'capacity_type', 'units_in_yr']],\
                                     how='left', left_on=['parcel_id', 'capacity_type'],\
                                     right_on=['parcel_id', 'capacity_type'])
-    updated_parcel_table.set_index('parcel_id',inplace=True)
-    updated_parcel_table.updated_units = updated_parcel_table.updated_units.fillna(0)
-    updated_parcel_table['residential_units'] = updated_parcel_table['residential_units'] + updated_parcel_table['updated_units']
-    updated_parcel_table['lu'].where(updated_parcel_table.updated_units == 0, other=updated_parcel_table['plu'], inplace=True)
-    updated_parcel_table = updated_parcel_table.drop(['updated_units'], 1)
+    updated_parcel_table.units_in_yr = updated_parcel_table.units_in_yr.fillna(0)
+    updated_parcel_table['capacity_used'] = updated_parcel_table['capacity_used'] + updated_parcel_table['units_in_yr']
+    # updated_parcel_table['lu'].where(updated_parcel_table.units_added == 0, other=updated_parcel_table['plu'], inplace=True)
+    residential_unit_total = pd.DataFrame({'total_units_added': updated_parcel_table.\
+                                          groupby(["parcel_id", "residential_units"]).units_in_yr.sum()}).reset_index()
+    residential_unit_total['residential_units'] = residential_unit_total['total_units_added'] + residential_unit_total['residential_units']
+    updated_parcel_table = updated_parcel_table.drop(['partial_build'], 1)
+    updated_parcel_table['partial_build'] = updated_parcel_table.max_capacity_per_type - updated_parcel_table['capacity_used']
+    updated_parcel_table.partial_build = updated_parcel_table.partial_build.fillna(0)
+    updated_parcel_table = updated_parcel_table.drop(['units_in_yr'], 1)
+    updated_parcel_table = updated_parcel_table.drop(['residential_units'], 1)
+    updated_parcel_table = pd.merge(updated_parcel_table, residential_unit_total[['parcel_id','residential_units']], \
+                                    how='left', left_on=['parcel_id'], right_on=['parcel_id'])
     updated_parcel_table.residential_units = updated_parcel_table.residential_units.astype(int)
+    updated_parcel_table.set_index('parcel_id', inplace=True)
     return updated_parcel_table
 
 
