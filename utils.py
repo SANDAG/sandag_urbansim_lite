@@ -142,7 +142,7 @@ def run_feasibility(parcels, year=None):
     devyear.reset_index(inplace=True, drop=False)
     parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
     parcels.set_index('parcel_id',inplace=True)
-    feasible_parcels = parcels.loc[parcels['max_res_units'] > parcels['residential_units']].copy()
+    feasible_parcels = parcels.loc[parcels['max_capacity_per_type'] > parcels['capacity_used']].copy()
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
     # Restrict feasibility to specific years, based on scenario (TBD)
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year]
@@ -189,9 +189,8 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             # for debugging purposes
             if len(one_row_per_unit_picked .loc[one_row_per_unit_picked.parcel_id==5048607]) > 0:
                 print(one_row_per_unit_picked)
-            parcels_picked = pd.DataFrame({'residential_units_sim_yr': one_row_per_unit_picked.
-                                          groupby(["parcel_id", "cap_jurisdiction_id", "capacity_base_yr",
-                                                   "residential_units", "max_res_units",'capacity_type'])
+            parcels_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.
+                                          groupby(["parcel_id",'capacity_type'])
                                           .size()}).reset_index()
             parcels_picked.set_index('parcel_id', inplace=True)
     return parcels_picked
@@ -256,6 +255,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
           .format(len(feasible_parcels_df)))
 
     # allocate target to each jurisdiction based on database table
+    print(year)
     subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
 
     '''
@@ -270,13 +270,14 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     '''
     # initialize dataframes for i/o tracking
     sr14cap = pd.DataFrame()
-    feasible_parcels_df['remaining_capacity'] = (feasible_parcels_df.max_res_units - feasible_parcels_df.residential_units)
+    feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.max_capacity_per_type - \
+                                                feasible_parcels_df.capacity_used
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
     for jur in control_totals.geo_id.unique().tolist():
     # for jur in jurs['cap_jurisdiction_id'].tolist():
     # for debugging purposes
-        # if ((jur==1999) and (year==2050)):
-            # print(jur)
+        if (year==2018):
+            print(jur)
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id']==jur].max_units.values[0]
         # use nanmin to handle null values for max units
@@ -298,17 +299,19 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
         sr14cap = sr14cap.append(chosen)
 
     if len(sr14cap):
-        remaining_units = target_units - sr14cap.residential_units_sim_yr.sum()
+        remaining_units = target_units - int(sr14cap.units_added.sum())
     else: remaining_units = target_units
 
     if remaining_units > 0:
-        feasible_parcels_df = feasible_parcels_df.join(sr14cap[['residential_units_sim_yr']])
-        feasible_parcels_df.residential_units_sim_yr = feasible_parcels_df.residential_units_sim_yr.fillna(0)
-        feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.max_res_units - feasible_parcels_df.residential_units\
-                                                    - feasible_parcels_df.residential_units_sim_yr
+        feasible_parcels_df = feasible_parcels_df.join(sr14cap[['units_added']])
+        feasible_parcels_df.units_added = feasible_parcels_df.units_added.fillna(0)
+        feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.max_capacity_per_type - feasible_parcels_df.capacity_used\
+                                                    - feasible_parcels_df.units_added
         feasible_parcels_df['remaining_capacity'] = feasible_parcels_df['remaining_capacity'].astype(int)
         feasible_parcels_df= feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0].copy()
-        feasible_parcels_df['partial_build'] = feasible_parcels_df.residential_units_sim_yr
+        if year==2024:
+            print(year)
+        feasible_parcels_df['partial_build'] = feasible_parcels_df.units_added
         chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
         if len(chosen):
             chosen['source'] = '3'
