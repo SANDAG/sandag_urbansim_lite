@@ -346,17 +346,17 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
 def summary(year):
     parcels = orca.get_table('parcels').to_frame()
     hu_forecast = orca.get_table('hu_forecast').to_frame()
-    current_builds = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
-    sched_dev_built = (current_builds.loc[(current_builds.source == '1')]).residential_units.sum()
-    subregional_control_built = (current_builds.loc[(current_builds.source == '2')]).residential_units.sum()
-    entire_region_built = (current_builds.loc[(current_builds.source == '3')]).residential_units.sum()
+    hu_forecast_year = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
+    sched_dev_built = (hu_forecast_year.loc[(hu_forecast_year.source == '1')]).units_added.sum()
+    subregional_control_built = (hu_forecast_year.loc[(hu_forecast_year.source == '2')]).units_added.sum()
+    entire_region_built = (hu_forecast_year.loc[(hu_forecast_year.source == '3')]).units_added.sum()
     print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
     print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
     # The below section is also run in bulk_insert. Will comment out the section in bulk_insert
     # Check if parcels occur multiple times (due to multiple sources). Will skip if false.
-    current_builds = pd.DataFrame({'residential_units': current_builds.
+    current_builds = pd.DataFrame({'units_in_yr': hu_forecast_year.
                                        groupby(["parcel_id", "year_built", "capacity_type"]).
-                                       residential_units.sum()}).reset_index()
-    parcels = parcel_table_update(parcels, current_builds)
+                                       units_added.sum()}).reset_index()
+    parcels = parcel_table_update_units(parcels, current_builds)
     orca.add_table("parcels", parcels)
