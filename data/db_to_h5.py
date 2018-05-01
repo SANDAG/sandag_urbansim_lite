@@ -17,11 +17,13 @@ parcel_sql = '''
              cap_jurisdiction_id,
              jurisdiction_id,
              p.luz_id, p.site_id, capacity_2 AS capacity_base_yr, 
+             capacity_2 as max_capacity_per_type,
+             0 as capacity_used,
              du_2017 AS residential_units, 
              COALESCE(du_2017,0)  + COALESCE(capacity_2,0) as max_res_units,
              0 as partial_build,
              'jur' as capacity_type,
-             development_type_id as dev_type,
+             development_type_id_2017 as dev_type,
              NULL as lu
       FROM urbansim.urbansim.parcel p
       WHERE capacity_2 > 0 and site_id IS NULL
@@ -37,11 +39,13 @@ SELECT  a.parcel_id,
         p.luz_id,
         p.site_id,
         a.du as capacity_base_yr,
+        a.du as max_capacity_per_type,
+        0 as capacity_used,
         p.du_2017 as residential_units,
         COALESCE(p.du_2017,0)  + COALESCE(a.du,0) as max_res_units,
         0 as partial_build,
         type as capacity_type,
-        p.development_type_id as dev_type,
+        p.development_type_id_2017 as dev_type,
         NULL as lu
   FROM [urbansim].[urbansim].[additional_capacity] a
   join urbansim.parcel p on p.parcel_id = a.parcel_id
@@ -145,7 +149,6 @@ regional_capacity_controls_sql = regional_capacity_controls_sql % scenarios['sub
 parcel_dev_control_sql = '''
 SELECT [parcel_id]
       ,[phase_yr]
-      ,[phase_yr_version_id]
       ,[capacity_type]
 FROM  [urbansim].[urbansim].[urbansim_lite_parcel_control]
      WHERE phase_yr_version_id = %s
