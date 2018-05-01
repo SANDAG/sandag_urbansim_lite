@@ -28,10 +28,10 @@ orca.run([
 hu_forecast = orca.get_table('hu_forecast').to_frame()
 hu_forecast = hu_forecast.reset_index(drop=False)
 hu_forecast = hu_forecast.loc[(hu_forecast['year_built'] > 2016)]
-hu_forecast_out = hu_forecast[['parcel_id','residential_units','year_built','source','capacity_type']].copy()
+hu_forecast_out = hu_forecast[['parcel_id','units_added','year_built','source','capacity_type']].copy()
 hu_forecast_out.reset_index(drop=True,inplace=True)
 hu_forecast_out.rename(columns = {'year_built': 'year_simulation'},inplace=True)
-hu_forecast_out.rename(columns = {'residential_units': 'unit_change'},inplace=True)
+hu_forecast_out.rename(columns = {'units_added': 'unit_change'},inplace=True)
 
 run_id_sql = '''
 SELECT max(run_id)

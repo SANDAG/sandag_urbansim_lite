@@ -32,7 +32,7 @@ def residential_developer(feasibility, households, hu_forecast, parcels, year, r
                         hu_forecast=hu_forecast,
                         reg_controls=regional_controls,
                         jurisdictions=jurisdictions,
-                        supply_fname="residential_units",
+                        supply_fname="units_added",
                         total_units=parcels.residential_units,
                         feasibility=feasibility,
                         year=year,
