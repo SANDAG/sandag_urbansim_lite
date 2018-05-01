@@ -306,37 +306,19 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
             chosen['source'] = '3'
         sr14cap = sr14cap.append(chosen)
 
-
     if len(sr14cap) > 0:
-        # group by parcel id again if same parcel was picked
-        sr14cap.reset_index(inplace=True)
-        parcel_sr14_units = pd.DataFrame({'residential_units_sim_yr': sr14cap.
-                                            groupby(["parcel_id", "cap_jurisdiction_id",
-                                                     "capacity_base_yr", "residential_units",
-                                                     "max_res_units","capacity_type"]).residential_units_sim_yr.sum()}).reset_index()
-        parcel_sr14_units['partial_build'] = parcel_sr14_units.max_res_units - parcel_sr14_units.residential_units_sim_yr - parcel_sr14_units.residential_units
-        parcels = parcels.drop(['partial_build'], 1)
-        parcels.reset_index(inplace=True,drop=False)
-        parcels = pd.merge(parcels, parcel_sr14_units[['parcel_id','capacity_type','partial_build']], how='left',\
-                           left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
-        parcels.partial_build = parcels.partial_build.fillna(0)
-        parcels.set_index('parcel_id', inplace=True)
-        orca.add_table("parcels", parcels)
-
-
-        sr14cap['residential_units'] = sr14cap['residential_units_sim_yr']
         # temporarily assign hu_forecast type id
         if year is not None:
             sr14cap["year_built"] = year
 
         print("Adding {:,} hu_forecast with {:,} {}"
-              .format(len(sr14cap),
-                      int(sr14cap[supply_fname].sum()),
-                      supply_fname))
+                .format(len(sr14cap),
+                        int(sr14cap[supply_fname].sum()),
+                        supply_fname))
         '''
             Merge old hu_forecast with the new hu_forecast
         '''
-
+        sr14cap.reset_index(inplace=True,drop=False)
         all_hu_forecast = pd.concat([hu_forecast.to_frame(hu_forecast.local_columns), \
                                      sr14cap[hu_forecast.local_columns]])
         all_hu_forecast.reset_index(drop=True, inplace=True)
