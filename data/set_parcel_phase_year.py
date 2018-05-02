@@ -2,7 +2,7 @@
 
 import pandas as pd
 from sqlalchemy import create_engine
-from pysandag.database import get_connection_string
+from database import get_connection_string
 import utils
 
 db_connection_string = get_connection_string('config.yml', 'mssql_db')
@@ -42,13 +42,13 @@ parcels_df.parcel_id = parcels_df.parcel_id.astype(int)
 parcels_df.set_index('parcel_id',inplace=True)
 #
 parcels_df['phase_yr'] = 2017
-parcels_df['phase_yr_version_id'] = 1
+parcels_df['phase_yr_version_id'] = 102
 parcels_df['capacity_type'] = 'jur'
 parcels_df.loc[parcels_df.cocpa_2016==1904,'phase_yr'] = 2034
 parcels_df = parcels_df[['phase_yr','phase_yr_version_id','capacity_type']]
 
 
-parcels_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='replace')
+parcels_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
 
 
 assigned_parcel_sql = '''
@@ -72,7 +72,7 @@ assigned_df.parcel_id = assigned_df.parcel_id.astype(int)
 assigned_df.set_index('parcel_id',inplace=True)
 #
 assigned_df['phase_yr'] = 2035
-assigned_df['phase_yr_version_id'] = 1
+assigned_df['phase_yr_version_id'] = 102
 
 # The following jurisdictions have agreed to make their ADUs available for "realization" beginning from 2019
 # the City of San Diego
@@ -114,7 +114,7 @@ sched_dev_df.parcel_id = sched_dev_df.parcel_id.astype(int)
 sched_dev_df.set_index('parcel_id',inplace=True)
 #
 sched_dev_df['phase_yr'] = 2017
-sched_dev_df['phase_yr_version_id'] = 1
+sched_dev_df['phase_yr_version_id'] = 102
 sched_dev_df['capacity_type'] = 'sch'
 sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','capacity_type']]
 sched_dev_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
