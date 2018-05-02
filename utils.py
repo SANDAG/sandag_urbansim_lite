@@ -220,7 +220,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
             large_build_checker = priority_then_random.remaining_capacity >= 250
             priority_then_random.loc[large_build_checker, 'units_for_year'] = 250
-            max_build_checker = priority_then_random.partial_build >= 500
+            max_build_checker = priority_then_random.remaining_capacity >= 500
             priority_then_random.loc[max_build_checker, 'units_for_year'] = 500
             if priority_then_random.units_for_year.sum() < target_number_of_units:
                 priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
