@@ -62,7 +62,7 @@ def parcel_table_update_units(parcel_table, current_builds):
                                           groupby(["parcel_id", "residential_units"]).units_in_yr.sum()}).reset_index()
     residential_unit_total['residential_units'] = residential_unit_total['total_units_added'] + residential_unit_total['residential_units']
     updated_parcel_table = updated_parcel_table.drop(['partial_build'], 1)
-    updated_parcel_table['partial_build'] = updated_parcel_table.max_capacity_per_type - updated_parcel_table['capacity_used']
+    updated_parcel_table['partial_build'] = updated_parcel_table.capacity - updated_parcel_table['capacity_used']
     updated_parcel_table.partial_build = updated_parcel_table.partial_build.fillna(0)
     updated_parcel_table = updated_parcel_table.drop(['units_in_yr'], 1)
     updated_parcel_table = updated_parcel_table.drop(['residential_units'], 1)
@@ -76,19 +76,22 @@ def parcel_table_update_units(parcel_table, current_builds):
 def run_scheduled_development(hu_forecast, year):
     print('\n Adding scheduled developments in year: %d' % (year))
     sched_dev = orca.get_table('scheduled_development').to_frame()
-    sched_dev_yr = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity_3 > 0)].copy()
+    sched_dev_yr = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity > 0)].copy()
     if len(sched_dev_yr) > 0:
         sched_dev_yr['year_built'] = year
-        sched_dev_yr['units_added'] = sched_dev_yr['capacity_3']
-        sched_dev_yr['source'] = '1'
+        sched_dev_yr['units_added'] = sched_dev_yr['capacity']
+        sched_dev_yr['source'] = 1
         b = hu_forecast.to_frame(hu_forecast.local_columns)
         units = pd.concat([b,sched_dev_yr[b.columns]])
         units.reset_index(drop=True,inplace=True)
+        units['source'] = units['source'].astype(int)
         orca.add_table("hu_forecast",units)
         sched_dev = pd.merge(sched_dev,sched_dev_yr[['parcel_id', 'units_added']],\
                              how='left', left_on=['parcel_id'], right_on=['parcel_id'])
         sched_dev.units_added.fillna(0,inplace=True)
         sched_dev['residential_units'] = sched_dev['residential_units'] + sched_dev['units_added']
+        sched_dev['capacity_used'] = sched_dev['capacity_used'] + sched_dev['units_added']
+        sched_dev = sched_dev.drop(['units_added'], axis=1)
         orca.add_table("scheduled_development", sched_dev)
 
 def run_reducer(hu_forecast, year):
@@ -110,7 +113,7 @@ def run_reducer(hu_forecast, year):
             parcels_reduced['year_built'] = year
             parcels_reduced['hu_forecast_type_id'] = ''
             parcels_reduced['residential_units'] = parcels_reduced['capacity_2']
-            parcels_reduced['source'] = '4'
+            parcels_reduced['source'] = 4
             for parcel in parcels_reduced['parcel_id'].tolist():
                 reducible_parcels.loc[reducible_parcels.parcel_id == parcel, 'capacity_2'] = 0
             orca.add_table("negative_parcels", reducible_parcels)
@@ -144,7 +147,7 @@ def run_feasibility(parcels, year=None):
     devyear.reset_index(inplace=True, drop=False)
     parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
     parcels.set_index('parcel_id',inplace=True)
-    feasible_parcels = parcels.loc[parcels['max_capacity_per_type'] > parcels['capacity_used']].copy()
+    feasible_parcels = parcels.loc[parcels['capacity'] > parcels['capacity_used']].copy()
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
     # Restrict feasibility to specific years, based on scenario (TBD)
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year]
@@ -160,7 +163,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             print("WARNING THERE WERE NOT ENOUGH UNITS TO MATCH DEMAND FOR", name_of_geo, "IN YEAR", year_simulation)
             if len(parcels_to_choose):
                 parcels_picked= parcels_to_choose
-                parcels_picked['residential_units_sim_yr'] = parcels_picked['remaining_capacity']
+                parcels_picked['units_added'] = parcels_picked['remaining_capacity']
                 parcels_picked.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True)
         else:
             shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
@@ -189,7 +192,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             one_row_per_unit = priority_then_random.reindex(priority_then_random.index.repeat(priority_then_random.units_for_year)).reset_index(drop=True)
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
             # for debugging purposes
-            if len(one_row_per_unit_picked .loc[one_row_per_unit_picked.parcel_id==5048607]) > 0:
+            if len(one_row_per_unit_picked.loc[one_row_per_unit_picked.parcel_id==641960]) > 0:
                 print(one_row_per_unit_picked)
             parcels_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.
                                           groupby(["parcel_id",'capacity_type'])
@@ -272,7 +275,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     '''
     # initialize dataframes for i/o tracking
     sr14cap = pd.DataFrame()
-    feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.max_capacity_per_type - \
+    feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.capacity - \
                                                 feasible_parcels_df.capacity_used
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
     for jur in control_totals.geo_id.unique().tolist():
@@ -297,7 +300,10 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
                 # feasible_parcels_df = feasible_parcels_df.drop(feasible_parcels_df[feasible_parcels_df.jur_or_cpa_id == jur].index)
                 feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.jur_or_cpa_id!=jur].copy()
         if len(chosen):
-            chosen['source'] = '2'
+            # for debugging purposes
+            if len(chosen.loc[chosen.index==641960]) > 0:
+                print(chosen.loc[641960])
+            chosen['source'] = 2
         sr14cap = sr14cap.append(chosen)
 
     if len(sr14cap):
@@ -307,7 +313,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     if remaining_units > 0:
         feasible_parcels_df = feasible_parcels_df.join(sr14cap[['units_added']])
         feasible_parcels_df.units_added = feasible_parcels_df.units_added.fillna(0)
-        feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.max_capacity_per_type - feasible_parcels_df.capacity_used\
+        feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.capacity - feasible_parcels_df.capacity_used\
                                                     - feasible_parcels_df.units_added
         feasible_parcels_df['remaining_capacity'] = feasible_parcels_df['remaining_capacity'].astype(int)
         feasible_parcels_df= feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0].copy()
@@ -316,7 +322,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
         feasible_parcels_df['partial_build'] = feasible_parcels_df.units_added
         chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
         if len(chosen):
-            chosen['source'] = '3'
+            chosen['source'] = 3
         sr14cap = sr14cap.append(chosen)
 
     if len(sr14cap) > 0:
@@ -342,9 +348,9 @@ def summary(year):
     parcels = orca.get_table('parcels').to_frame()
     hu_forecast = orca.get_table('hu_forecast').to_frame()
     hu_forecast_year = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
-    sched_dev_built = (hu_forecast_year.loc[(hu_forecast_year.source == '1')]).units_added.sum()
-    subregional_control_built = (hu_forecast_year.loc[(hu_forecast_year.source == '2')]).units_added.sum()
-    entire_region_built = (hu_forecast_year.loc[(hu_forecast_year.source == '3')]).units_added.sum()
+    sched_dev_built = (hu_forecast_year.loc[(hu_forecast_year.source == 1)]).units_added.sum()
+    subregional_control_built = (hu_forecast_year.loc[(hu_forecast_year.source == 2)]).units_added.sum()
+    entire_region_built = (hu_forecast_year.loc[(hu_forecast_year.source == 3)]).units_added.sum()
     print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
     print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))

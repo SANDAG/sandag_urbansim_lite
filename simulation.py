@@ -28,6 +28,7 @@ orca.run([
 hu_forecast = orca.get_table('hu_forecast').to_frame()
 hu_forecast = hu_forecast.reset_index(drop=False)
 hu_forecast = hu_forecast.loc[(hu_forecast['year_built'] > 2016)]
+hu_forecast['source'] = hu_forecast['source'].astype(str)
 hu_forecast_out = hu_forecast[['parcel_id','units_added','year_built','source','capacity_type']].copy()
 hu_forecast_out.reset_index(drop=True,inplace=True)
 hu_forecast_out.rename(columns = {'year_built': 'year_simulation'},inplace=True)
