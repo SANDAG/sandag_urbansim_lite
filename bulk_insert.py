@@ -25,42 +25,45 @@ def parcel_table_update(parcel_table, current_builds):
 
 
 def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, dev_lu_table, scenario, year):
-    sched_dev.rename(columns={"residential_units": "hs", "yr": "phase_yr"}, inplace=True)
-    sched_dev_nyr = sched_dev.drop(['phase_yr', 'capacity_3'], axis=1)
-    parcel_table.rename(columns={"residential_units": "hs"}, inplace=True)
     parcel_table.reset_index(inplace=True)
     phase_year.reset_index(inplace=True)
-    parcel_table = pd.concat([parcel_table, sched_dev_nyr])
-    #phase_year = pd.concat([phase_year, sched_dev[['parcel_id', 'phase_yr', 'capacity_type']]])
-    year_update = pd.merge(parcel_table, current_builds[['parcel_id', 'residential_units', 'source', 'capacity_type']],
-                           how='left', on=['parcel_id', 'capacity_type'])
-    year_update = pd.merge(year_update, phase_year[['parcel_id', 'phase_yr', 'capacity_type']], how='left',
+    parcel_table = pd.merge(parcel_table, phase_year[['parcel_id', 'phase_yr', 'capacity_type']], how='left',
                            on=['parcel_id', 'capacity_type'])
-    year_update = pd.merge(year_update, sched_dev[['parcel_id', 'capacity_type', 'phase_yr']], how='left',
-                           on=['parcel_id', 'capacity_type', 'phase_yr'])
-    year_update.rename(columns={"residential_units": "chg_hs", "phase_yr": "phase",
+    sched_dev.rename(columns={"yr": "phase_yr"}, inplace=True)
+    parcel_table = pd.concat([parcel_table, sched_dev])
+    parcel_table.rename(columns={"residential_units": "hs"}, inplace=True)
+    #phase_year = pd.concat([phase_year, sched_dev[['parcel_id', 'phase_yr', 'capacity_type']]])
+    year_update = pd.merge(parcel_table, current_builds[['parcel_id', 'units_added', 'source', 'capacity_type']],
+                           how='left', on=['parcel_id', 'capacity_type'])
+    year_update.rename(columns={"units_added": "chg_hs", "phase_yr": "phase",
                                 "jur_or_cpa_id": "cpa_id", "source": "source_id", "capacity_type": "cap_type"}, inplace=True)
     year_update.loc[year_update.cpa_id < 20, 'cpa_id'] = np.nan
     year_update['scenario_id'] = scenario
     year_update['yr'] = year
     year_update['taz'] = np.nan
     year_update['lu_2017'] = np.nan
-    year_update['cap_hs'] = year_update['max_res_units'] - year_update['hs']
-    year_update = year_update.drop(['max_res_units'], axis=1)
+    year_update['capacity'].fillna(0,inplace=True)
+    year_update['capacity_used'].fillna(0,inplace=True)
+    year_update['cap_hs'] = year_update['capacity'] - year_update['capacity_used']
     increment = year - (year % 5)
     if increment == 2015:
         increment = 2017
     year_update['increment'] = increment
     year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
     year_update['source_id'] = year_update['source_id'].fillna(0)
-    year_update['phase'] = year_update['phase'].fillna(2015)
+    year_update['phase'] = year_update['phase'].fillna(2017)
     year_update['cap_type'] = year_update['cap_type'].fillna("no capacity")
     year_update.sort_values(by=['parcel_id'])
     year_update = year_update.reset_index(drop=True)
     year_update.fillna(-99, inplace=True) # pivot does not handle null
+
+    ###########################################################################
+    # regional overflow needs to be after pivot otherwise parcel is duplicated
+    ##########################################################################
     year_update['regional_overflow'] = 0
-    year_update['source_id'] = year_update['source_id'].astype(str).astype(int)
-    year_update.loc[year_update.source_id == 3, 'regional_overflow'] = 1
+    # SKIP for now
+    # year_update.loc[year_update.source_id == 3, 'regional_overflow'] = 1  # skip for now - must be after pivot
+
     year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr', 'lu_2017',
                             'jurisdiction_id', 'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id',
                             'lu', 'plu', 'hs', 'regional_overflow'], columns='cap_type',
@@ -286,7 +289,7 @@ def run_insert(year):
     else:
         scenario = scenario_grab("cap")
     year_update_cap = capacity_parcels.copy()
-    year_update_cap = year_update_cap.drop(['capacity_base_yr', 'partial_build'], axis=1)
+    year_update_cap = year_update_cap.drop(['partial_build'], axis=1)
     year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, sched_dev, dev_lu_table, scenario, year)
     table_insert(year_update_cap, year, "cap", conn)
 
