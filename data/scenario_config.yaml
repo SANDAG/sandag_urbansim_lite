@@ -3,4 +3,5 @@ scenario:
     subregional_ctrl_id: 4
     demographic_simulation_id: 102
     parcel_phase_yr: 1
-    additional_capacity_version: 1
+    additional_capacity_version: 102
+    sched_dev_version: 2
