@@ -71,8 +71,9 @@ sched_dev_sql = '''
     FROM urbansim.urbansim.parcel as p
         inner join urbansim.urbansim.scheduled_development_do_not_use as s
         on p.parcel_id = s.parcel_id
-        WHERE s.sched_version_id = 1
+        WHERE s.sched_version_id = %s
 '''
+sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']
 
 luz_names_sql = '''
     SELECT zone, name
