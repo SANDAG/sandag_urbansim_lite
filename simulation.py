@@ -52,15 +52,17 @@ subregional_ctrl_id = scenarios['subregional_ctrl_id']
 housing_units_version_id = scenarios['demographic_simulation_id']
 phase_yr_id = scenarios['parcel_phase_yr']
 additional_capacity_version_id = scenarios['additional_capacity_version']
+sched_version_id = scenarios['sched_dev_version']
+
 
 last_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).rstrip()
 
 output_records = pd.DataFrame(columns=['run_id', 'run_description', 'run_date','subregional_ctrl_id',\
-                                       'housing_units_version_id','phase_yr_id','additional_capacity_version_id','git'])
+                                       'housing_units_version_id','phase_yr_id','additional_capacity_version_id','sched_version_id','git'])
 run_description = 'sch dev phasing from urbansim.scheduled_development_do_not_use'
 run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 output_records.loc[run_id] = [run_id, run_description, run_date,subregional_ctrl_id,\
-                              housing_units_version_id,phase_yr_id,additional_capacity_version_id,last_commit]
+                              housing_units_version_id,phase_yr_id,additional_capacity_version_id,sched_version_id,last_commit]
 # output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')
 #
 # hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,if_exists='append',
