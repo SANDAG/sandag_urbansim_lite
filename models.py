@@ -10,8 +10,8 @@ def year(iter_var):
 
 
 @orca.step('scheduled_development_events')
-def scheduled_development_events(hu_forecast, year):
-    utils.run_scheduled_development(hu_forecast, year)
+def scheduled_development_events(hu_forecast,households,year):
+    utils.run_scheduled_development(hu_forecast,households,year)
 
 
 @orca.step('negative_parcel_reducer')

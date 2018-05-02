@@ -73,26 +73,61 @@ def parcel_table_update_units(parcel_table, current_builds):
     return updated_parcel_table
 
 
-def run_scheduled_development(hu_forecast, year):
+# def run_scheduled_development(hu_forecast, year):
+#     print('\n Adding scheduled developments in year: %d' % (year))
+#     sched_dev = orca.get_table('scheduled_development').to_frame()
+#     sched_dev_yr = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity > 0)].copy()
+#     if len(sched_dev_yr) > 0:
+#         sched_dev_yr['year_built'] = year
+#         sched_dev_yr['units_added'] = sched_dev_yr['capacity']
+#         sched_dev_yr['source'] = 1
+#         b = hu_forecast.to_frame(hu_forecast.local_columns)
+#         units = pd.concat([b,sched_dev_yr[b.columns]])
+#         units.reset_index(drop=True,inplace=True)
+#         units['source'] = units['source'].astype(int)
+#         orca.add_table("hu_forecast",units)
+#         sched_dev = pd.merge(sched_dev,sched_dev_yr[['parcel_id', 'units_added']],\
+#                              how='left', left_on=['parcel_id'], right_on=['parcel_id'])
+#         sched_dev.units_added.fillna(0,inplace=True)
+#         sched_dev['residential_units'] = sched_dev['residential_units'] + sched_dev['units_added']
+#         sched_dev['capacity_used'] = sched_dev['capacity_used'] + sched_dev['units_added']
+#         sched_dev = sched_dev.drop(['units_added'], axis=1)
+#         orca.add_table("scheduled_development", sched_dev)
+
+
+# add all sched dev first - before using jur provided units
+def run_scheduled_development(hu_forecast,households,year):
     print('\n Adding scheduled developments in year: %d' % (year))
+    hh = int(households.to_frame().at[year, 'housing_units_add'])
+    print('\n Number of households in year: %d' % (hh))
     sched_dev = orca.get_table('scheduled_development').to_frame()
-    sched_dev_yr = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity > 0)].copy()
-    if len(sched_dev_yr) > 0:
-        sched_dev_yr['year_built'] = year
-        sched_dev_yr['units_added'] = sched_dev_yr['capacity']
-        sched_dev_yr['source'] = 1
+    sched_dev.sort_values(by=['yr', 'site_id'],inplace=True)
+    # sched_dev_yr = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity > 0)].copy()
+    sched_dev_yr = sched_dev.loc[sched_dev['capacity'] > sched_dev['capacity_used']].copy()
+    sched_dev_yr['remaining'] = sched_dev_yr['capacity'] - sched_dev_yr['capacity_used']
+    sched_dev_yr['remaining'] =  sched_dev_yr['remaining'].astype(int)
+    if sched_dev_yr.remaining.sum() > 0:
+        one_row_per_unit = sched_dev_yr.reindex(sched_dev_yr.index.repeat(sched_dev_yr.remaining)).\
+            reset_index(drop=True)
+        one_row_per_unit_picked = one_row_per_unit.head(hh)
+        # for debugging purposes
+        sched_dev_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.
+                                      groupby(["parcel_id"]).size()}).reset_index()
+        sched_dev_picked['year_built'] = year
+        sched_dev_picked['source'] = 1
+        sched_dev_picked['capacity_type'] = 'sch'
         b = hu_forecast.to_frame(hu_forecast.local_columns)
-        units = pd.concat([b,sched_dev_yr[b.columns]])
-        units.reset_index(drop=True,inplace=True)
+        units = pd.concat([b, sched_dev_picked[b.columns]])
+        units.reset_index(drop=True, inplace=True)
         units['source'] = units['source'].astype(int)
-        orca.add_table("hu_forecast",units)
-        sched_dev = pd.merge(sched_dev,sched_dev_yr[['parcel_id', 'units_added']],\
-                             how='left', left_on=['parcel_id'], right_on=['parcel_id'])
-        sched_dev.units_added.fillna(0,inplace=True)
-        sched_dev['residential_units'] = sched_dev['residential_units'] + sched_dev['units_added']
-        sched_dev['capacity_used'] = sched_dev['capacity_used'] + sched_dev['units_added']
-        sched_dev = sched_dev.drop(['units_added'], axis=1)
-        orca.add_table("scheduled_development", sched_dev)
+        orca.add_table("hu_forecast", units)
+        sched_dev_updated = pd.merge( sched_dev,sched_dev_picked[['parcel_id','units_added']],how='left',on='parcel_id')
+        sched_dev_updated.units_added.fillna(0,inplace=True)
+        sched_dev_updated['residential_units'] = sched_dev_updated['residential_units'] + sched_dev_updated['units_added']
+        sched_dev_updated['capacity_used'] = sched_dev_updated['capacity_used'] + sched_dev_updated['units_added']
+        sched_dev_updated = sched_dev_updated.drop(['units_added'], axis=1)
+        orca.add_table("scheduled_development", sched_dev_updated)
+
 
 def run_reducer(hu_forecast, year):
     try:
