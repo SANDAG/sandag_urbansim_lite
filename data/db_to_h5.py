@@ -16,11 +16,10 @@ parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
              cap_jurisdiction_id,
              jurisdiction_id,
-             p.luz_id, p.site_id, capacity_2 AS capacity_base_yr, 
-             capacity_2 as max_capacity_per_type,
+             p.luz_id, p.site_id,
+             capacity_2 as capacity,
              0 as capacity_used,
              du_2017 AS residential_units, 
-             COALESCE(du_2017,0)  + COALESCE(capacity_2,0) as max_res_units,
              0 as partial_build,
              'jur' as capacity_type,
              development_type_id_2017 as dev_type,
@@ -38,11 +37,9 @@ SELECT  a.parcel_id,
         p.jurisdiction_id,
         p.luz_id,
         p.site_id,
-        a.du as capacity_base_yr,
-        a.du as max_capacity_per_type,
+        a.du as capacity,
         0 as capacity_used,
         p.du_2017 as residential_units,
-        COALESCE(p.du_2017,0)  + COALESCE(a.du,0) as max_res_units,
         0 as partial_build,
         type as capacity_type,
         p.development_type_id_2017 as dev_type,
@@ -69,8 +66,8 @@ all_parcel_sql = '''
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
 
 sched_dev_sql = '''
-    SELECT s.parcel_id, p.mgra_id, p.cap_jurisdiction_id, p.jurisdiction_id, p.luz_id, s.site_id, s.capacity_3, 
-        p.du_2017 as residential_units, s.yr, (p.du_2017 + s.capacity_3) as max_res_units, 'sch' as capacity_type
+    SELECT s.parcel_id, p.mgra_id, p.cap_jurisdiction_id, p.jurisdiction_id, p.luz_id, s.site_id, s.capacity_3 as capacity, 
+        p.du_2017 as residential_units, s.yr, 'sch' as capacity_type,0 as capacity_used
     FROM urbansim.urbansim.parcel as p
         inner join urbansim.urbansim.scheduled_development_do_not_use as s
         on p.parcel_id = s.parcel_id
@@ -121,7 +118,7 @@ hu_forecast_sql = '''
     SELECT parcel_id
         ,0 as units_added
         ,COALESCE(year_built,0) AS year_built
-        ,'existing' as source
+        ,0 as source
         ,'no_cap' as capacity_type
      FROM urbansim.urbansim.building
      where year_built > 2016
