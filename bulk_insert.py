@@ -71,7 +71,11 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, de
     year_update['regional_overflow'] = 0
     parcel_regional_overflow = year_update.loc[year_update.source_id == 3].parcel_id.tolist()
     year_update.loc[year_update.parcel_id.isin(parcel_regional_overflow), 'regional_overflow'] = 1
-
+    year_update.replace('cc', 'sgoa', inplace=True)
+    year_update.replace('mc', 'sgoa', inplace=True)
+    year_update.replace('tc', 'sgoa', inplace=True)
+    year_update.replace('tco', 'sgoa', inplace=True)
+    year_update.replace('uc', 'sgoa', inplace=True)
     year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr', 'lu_2017',
                             'jurisdiction_id', 'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id',
                             'lu', 'plu', 'hs', 'regional_overflow'], columns='cap_type',
@@ -89,10 +93,9 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, de
     year_update_pivot = year_update_pivot[['scenario_id', 'parcel_id', 'yr', 'increment', 'jurisdiction_id',
                                            'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'site_id', 'taz',
                                            'hs', 'tot_cap_hs', 'tot_chg_hs', 'lu', 'plu', 'lu_2017', 'dev_type',
-                                           'regional_overflow', 'cap_hs_adu', 'cap_hs_cc', 'cap_hs_jur', 'cap_hs_mc',
-                                           'cap_hs_sch', 'cap_hs_tc', 'cap_hs_tco', 'cap_hs_uc', 'chg_hs_adu',
-                                           'chg_hs_cc', 'chg_hs_jur', 'chg_hs_mc', 'chg_hs_sch', 'chg_hs_tc',
-                                           'chg_hs_tco', 'chg_hs_uc']]
+                                           'regional_overflow', 'cap_hs_adu', 'cap_hs_jur',
+                                           'cap_hs_sch', 'cap_hs_sgoa', 'chg_hs_adu',
+                                           'chg_hs_jur',  'chg_hs_sch','chg_hs_sgoa']]
     return year_update_pivot
 
 
@@ -132,21 +135,13 @@ def table_setup(table_type, conn):
                         [dev_type] [tinyint] NULL,
                         [regional_overflow] [bit] NOT NULL,
                         [cap_hs_adu] [smallint] NULL,
-                        [cap_hs_cc] [smallint] NULL,
                         [cap_hs_jur] [smallint] NULL,
-                        [cap_hs_mc] [smallint] NULL,
                         [cap_hs_sch] [smallint] NULL,
-                        [cap_hs_tc] [smallint] NULL,
-                        [cap_hs_tco] [smallint] NULL,
-                        [cap_hs_uc] [smallint] NULL,
+                        [cap_hs_sgoa] [smallint] NULL,
                         [chg_hs_adu] [smallint] NULL,
-                        [chg_hs_cc] [smallint] NULL,
                         [chg_hs_jur] [smallint] NULL,
-                        [chg_hs_mc] [smallint] NULL,
                         [chg_hs_sch] [smallint] NULL,
-                        [chg_hs_tc] [smallint] NULL,
-                        [chg_hs_tco] [smallint] NULL,
-                        [chg_hs_uc] [smallint] NULL
+                        [chg_hs_sgoa] [smallint] NULL
                     )WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
                 conn.execute(create_table_sql)
                 #Would prefer to remove jur_id and hs from the key, but there is a discrepancy in additional units atm
@@ -273,21 +268,13 @@ def run_insert(year):
                         [dev_type] [float] NULL,
                         [regional_overflow] [bit] NOT NULL,
                         [cap_hs_adu] [float] NULL,
-                        [cap_hs_cc] [float] NULL,
                         [cap_hs_jur] [float] NULL,
-                        [cap_hs_mc] [float] NULL,
                         [cap_hs_sch] [float] NULL,
-                        [cap_hs_tc] [float] NULL,
-                        [cap_hs_tco] [float] NULL,
-                        [cap_hs_uc] [float] NULL,
+                        [cap_hs_sgoa] [float] NULL,
                         [chg_hs_adu] [float] NULL,
-                        [chg_hs_cc] [float] NULL,
                         [chg_hs_jur] [float] NULL,
-                        [chg_hs_mc] [float] NULL,
                         [chg_hs_sch] [float] NULL,
-                        [chg_hs_tc] [float] NULL,
-                        [chg_hs_tco] [float] NULL,
-                        [chg_hs_uc] [float] NULL
+                        [chg_hs_sgoa] [float] NULL
                         )'''
             conn.execute(staging_table_sql)
 
