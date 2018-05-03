@@ -52,25 +52,24 @@ def largest_remainder_allocation(df, k):
 def parcel_table_update_units(parcel_table, current_builds):
     # This is the new parcel update section
     # Now merges parcels that were updated in the current year with existing parcel table
-    parcel_table.reset_index(inplace=True, drop=False)
-    updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'capacity_type', 'units_in_yr']],\
+    parcel_table.reset_index(inplace=True, drop=True)
+    updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'capacity_type', 'units_added']],\
                                     how='left', left_on=['parcel_id', 'capacity_type'],\
                                     right_on=['parcel_id', 'capacity_type'])
-    updated_parcel_table.units_in_yr = updated_parcel_table.units_in_yr.fillna(0)
-    updated_parcel_table['capacity_used'] = updated_parcel_table['capacity_used'] + updated_parcel_table['units_in_yr']
+    updated_parcel_table.units_added = updated_parcel_table.units_added.fillna(0)
+    updated_parcel_table['capacity_used'] = updated_parcel_table['capacity_used'] + updated_parcel_table['units_added']
     # updated_parcel_table['lu'].where(updated_parcel_table.units_added == 0, other=updated_parcel_table['plu'], inplace=True)
     residential_unit_total = pd.DataFrame({'total_units_added': updated_parcel_table.\
-                                          groupby(["parcel_id", "residential_units"]).units_in_yr.sum()}).reset_index()
+                                          groupby(["parcel_id", "residential_units"]).units_added.sum()}).reset_index()
     residential_unit_total['residential_units'] = residential_unit_total['total_units_added'] + residential_unit_total['residential_units']
     updated_parcel_table = updated_parcel_table.drop(['partial_build'], 1)
-    updated_parcel_table['partial_build'] = updated_parcel_table.units_in_yr
+    updated_parcel_table['partial_build'] = updated_parcel_table.units_added
     updated_parcel_table.partial_build = updated_parcel_table.partial_build.fillna(0)
-    updated_parcel_table = updated_parcel_table.drop(['units_in_yr'], 1)
+    updated_parcel_table = updated_parcel_table.drop(['units_added'], 1)
     updated_parcel_table = updated_parcel_table.drop(['residential_units'], 1)
     updated_parcel_table = pd.merge(updated_parcel_table, residential_unit_total[['parcel_id','residential_units']], \
                                     how='left', left_on=['parcel_id'], right_on=['parcel_id'])
     updated_parcel_table.residential_units = updated_parcel_table.residential_units.astype(int)
-    updated_parcel_table.set_index('parcel_id', inplace=True)
     return updated_parcel_table
 
 
@@ -179,7 +178,7 @@ def run_feasibility(parcels, year=None):
         # print(year)
     parcels = orca.get_table('parcels').to_frame()
     devyear = orca.get_table('devyear').to_frame()
-    parcels.reset_index(inplace=True,drop=False)
+    parcels.reset_index(inplace=True,drop=True)
     devyear.reset_index(inplace=True, drop=False)
     parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
     parcels.set_index('parcel_id',inplace=True)
@@ -374,7 +373,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
         if year is not None:
             sr14cap["year_built"] = year
 
-        print("Adding {:,} hu_forecast with {:,} {}"
+        print("Adding {:,} parcels capacity type with {:,} {}"
                 .format(len(sr14cap),
                         int(sr14cap[supply_fname].sum()),
                         supply_fname))
@@ -400,7 +399,7 @@ def summary(year):
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
     # The below section is also run in bulk_insert. Will comment out the section in bulk_insert
     # Check if parcels occur multiple times (due to multiple sources). Will skip if false.
-    current_builds = pd.DataFrame({'units_in_yr': hu_forecast_year.
+    current_builds = pd.DataFrame({'units_added': hu_forecast_year.
                                        groupby(["parcel_id", "year_built", "capacity_type"]).
                                        units_added.sum()}).reset_index()
     parcels = parcel_table_update_units(parcels, current_builds)
