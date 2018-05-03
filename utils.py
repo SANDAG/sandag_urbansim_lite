@@ -62,7 +62,7 @@ def parcel_table_update_units(parcel_table, current_builds):
                                           groupby(["parcel_id", "residential_units"]).units_in_yr.sum()}).reset_index()
     residential_unit_total['residential_units'] = residential_unit_total['total_units_added'] + residential_unit_total['residential_units']
     updated_parcel_table = updated_parcel_table.drop(['partial_build'], 1)
-    updated_parcel_table['partial_build'] = updated_parcel_table.capacity - updated_parcel_table['capacity_used']
+    updated_parcel_table['partial_build'] = updated_parcel_table.units_in_yr
     updated_parcel_table.partial_build = updated_parcel_table.partial_build.fillna(0)
     updated_parcel_table = updated_parcel_table.drop(['units_in_yr'], 1)
     updated_parcel_table = updated_parcel_table.drop(['residential_units'], 1)
