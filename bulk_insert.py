@@ -25,18 +25,24 @@ def parcel_table_update(parcel_table, current_builds):
 
 
 def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, dev_lu_table, scenario, year):
-    parcel_table.reset_index(inplace=True)
     phase_year.reset_index(inplace=True)
     parcel_table = pd.merge(parcel_table, phase_year[['parcel_id', 'phase_yr', 'capacity_type']], how='left',
                            on=['parcel_id', 'capacity_type'])
     sched_dev.rename(columns={"yr": "phase_yr"}, inplace=True)
     parcel_table = pd.concat([parcel_table, sched_dev])
     parcel_table.rename(columns={"residential_units": "hs"}, inplace=True)
+    # get list of all parcels with source 3
+    # change source 2 to source 3 when source 3 exists for parcel
+    current_builds_source_3_list = current_builds.loc[current_builds.source==3].parcel_id.tolist()
+    # all occurrences of that parcel changed to source 3 (source 2 changed)
+    current_builds.loc[current_builds.parcel_id.isin(current_builds_source_3_list), 'source'] = 3
+    current_builds_grouped = pd.DataFrame({'chg_hs': current_builds.groupby(['parcel_id', 'capacity_type', 'source']).units_added.sum()})
+    current_builds_grouped.reset_index(inplace=True)
     #phase_year = pd.concat([phase_year, sched_dev[['parcel_id', 'phase_yr', 'capacity_type']]])
-    year_update = pd.merge(parcel_table, current_builds[['parcel_id', 'units_added', 'source', 'capacity_type']],
+    year_update = pd.merge(parcel_table, current_builds_grouped[['parcel_id', 'chg_hs', 'source', 'capacity_type']],
                            how='left', on=['parcel_id', 'capacity_type'])
-    year_update.rename(columns={"units_added": "chg_hs", "phase_yr": "phase",
-                                "jur_or_cpa_id": "cpa_id", "source": "source_id", "capacity_type": "cap_type"}, inplace=True)
+    year_update.rename(columns={"phase_yr": "phase","jur_or_cpa_id": "cpa_id", \
+                                "source": "source_id", "capacity_type": "cap_type"}, inplace=True)
     year_update.loc[year_update.cpa_id < 20, 'cpa_id'] = np.nan
     year_update['scenario_id'] = scenario
     year_update['yr'] = year
@@ -58,11 +64,13 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, de
     year_update.fillna(-99, inplace=True) # pivot does not handle null
 
     ###########################################################################
-    # regional overflow needs to be after pivot otherwise parcel is duplicated
+    # regional overflow
     ##########################################################################
+    # change all occurrences of parcel used as remaining to regional overflow
+    # all occurrences of that parcel changed to regional overflow
     year_update['regional_overflow'] = 0
-    # SKIP for now
-    # year_update.loc[year_update.source_id == 3, 'regional_overflow'] = 1  # skip for now - must be after pivot
+    parcel_regional_overflow = year_update.loc[year_update.source_id == 3].parcel_id.tolist()
+    year_update.loc[year_update.parcel_id.isin(parcel_regional_overflow), 'regional_overflow'] = 1
 
     year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr', 'lu_2017',
                             'jurisdiction_id', 'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id',
@@ -288,6 +296,8 @@ def run_insert(year):
         scenario = table_setup("cap", conn)
     else:
         scenario = scenario_grab("cap")
+    if year == 2032:
+        print(year)
     year_update_cap = capacity_parcels.copy()
     year_update_cap = year_update_cap.drop(['partial_build'], axis=1)
     year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, sched_dev, dev_lu_table, scenario, year)
