@@ -220,15 +220,12 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             #    large_projects = shuffled_parcels.loc[shuffled_parcels.project_urgency > 500]
             #    priority_parcels = pd.concat([previously_picked, large_projects])
             #else:
-
-            priority_parcels = pd.concat([previously_picked])
-            shuffled_parcels = shuffled_parcels[
-                ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
-            if name_of_geo == "all":
-                priority_then_random = pd.concat([shuffled_parcels, priority_parcels])
+            # priority_parcels = pd.concat([previously_picked])
+            # if name_of_geo == "all":
+             #   priority_then_random = pd.concat([shuffled_parcels, priority_parcels])
                 #to remove edge-case double picking, could make this: priority_the_random = shuffled_parcels
-            else:
-                priority_then_random = pd.concat([priority_parcels, shuffled_parcels])
+            # else:
+            #    priority_then_random = pd.concat([priority_parcels, shuffled_parcels])
             priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
             large_build_checker = priority_then_random.remaining_capacity >= 250
             priority_then_random.loc[large_build_checker, 'units_for_year'] = 250
