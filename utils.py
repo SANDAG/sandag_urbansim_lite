@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import math
 import numpy as np
 import orca
@@ -173,9 +171,6 @@ def run_feasibility(parcels, year=None):
     """
 
     print("Computing feasibility")
-    # for debugging purposes
-    # if year==2049:
-        # print(year)
     parcels = orca.get_table('parcels').to_frame()
     devyear = orca.get_table('devyear').to_frame()
     parcels.reset_index(inplace=True,drop=True)
@@ -322,10 +317,6 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
                                                 feasible_parcels_df.capacity_used
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
     for jur in control_totals.geo_id.unique().tolist():
-    # for jur in jurs['cap_jurisdiction_id'].tolist():
-    # for debugging purposes
-        if (year==2018):
-            print(jur)
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id']==jur].max_units.values[0]
         # use nanmin to handle null values for max units
@@ -343,9 +334,6 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
                 # feasible_parcels_df = feasible_parcels_df.drop(feasible_parcels_df[feasible_parcels_df.jur_or_cpa_id == jur].index)
                 feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.jur_or_cpa_id!=jur].copy()
         if len(chosen):
-            # for debugging purposes
-            if len(chosen.loc[chosen.index==641960]) > 0:
-                print(chosen.loc[641960])
             chosen['source'] = 2
         sr14cap = sr14cap.append(chosen)
 
@@ -360,8 +348,6 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
                                                     - feasible_parcels_df.units_added
         feasible_parcels_df['remaining_capacity'] = feasible_parcels_df['remaining_capacity'].astype(int)
         feasible_parcels_df= feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0].copy()
-        if year==2024:
-            print(year)
         feasible_parcels_df['partial_build'] = feasible_parcels_df.units_added
         chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
         if len(chosen):
