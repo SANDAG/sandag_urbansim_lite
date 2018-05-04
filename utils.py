@@ -230,7 +230,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             one_row_per_unit = priority_then_random.reindex(priority_then_random.index.repeat(priority_then_random.units_for_year)).reset_index(drop=True)
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
             # for debugging purposes
-            if len(one_row_per_unit_picked.loc[one_row_per_unit_picked.parcel_id==641960]) > 0:
+            if len(one_row_per_unit_picked.loc[one_row_per_unit_picked.parcel_id==5243722]) > 0:
                 print(one_row_per_unit_picked)
             parcels_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.
                                           groupby(["parcel_id",'capacity_type'])
@@ -342,8 +342,14 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     else: remaining_units = target_units
 
     if remaining_units > 0:
-        feasible_parcels_df = feasible_parcels_df.join(sr14cap[['units_added']])
+        # feasible_parcels_df = feasible_parcels_df.join(sr14cap[['units_added']])
+        feasible_parcels_df.reset_index(inplace=True)
+        sr14cap.reset_index(inplace=True)
+        feasible_parcels_df = pd.merge(feasible_parcels_df,sr14cap[['parcel_id','units_added','capacity_type']],how='left',on=['parcel_id','capacity_type'])
+        feasible_parcels_df.set_index('parcel_id', inplace=True)
+        sr14cap.set_index('parcel_id',inplace=True)
         feasible_parcels_df.units_added = feasible_parcels_df.units_added.fillna(0)
+
         feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.capacity - feasible_parcels_df.capacity_used\
                                                     - feasible_parcels_df.units_added
         feasible_parcels_df['remaining_capacity'] = feasible_parcels_df['remaining_capacity'].astype(int)

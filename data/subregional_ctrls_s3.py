@@ -511,7 +511,7 @@ sr13.drop(['units', 'units_adj1','adj_forecast_hs'], axis=1,inplace=True)
 
 sr13.fillna(0,inplace=True)
 
-sr13['scenario'] = 4
+sr13['scenario'] = 6
 sr13['geo_id'] = sr13['jcid']
 sr13['max_units'] = None
 sr13['geo'] = 'jur_and_cpa'
