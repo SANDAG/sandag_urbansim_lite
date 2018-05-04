@@ -96,7 +96,12 @@ def parcel_table_update_units(parcel_table, current_builds):
 # add all sched dev first - before using jur provided units
 def run_scheduled_development(hu_forecast,households,year):
     print('\n Adding scheduled developments in year: %d' % (year))
-    hh = int(households.to_frame().at[year, 'housing_units_add'])
+    if year >= 2019:
+        hh = int(households.to_frame().at[year, 'housing_units_add'])
+        adu_share = int((.05 + .05 / (2051 - year)) * hh)
+        hh = hh - adu_share
+    else:
+        hh = int(households.to_frame().at[year, 'housing_units_add'])
     print('\n Number of households in year: %d' % (hh))
     sched_dev = orca.get_table('scheduled_development').to_frame()
     sched_dev.sort_values(by=['yr', 'site_id'],inplace=True)
@@ -180,7 +185,7 @@ def run_feasibility(parcels, year=None):
     feasible_parcels = parcels.loc[parcels['capacity'] > parcels['capacity_used']].copy()
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
     # Restrict feasibility to specific years, based on scenario (TBD)
-    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year]
+    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
     # remove scheduled developments from feasibility table
     feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
     orca.add_table("feasibility", feasible_parcels)
@@ -188,6 +193,7 @@ def run_feasibility(parcels, year=None):
 
 def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_simulation):
     parcels_picked = pd.DataFrame()
+    parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'adu'].copy()
     if target_number_of_units > 0:
         if parcels_to_choose.remaining_capacity.sum() < target_number_of_units:
             print("WARNING THERE WERE NOT ENOUGH UNITS TO MATCH DEMAND FOR", name_of_geo, "IN YEAR", year_simulation)
@@ -203,7 +209,8 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             number_of_adu = math.ceil(.10* target_number_of_units)
             if len(adu_parcels) > 0:
                 adu_parcels_to_add = adu_parcels.head(number_of_adu)
-            else: adu_parcels_to_add = adu_parcels
+            else:
+                adu_parcels_to_add = adu_parcels
             priority_parcels = pd.concat([previously_picked,adu_parcels_to_add,capacity_jur])
             shuffled_parcels = shuffled_parcels[
                 ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
@@ -280,9 +287,31 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     control_totals = reg_controls.to_frame()
     jurs = jurisdictions.to_frame()
 
-    control_totals_by_year =  control_totals.loc[control_totals.yr == year].copy()
+    control_totals_by_year = control_totals.loc[control_totals.yr == year].copy()
     hh = households.to_frame().at[year, 'total_housing_units']
-    num_units = hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum()
+
+    # initialize dataframes for i/o tracking
+    sr14cap = pd.DataFrame()
+    feasible_parcels_df = feasibility.to_frame()
+
+    #ADU CALL HERE
+    current_hh = int(households.to_frame().at[year, 'housing_units_add'])
+    adu_share = int((.05 + .05 / (2051 - year)) * current_hh)
+    adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
+    try:
+        shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
+    except ValueError:
+        shuffled_adu = adu_parcels
+    picked_adu_parcels = shuffled_adu.head(adu_share).copy()
+    picked_adu_parcels['source'] = 2
+    picked_adu_parcels['units_added'] = 1
+    try:
+        sr14cap = sr14cap.append(picked_adu_parcels[['parcel_id', 'capacity_type', 'units_added', 'source']])
+        sr14cap.set_index('parcel_id', inplace=True)
+    except KeyError:
+        sr14cap
+
+    num_units = hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum() + len(sr14cap)
     print("Number of households: {:,}".format(int(hh)))
     print("Number of units: {:,}".format(int(num_units)))
     target_vacancy = 0
@@ -290,9 +319,11 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     print("Target of new units = {:,}"
           .format(target_units))
 
-    feasible_parcels_df = feasibility.to_frame()
 
-    print("Target of new units = {:,} after scheduled developments are built".format(target_units))
+
+
+
+    print("Target of new units = {:,} after scheduled developments and adu's are built".format(target_units))
 
     print("{:,} feasible parcels before running developer (excludes sched dev)"
           .format(len(feasible_parcels_df)))
@@ -311,8 +342,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     '''
         Pick parcels to for new units
     '''
-    # initialize dataframes for i/o tracking
-    sr14cap = pd.DataFrame()
+
     feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.capacity - \
                                                 feasible_parcels_df.capacity_used
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
