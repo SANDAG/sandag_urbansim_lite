@@ -10,6 +10,20 @@ mssql_engine = create_engine(db_connection_string)
 
 scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 
+
+run_id_sql = '''
+SELECT max(phase_yr_version_id)
+  FROM [urbansim].[urbansim].[urbansim_lite_output]
+'''
+version_id_df = pd.read_sql(run_id_sql, mssql_engine)
+
+if version_id_df.values:
+    version_id = int(version_id_df .values) + 1
+else:
+    version_id = 102
+
+
+
 parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
              cap_jurisdiction_id,
@@ -42,12 +56,12 @@ parcels_df.parcel_id = parcels_df.parcel_id.astype(int)
 parcels_df.set_index('parcel_id',inplace=True)
 #
 parcels_df['phase_yr'] = 2017
-parcels_df['phase_yr_version_id'] = 102
+parcels_df['phase_yr_version_id'] = version_id
 parcels_df['capacity_type'] = 'jur'
-parcels_df.loc[parcels_df.cocpa_2016==1904,'phase_yr'] = 2034
+# parcels_df.loc[parcels_df.cocpa_2016==1904,'phase_yr'] = 2034
 parcels_df = parcels_df[['phase_yr','phase_yr_version_id','capacity_type']]
 
-
+# WRITE TO DB
 parcels_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
 
 
@@ -72,7 +86,7 @@ assigned_df.parcel_id = assigned_df.parcel_id.astype(int)
 assigned_df.set_index('parcel_id',inplace=True)
 #
 assigned_df['phase_yr'] = 2035
-assigned_df['phase_yr_version_id'] = 102
+assigned_df['phase_yr_version_id'] = version_id
 
 # The following jurisdictions have agreed to make their ADUs available for "realization" beginning from 2019
 # the City of San Diego
@@ -89,6 +103,7 @@ assigned_df.loc[((assigned_df.jur_id==5) & (assigned_df.capacity_type=='adu')),'
 
 assigned_df = assigned_df[['phase_yr','phase_yr_version_id','capacity_type']]
 
+# WRITE TO DB
 assigned_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
 
 
@@ -114,7 +129,9 @@ sched_dev_df.parcel_id = sched_dev_df.parcel_id.astype(int)
 sched_dev_df.set_index('parcel_id',inplace=True)
 #
 sched_dev_df['phase_yr'] = 2017
-sched_dev_df['phase_yr_version_id'] = 102
+sched_dev_df['phase_yr_version_id'] = version_id
 sched_dev_df['capacity_type'] = 'sch'
 sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','capacity_type']]
+
+# WRITE TO DB
 sched_dev_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
