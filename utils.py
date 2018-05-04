@@ -303,7 +303,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     except ValueError:
         shuffled_adu = adu_parcels
     picked_adu_parcels = shuffled_adu.head(adu_share).copy()
-    picked_adu_parcels['source'] = 2
+    picked_adu_parcels['source'] = 5
     picked_adu_parcels['units_added'] = 1
     try:
         sr14cap = sr14cap.append(picked_adu_parcels[['parcel_id', 'capacity_type', 'units_added', 'source']])
