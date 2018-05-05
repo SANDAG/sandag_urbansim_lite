@@ -311,7 +311,8 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     except KeyError:
         sr14cap
 
-    num_units = hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum() + len(sr14cap)
+    adu_build = len(sr14cap)
+    num_units = hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum() + adu_build
     print("Number of households: {:,}".format(int(hh)))
     print("Number of units: {:,}".format(int(num_units)))
     target_vacancy = 0
@@ -368,7 +369,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
         sr14cap = sr14cap.append(chosen)
 
     if len(sr14cap):
-        remaining_units = target_units - int(sr14cap.units_added.sum())
+        remaining_units = target_units - int(sr14cap.units_added.sum()) + adu_build
     else: remaining_units = target_units
 
     if remaining_units > 0:
