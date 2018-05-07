@@ -10,51 +10,192 @@ db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
 
-def parcel_table_update(parcel_table, current_builds):
-    # This is the new parcel update section
-    # Now merges parcels that were updated in the current year with existing parcel table
-    updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'residential_units']], how='left', left_index=True,
-                       right_on='parcel_id')
-    updated_parcel_table.set_index('parcel_id',inplace=True)
-    updated_parcel_table.rename(columns={"residential_units_x": "residential_units", "residential_units_y": "updated_units"}, inplace=True)
-    updated_parcel_table.updated_units = updated_parcel_table.updated_units.fillna(0)
-    updated_parcel_table['residential_units'] = updated_parcel_table['residential_units'] + updated_parcel_table['updated_units']
-    updated_parcel_table = updated_parcel_table.drop(['updated_units'], 1)
-    updated_parcel_table.residential_units = updated_parcel_table.residential_units.astype(int)
-    return updated_parcel_table
+def table_setup():
+    while True:
+        print("Writing to the capacity_parcels table (c), all_parcels table (a), both (b) or neither (n)?")
+        table_type_input = input("Choose c, a, b or n:")
+        if table_type_input == "c":
+            table_type_list = ["cap"]
+            break
+        elif table_type_input == "a":
+            table_type_list = ["all"]
+            break
+        elif table_type_input == "b":
+            table_type_list = ["cap", "all"]
+            break
+        elif table_type_input == "n":
+            table_type_list = []
+            break
+        else:
+            print("Please insert only lowercase 'c', 'a', 'b' or 'n' as a response.")
+            continue
+
+    if len(table_type_list) == 0:
+        pass
+    else:
+        conn = mssql_engine.connect()
+        with conn.begin() as trans:
+            conn.execute('DROP TABLE IF EXISTS urbansim.sr14_residential_parcel_staging')
+        with conn.begin() as trans:
+            staging_table_sql = '''
+                    IF OBJECT_ID(N'urbansim.sr14_residential_parcel_staging', N'U') IS NULL
+                    CREATE TABLE [urbansim].[sr14_residential_parcel_staging](
+                        [scenario_id] [float] NOT NULL,
+                        [parcel_id] [float] NOT NULL,
+                        [yr] [float] NOT NULL,
+                        [increment] [float] NOT NULL,
+                        [jurisdiction_id] [float] NOT NULL,
+                        [cap_jurisdiction_id] [float] NOT NULL,
+                        [cpa_id] [float] NULL,
+                        [mgra_id] [float] NULL,
+                        [luz_id] [float] NULL,
+                        [site_id] [float] NULL,
+                        [taz] [float] NULL,
+                        [hs] [float] NOT NULL,
+                        [tot_cap_hs] [float] NOT NULL,
+                        [tot_chg_hs] [float] NOT NULL,
+                        [lu] [float] NULL,
+                        [plu] [float] NULL,
+                        [lu_2017] [float] NULL,
+                        [dev_type] [float] NULL,
+                        [regional_overflow] [bit] NOT NULL,
+                        [cap_hs_adu] [float] NULL,
+                        [cap_hs_jur] [float] NULL,
+                        [cap_hs_sch] [float] NULL,
+                        [cap_hs_sgoa] [float] NULL,
+                        [chg_hs_adu] [float] NULL,
+                        [chg_hs_jur] [float] NULL,
+                        [chg_hs_sch] [float] NULL,
+                        [chg_hs_sgoa] [float] NULL
+                        )'''
+            conn.execute(staging_table_sql)
+
+        for table_type in table_type_list:
+            while True:
+                print("Write (w), Replace (r) or Append (a) to the SQL {}_parcels table?".format(table_type))
+                print("Write will drop and re-create the table, while replace will truncate the existing table.")
+                setup = input()
+                if setup == "w":
+                    with conn.begin() as trans:
+                        conn.execute('DROP TABLE IF EXISTS urbansim.urbansim.sr14_residential_{}_parcel_results'.format(
+                            table_type))
+                    with conn.begin() as trans:
+                        create_table_sql = '''
+                            USE [urbansim]
+                            SET ANSI_NULLS ON
+                            SET QUOTED_IDENTIFIER ON
+                            CREATE TABLE [urbansim].[sr14_residential_{}_parcel_results](
+                                [scenario_id] [tinyint] NOT NULL,
+                                [parcel_id] [int] NOT NULL,
+                                [yr] [smallint] NOT NULL,
+                                [increment] [smallint] NOT NULL,
+                                [jurisdiction_id] [tinyint] NOT NULL,
+                                [cap_jurisdiction_id] [tinyint] NOT NULL,
+                                [cpa_id] [smallint] NULL,
+                                [mgra_id] [smallint] NULL,
+                                [luz_id] [tinyint] NULL,
+                                [site_id] [smallint] NULL,
+                                [taz] [tinyint] NULL,
+                                [hs] [smallint] NOT NULL,
+                                [tot_cap_hs] [smallint] NOT NULL,
+                                [tot_chg_hs] [smallint] NOT NULL,
+                                [lu] [smallint] NULL,
+                                [plu] [smallint] NULL,
+                                [lu_2017] [smallint] NULL,
+                                [dev_type] [tinyint] NULL,
+                                [regional_overflow] [bit] NOT NULL,
+                                [cap_hs_adu] [smallint] NULL,
+                                [cap_hs_jur] [smallint] NULL,
+                                [cap_hs_sch] [smallint] NULL,
+                                [cap_hs_sgoa] [smallint] NULL,
+                                [chg_hs_adu] [smallint] NULL,
+                                [chg_hs_jur] [smallint] NULL,
+                                [chg_hs_sch] [smallint] NULL,
+                                [chg_hs_sgoa] [smallint] NULL
+                                CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
+                                    [scenario_id] ASC,
+                                    [yr] ASC,
+                                    [parcel_id] ASC
+                                    ))WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
+                        conn.execute(create_table_sql)
+                    scenario = int(1)
+                    break
+                elif setup == "r":
+                    with conn.begin() as trans:
+                        conn.execute(
+                            'TRUNCATE TABLE urbansim.urbansim.sr14_residential_{}_parcel_results'.format(table_type))
+                    scenario = int(1)
+                    break
+                elif setup == "a":
+                    scenario_sql = '''
+                                SELECT max(scenario_id)
+                                    FROM [urbansim].[urbansim].[sr14_residential_{}_parcel_results]
+                                '''.format(table_type)
+                    scenario_df = pd.read_sql(scenario_sql, mssql_engine)
+                    try:
+                        scenario = int(scenario_df.values) + 1
+                    except TypeError:
+                        print("Table exists, but is empty. Setting scenario_id to 1")
+                        scenario = int(1)
+                    break
+                else:
+                    print("Please insert only lowercase 'w', 'r' or 'a' as a response.")
+                    continue
+
+            # create parcels yearly update table
+            if table_type == "cap":
+                base_year_table = orca.get_table('parcels').to_frame()
+            if table_type == "all":
+                base_year_table = orca.get_table('all_parcels').to_frame()
+            no_builds = pd.DataFrame()
+            base_year_table = base_year_table.drop(['partial_build'], axis=1)
+            base_year_table = year_update_formatter(base_year_table, no_builds, scenario, 2016)
+            table_insert(base_year_table, 2016, table_type)
 
 
-def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, dev_lu_table, scenario, year):
+def year_update_formatter(parcel_table, current_builds, scenario, year):
+    phase_year = orca.get_table('devyear').to_frame()
+    dev_lu_table = orca.get_table('dev_lu_table').to_frame()
+    sched_dev = orca.get_table('scheduled_development').to_frame()
     phase_year.reset_index(inplace=True)
     parcel_table = pd.merge(parcel_table, phase_year[['parcel_id', 'phase_yr', 'capacity_type']], how='left',
                            on=['parcel_id', 'capacity_type'])
     sched_dev.rename(columns={"yr": "phase_yr"}, inplace=True)
     parcel_table = pd.concat([parcel_table, sched_dev])
     parcel_table.rename(columns={"residential_units": "hs"}, inplace=True)
-    # get list of all parcels with source 3
-    # change source 2 to source 3 when source 3 exists for parcel
-    current_builds_source_3_list = current_builds.loc[current_builds.source==3].parcel_id.tolist()
-    # all occurrences of that parcel changed to source 3 (source 2 changed)
-    current_builds.loc[current_builds.parcel_id.isin(current_builds_source_3_list), 'source'] = 3
-    current_builds_grouped = pd.DataFrame({'chg_hs': current_builds.groupby(['parcel_id', 'capacity_type', 'source']).units_added.sum()})
-    current_builds_grouped.reset_index(inplace=True)
     #phase_year = pd.concat([phase_year, sched_dev[['parcel_id', 'phase_yr', 'capacity_type']]])
-    year_update = pd.merge(parcel_table, current_builds_grouped[['parcel_id', 'chg_hs', 'source', 'capacity_type']],
-                           how='left', on=['parcel_id', 'capacity_type'])
-    year_update.rename(columns={"phase_yr": "phase","jur_or_cpa_id": "cpa_id", \
-                                "source": "source_id", "capacity_type": "cap_type"}, inplace=True)
+    increment = year - (year % 5)
+    if year == 2016:
+        year_update = parcel_table.copy()
+        year_update['chg_hs'] = 0
+        year_update['source'] = 0
+        year_update['increment'] = 2016
+        year_update['cap_hs'] = year_update['capacity']
+    else:
+        # get list of all parcels with source 3
+        # change source 2 to source 3 when source 3 exists for parcel
+        current_builds_source_3_list = current_builds.loc[current_builds.source == 3].parcel_id.tolist()
+        # all occurrences of that parcel changed to source 3 (source 2 changed)
+        current_builds.loc[current_builds.parcel_id.isin(current_builds_source_3_list), 'source'] = 3
+        current_builds_grouped = pd.DataFrame(
+            {'chg_hs': current_builds.groupby(['parcel_id', 'capacity_type', 'source']).units_added.sum()})
+        current_builds_grouped.reset_index(inplace=True)
+        year_update = pd.merge(parcel_table, current_builds_grouped[['parcel_id', 'chg_hs', 'source', 'capacity_type']],
+                               how='left', on=['parcel_id', 'capacity_type'])
+        if increment == 2015:
+            increment = 2017
+        year_update['increment'] = increment
+        year_update['capacity_used'].fillna(0, inplace=True)
+        year_update['cap_hs'] = year_update['capacity'] - year_update['capacity_used']
+
+    year_update.rename(columns={"phase_yr": "phase", "jur_or_cpa_id": "cpa_id", "source": "source_id",
+                                "capacity_type": "cap_type"}, inplace=True)
     year_update.loc[year_update.cpa_id < 20, 'cpa_id'] = np.nan
-    year_update['scenario_id'] = scenario
     year_update['yr'] = year
+    year_update['scenario_id'] = scenario
     year_update['taz'] = np.nan
     year_update['lu_2017'] = np.nan
     year_update['capacity'].fillna(0,inplace=True)
-    year_update['capacity_used'].fillna(0,inplace=True)
-    year_update['cap_hs'] = year_update['capacity'] - year_update['capacity_used']
-    increment = year - (year % 5)
-    if increment == 2015:
-        increment = 2017
-    year_update['increment'] = increment
     year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
     year_update['source_id'] = year_update['source_id'].fillna(0)
     year_update['phase'] = year_update['phase'].fillna(2017)
@@ -99,93 +240,6 @@ def year_update_formater(parcel_table, current_builds, phase_year, sched_dev, de
     return year_update_pivot
 
 
-def table_setup(table_type, conn):
-    # Once this is up and running, it would be wise to remove (or at least dead-end) the 'write' and 'replace' options.
-    while True:
-        print("Write (w), Replace (r) or Append (a) to the SQL {}_parcels table?".format(table_type))
-        print("Write will drop and re-create the table, while replace will truncate the existing table.")
-        setup = input()
-        #setup = 'r'
-        if setup == "w":
-            with conn.begin() as trans:
-                conn.execute('DROP TABLE IF EXISTS urbansim.urbansim.sr14_residential_{}_parcel_results'.format(table_type))
-            with conn.begin() as trans:
-                create_table_sql = '''
-                    USE [urbansim]
-                    SET ANSI_NULLS ON
-                    SET QUOTED_IDENTIFIER ON
-                    CREATE TABLE [urbansim].[sr14_residential_{}_parcel_results](
-                        [scenario_id] [tinyint] NOT NULL,
-                        [parcel_id] [int] NOT NULL,
-                        [yr] [smallint] NOT NULL,
-                        [increment] [smallint] NOT NULL,
-                        [jurisdiction_id] [tinyint] NOT NULL,
-                        [cap_jurisdiction_id] [tinyint] NOT NULL,
-                        [cpa_id] [smallint] NULL,
-                        [mgra_id] [smallint] NULL,
-                        [luz_id] [tinyint] NULL,
-                        [site_id] [smallint] NULL,
-                        [taz] [tinyint] NULL,
-                        [hs] [smallint] NOT NULL,
-                        [tot_cap_hs] [smallint] NOT NULL,
-                        [tot_chg_hs] [smallint] NOT NULL,
-                        [lu] [smallint] NULL,
-                        [plu] [smallint] NULL,
-                        [lu_2017] [smallint] NULL,
-                        [dev_type] [tinyint] NULL,
-                        [regional_overflow] [bit] NOT NULL,
-                        [cap_hs_adu] [smallint] NULL,
-                        [cap_hs_jur] [smallint] NULL,
-                        [cap_hs_sch] [smallint] NULL,
-                        [cap_hs_sgoa] [smallint] NULL,
-                        [chg_hs_adu] [smallint] NULL,
-                        [chg_hs_jur] [smallint] NULL,
-                        [chg_hs_sch] [smallint] NULL,
-                        [chg_hs_sgoa] [smallint] NULL
-                    )WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
-                conn.execute(create_table_sql)
-                #Would prefer to remove jur_id and hs from the key, but there is a discrepancy in additional units atm
-            # CONSTRAINT[PK_sr14_residential_
-            # {}
-            # _parcel_yearly] PRIMARY
-            # KEY
-            # CLUSTERED(
-            #     [scenario_id]
-            # ASC,
-            # [yr]
-            # ASC,
-            # [parcel_id]
-            # ASC,
-            # [jurisdiction_id]
-            # ASC,
-            # [hs]
-            # ASC
-            # )
-            scenario = int(1)
-            break
-        elif setup == "r":
-            with conn.begin() as trans:
-                conn.execute('TRUNCATE TABLE urbansim.urbansim.sr14_residential_{}_parcel_results'.format(table_type))
-            scenario = int(1)
-            break
-        elif setup == "a":
-            scenario_sql = '''
-                        SELECT max(scenario_id)
-                            FROM [urbansim].[urbansim].[sr14_residential_{}_parcel_results]
-                        '''.format(table_type)
-            scenario_df = pd.read_sql(scenario_sql, mssql_engine)
-            try:
-                scenario = int(scenario_df.values) + 1
-            except TypeError:
-                print("Table exists, but is empty. Setting scenario_id to 1")
-                scenario = int(1)
-            break
-        else:
-            print("Please insert only lowercase 'w', 'r' or 'a' as a response.")
-            continue
-    return scenario
-
-
 def scenario_grab(table_type):
     scenario_sql = '''
     SELECT max(scenario_id)
@@ -196,7 +250,8 @@ def scenario_grab(table_type):
     return scenario
 
 
-def table_insert(parcel_table, year, table_type, conn):
+def table_insert(parcel_table, year, table_type):
+    conn = mssql_engine.connect()
     # Load table to M: drive
     start_time = time.monotonic()
     path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}_{}.csv'.format(table_type, year)
@@ -228,67 +283,21 @@ def table_insert(parcel_table, year, table_type, conn):
 
     end_time = time.monotonic()
     print("Time to insert {}_table to target:".format(table_type), timedelta(seconds=end_time - start_time))
+    conn.close()
 
 
 def run_insert(year):
     #all_parcels = orca.get_table('all_parcels').to_frame()
     capacity_parcels = orca.get_table('parcels').to_frame()
-    phase_year = orca.get_table('devyear').to_frame()
-    dev_lu_table = orca.get_table('dev_lu_table').to_frame()
-    sched_dev = orca.get_table('scheduled_development').to_frame()
     hu_forecast = orca.get_table('hu_forecast').to_frame()
     current_builds = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
 
-    # Setup the staging table
-    conn = mssql_engine.connect()
-    if year == 2017:
-        with conn.begin() as trans:
-            conn.execute('DROP TABLE IF EXISTS urbansim.sr14_residential_parcel_staging')
-        with conn.begin() as trans:
-            staging_table_sql = '''
-                    IF OBJECT_ID(N'urbansim.sr14_residential_parcel_staging', N'U') IS NULL
-                    CREATE TABLE [urbansim].[sr14_residential_parcel_staging](
-                        [scenario_id] [float] NOT NULL,
-                        [parcel_id] [float] NOT NULL,
-                        [yr] [float] NOT NULL,
-                        [increment] [float] NOT NULL,
-                        [jurisdiction_id] [float] NOT NULL,
-                        [cap_jurisdiction_id] [float] NOT NULL,
-                        [cpa_id] [float] NULL,
-                        [mgra_id] [float] NULL,
-                        [luz_id] [float] NULL,
-                        [site_id] [float] NULL,
-                        [taz] [float] NULL,
-                        [hs] [float] NOT NULL,
-                        [tot_cap_hs] [float] NOT NULL,
-                        [tot_chg_hs] [float] NOT NULL,
-                        [lu] [float] NULL,
-                        [plu] [float] NULL,
-                        [lu_2017] [float] NULL,
-                        [dev_type] [float] NULL,
-                        [regional_overflow] [bit] NOT NULL,
-                        [cap_hs_adu] [float] NULL,
-                        [cap_hs_jur] [float] NULL,
-                        [cap_hs_sch] [float] NULL,
-                        [cap_hs_sgoa] [float] NULL,
-                        [chg_hs_adu] [float] NULL,
-                        [chg_hs_jur] [float] NULL,
-                        [chg_hs_sch] [float] NULL,
-                        [chg_hs_sgoa] [float] NULL
-                        )'''
-            conn.execute(staging_table_sql)
-
-    # create capacity parcels yearly update table
-    if year == 2017:
-        scenario = table_setup("cap", conn)
-    else:
-        scenario = scenario_grab("cap")
-    if year == 2032:
-        print(year)
+    # Cap_parcels section
+    scenario = scenario_grab("cap")
     year_update_cap = capacity_parcels.copy()
     year_update_cap = year_update_cap.drop(['partial_build'], axis=1)
-    year_update_cap = year_update_formater(year_update_cap, current_builds, phase_year, sched_dev, dev_lu_table, scenario, year)
-    table_insert(year_update_cap, year, "cap", conn)
+    year_update_cap = year_update_formatter(year_update_cap, current_builds, scenario, year)
+    table_insert(year_update_cap, year, "cap")
 
     # # update all parcels table
     # current_builds = pd.DataFrame({'residential_units': current_builds.
@@ -304,6 +313,6 @@ def run_insert(year):
     #     scenario = scenario_grab("all")
     # year_update_all = all_parcels.copy()
     # year_update_all = year_update_all.drop(['base_cap'], axis=1)
-    # year_update_all = year_update_formater(year_update_all, current_builds, phase_year, scenario, year)
+    # year_update_all = year_update_formatter(year_update_all, current_builds, phase_year, scenario, year)
     # table_insert(year_update_all, year, "all", conn)
-    conn.close()
+

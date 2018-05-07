@@ -98,7 +98,7 @@ def run_scheduled_development(hu_forecast,households,year):
     print('\n Adding scheduled developments in year: %d' % (year))
     if year >= 2019:
         hh = int(households.to_frame().at[year, 'housing_units_add'])
-        adu_share = int((.05 + (.05/32)*(year-2019)) * hh)
+        adu_share = int((.05 + (.05/31)*(year-2019)) * hh)
         hh = hh - adu_share
     else:
         hh = int(households.to_frame().at[year, 'housing_units_add'])
@@ -297,7 +297,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
 
     #ADU CALL HERE
     current_hh = int(households.to_frame().at[year, 'housing_units_add'])
-    adu_share = int((.05 + (.05/32)*(year-2019)) * current_hh)
+    adu_share = int((.05 + (.05/31)*(year-2019)) * current_hh)
     adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
     try:
         shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
