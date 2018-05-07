@@ -1,17 +1,24 @@
 import pandas as pd
 from sqlalchemy import create_engine
-from pysandag.database import get_connection_string
+from database import get_connection_string
+import utils
 
 db_connection_string = get_connection_string('config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
+versions = utils.yaml_to_dict('../data/scenario_config.yaml', 'scenario')
+
 
 # Units needed
-housing_unit_sql = '''select  yr,housing_units_add as sr14hu
-    from [isam].[economic_output].[urbansim_housing_units]'''
-hu_df =  pd.read_sql(housing_unit_sql, mssql_engine)
+units_needed_sql = '''
+SELECT [yr], [version_id], [housing_units_add] as sr14hu
+  FROM [urbansim].[urbansim].[urbansim_target_housing_units]
+  WHERE version_id = %s'''
+
+units_needed_sql = units_needed_sql % versions['demographic_simulation_id']
+hu_df =  pd.read_sql(units_needed_sql, mssql_engine)
 total_units_needed = int(hu_df['sr14hu'].sum())
-# 396,354 total units needed
+# 468866 total units needed (was 396,354)
 
 sr13_sql = '''	
 select x.mgra, sum([hs]) AS hs, increment, city, cpa, x.luz as luz_id,site
