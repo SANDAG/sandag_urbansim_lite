@@ -98,11 +98,12 @@ def run_scheduled_development(hu_forecast,households,year):
     print('\n Adding scheduled developments in year: %d' % (year))
     if year >= 2019:
         hh = int(households.to_frame().at[year, 'housing_units_add'])
-        adu_share = int((.05 + .05 / (2051 - year)) * hh)
+        adu_share = int((.05 + (.05/32)*(year-2019)) * hh)
         hh = hh - adu_share
     else:
         hh = int(households.to_frame().at[year, 'housing_units_add'])
-    print('\n Number of households in year: %d' % (hh))
+        adu_share = 0
+    print('\n Number of households in year: %d' % (hh + adu_share))
     sched_dev = orca.get_table('scheduled_development').to_frame()
     sched_dev.sort_values(by=['yr', 'site_id'],inplace=True)
     # sched_dev_yr = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity > 0)].copy()
@@ -296,7 +297,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
 
     #ADU CALL HERE
     current_hh = int(households.to_frame().at[year, 'housing_units_add'])
-    adu_share = int((.05 + .05 / (2051 - year)) * current_hh)
+    adu_share = int((.05 + (.05/32)*(year-2019)) * current_hh)
     adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
     try:
         shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
@@ -417,7 +418,9 @@ def summary(year):
     sched_dev_built = (hu_forecast_year.loc[(hu_forecast_year.source == 1)]).units_added.sum()
     subregional_control_built = (hu_forecast_year.loc[(hu_forecast_year.source == 2)]).units_added.sum()
     entire_region_built = (hu_forecast_year.loc[(hu_forecast_year.source == 3)]).units_added.sum()
+    adus_built = (hu_forecast_year.loc[(hu_forecast_year.source == 5)]).units_added.sum()
     print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
+    print(' %d units built as ADU in %d' % (adus_built, year))
     print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
     # The below section is also run in bulk_insert. Will comment out the section in bulk_insert
