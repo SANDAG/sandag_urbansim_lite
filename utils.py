@@ -331,7 +331,6 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
           .format(len(feasible_parcels_df)))
 
     # allocate target to each jurisdiction based on database table
-    print(year)
     subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
 
     '''
@@ -430,3 +429,4 @@ def summary(year):
                                        units_added.sum()}).reset_index()
     parcels = parcel_table_update_units(parcels, current_builds)
     orca.add_table("parcels", parcels)
+

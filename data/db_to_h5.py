@@ -55,15 +55,23 @@ assigned_df['site_id'] = assigned_df.site_id.astype(float)
 parcels_df = pd.concat([parcels_df,assigned_df])
 
 
-
-
 all_parcel_sql = '''
-      SELECT parcel_id, mgra_id, cap_jurisdiction_id, 
-             jurisdiction_id, luz_id, site_id, capacity_2 AS base_cap, 
-             du_2017 AS residential_units, (du_2017 + capacity_2) as buildout
-      FROM urbansim.urbansim.parcel
+      SELECT parcel_id, p.mgra_id, 
+             cap_jurisdiction_id,
+             jurisdiction_id,
+             p.luz_id,
+             NULL as site_id,
+             capacity_2 as capacity,
+             0 as capacity_used,
+             du_2017 AS residential_units, 
+             0 as partial_build,
+             'jur' as capacity_type,
+             development_type_id_2017 as dev_type,
+             NULL as lu
+      FROM urbansim.urbansim.parcel p
 '''
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
+all_parcels_df = pd.concat([all_parcels_df,assigned_df])
 
 sched_dev_sql = '''
     SELECT s.parcel_id, p.mgra_id, p.cap_jurisdiction_id, p.jurisdiction_id, p.luz_id, s.site_id, s.capacity_3 as capacity, 
@@ -179,15 +187,21 @@ parcels.loc[parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
 parcels = parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
 parcels = pd.merge(parcels, gplu_df, left_index=True, right_on='parcel_id', how='left')
 
-all_parcels = pd.merge(all_parcels_df,xref_geography_df,how='left',left_on='mgra_id',right_on='mgra_13')
-all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
-all_parcels.set_index('parcel_id',inplace=True)
-all_parcels.sort_index(inplace=True)
+all_parcels = pd.merge(all_parcels_df,xref_geography_df,left_on='mgra_id',right_on='mgra_13')
 all_parcels.loc[all_parcels.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = all_parcels['cocpa_2016']
 all_parcels.loc[((all_parcels.cap_jurisdiction_id == 19) & (all_parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = all_parcels['cocpa_13']
 all_parcels.loc[all_parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = all_parcels['cicpa_13']
-all_parcels = all_parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'],axis=1)
-all_parcels.mgra_id = all_parcels.mgra_id.astype(float)
+all_parcels['jur_or_cpa_id'].fillna(all_parcels['cap_jurisdiction_id'],inplace=True)
+all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
+all_parcels.capacity_type = all_parcels.capacity_type.astype(str)
+all_parcels.jur_or_cpa_id = all_parcels.jur_or_cpa_id.astype(int)
+all_parcels.set_index('parcel_id',inplace=True)
+all_parcels.sort_index(inplace=True)
+all_parcels.loc[all_parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
+all_parcels = all_parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
+all_parcels = pd.merge(all_parcels, gplu_df, left_index=True, right_on='parcel_id', how='left')
+all_parcels.mgra_id = all_parcels.mgra_id.astype(int)
+all_parcels.luz_id = all_parcels.luz_id.astype(int)
 #There are missing MGRAs / LUZs, spacecore has them but they are parcels with multiple MGRAs /other oddities
 
 

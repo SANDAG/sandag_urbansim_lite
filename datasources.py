@@ -1,6 +1,7 @@
 import orca
 import os
 import pandas as pd
+import bulk_insert
 
 
 orca.add_injectable("store", pd.HDFStore('.\\data\\urbansim.h5', mode="r"))
@@ -59,7 +60,11 @@ def all_parcels(store):
     df = store['all_parcels']
     return df
 
+
 @orca.table('dev_lu_table', cache=True)
 def dev_lu_table(store):
     df = store['dev_lu_table']
     return df
+
+
+orca.add_injectable("parcel_tables", bulk_insert.table_setup())

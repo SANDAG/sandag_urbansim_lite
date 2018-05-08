@@ -15,14 +15,13 @@ start_time = time.monotonic()
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
-bulk_insert.table_setup()
 orca.run([
     "scheduled_development_events",
     "negative_parcel_reducer",
     "feasibility",
     "residential_developer",
     "summary"
-     #,"write_to_sql"
+     ,"write_to_sql"
      ], iter_vars=range(2017, 2051))
 
 

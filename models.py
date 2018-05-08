@@ -48,5 +48,5 @@ def summary(year):
 
 
 @orca.step('write_to_sql')
-def write_to_sql(year):
-    bulk_insert.run_insert(year)
+def write_to_sql(parcel_tables, year):
+    bulk_insert.run_insert(parcel_tables, year)

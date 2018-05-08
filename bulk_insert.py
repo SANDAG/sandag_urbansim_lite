@@ -4,6 +4,7 @@ import numpy as np
 from sqlalchemy import create_engine
 from database import get_connection_string
 import time
+import utils
 from datetime import timedelta
 
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
@@ -13,7 +14,7 @@ mssql_engine = create_engine(db_connection_string)
 def table_setup():
     while True:
         print("Writing to the capacity_parcels table (c), all_parcels table (a), both (b) or neither (n)?")
-        table_type_input = input("Choose c, a, b or n:")
+        table_type_input = input("Choose c, a, b or n: ")
         if table_type_input == "c":
             table_type_list = ["cap"]
             break
@@ -74,7 +75,7 @@ def table_setup():
             while True:
                 print("Write (w), Replace (r) or Append (a) to the SQL {}_parcels table?".format(table_type))
                 print("Write will drop and re-create the table, while replace will truncate the existing table.")
-                setup = input()
+                setup = input("Choose w, r or a: ")
                 if setup == "w":
                     with conn.begin() as trans:
                         conn.execute('DROP TABLE IF EXISTS urbansim.urbansim.sr14_residential_{}_parcel_results'.format(
@@ -112,11 +113,11 @@ def table_setup():
                                 [chg_hs_jur] [smallint] NULL,
                                 [chg_hs_sch] [smallint] NULL,
                                 [chg_hs_sgoa] [smallint] NULL
-                                CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
-                                    [scenario_id] ASC,
-                                    [yr] ASC,
-                                    [parcel_id] ASC
-                                    ))WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
+                                --CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
+                                    --[scenario_id] ASC,
+                                    --[yr] ASC,
+                                    --[parcel_id] ASC)
+                                    )WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
                         conn.execute(create_table_sql)
                     scenario = int(1)
                     break
@@ -148,12 +149,12 @@ def table_setup():
             if table_type == "all":
                 base_year_table = orca.get_table('all_parcels').to_frame()
             no_builds = pd.DataFrame()
-            base_year_table = base_year_table.drop(['partial_build'], axis=1)
-            base_year_table = year_update_formatter(base_year_table, no_builds, scenario, 2016)
+            base_year_table = year_update_formatter(base_year_table, no_builds, scenario, 2016, table_type)
             table_insert(base_year_table, 2016, table_type)
+    return table_type_list
 
 
-def year_update_formatter(parcel_table, current_builds, scenario, year):
+def year_update_formatter(parcel_table, current_builds, scenario, year, table_type):
     phase_year = orca.get_table('devyear').to_frame()
     dev_lu_table = orca.get_table('dev_lu_table').to_frame()
     sched_dev = orca.get_table('scheduled_development').to_frame()
@@ -286,33 +287,20 @@ def table_insert(parcel_table, year, table_type):
     conn.close()
 
 
-def run_insert(year):
-    #all_parcels = orca.get_table('all_parcels').to_frame()
+def run_insert(parcel_tables, year):
+    all_parcels = orca.get_table('all_parcels').to_frame()
     capacity_parcels = orca.get_table('parcels').to_frame()
     hu_forecast = orca.get_table('hu_forecast').to_frame()
     current_builds = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
 
-    # Cap_parcels section
-    scenario = scenario_grab("cap")
-    year_update_cap = capacity_parcels.copy()
-    year_update_cap = year_update_cap.drop(['partial_build'], axis=1)
-    year_update_cap = year_update_formatter(year_update_cap, current_builds, scenario, year)
-    table_insert(year_update_cap, year, "cap")
-
-    # # update all parcels table
-    # current_builds = pd.DataFrame({'residential_units': current_builds.
-    #                               groupby(["parcel_id", "year_built", "hu_forecast_type_id", "source"]).
-    #                               residential_units.sum()}).reset_index()
-    # all_parcels = parcel_table_update(all_parcels, current_builds)
-    # orca.add_table("all_parcels", all_parcels)
-    #
-    # # create all parcels yearly update table
-    # if year == 2017:
-    #     scenario = table_setup("all", conn)
-    # else:
-    #     scenario = scenario_grab("all")
-    # year_update_all = all_parcels.copy()
-    # year_update_all = year_update_all.drop(['base_cap'], axis=1)
-    # year_update_all = year_update_formatter(year_update_all, current_builds, phase_year, scenario, year)
-    # table_insert(year_update_all, year, "all", conn)
-
+    for table_type in parcel_tables:
+        if table_type == "all":
+            all_parcels = utils.parcel_table_update_units(all_parcels, current_builds)
+            orca.add_table("all_parcels", all_parcels)
+            year_update_cap = all_parcels.copy()
+        if table_type == "cap":
+            year_update_cap = capacity_parcels.copy()
+        scenario = scenario_grab(table_type)
+        year_update_cap = year_update_cap.drop(['partial_build'], axis=1)
+        year_update_cap = year_update_formatter(year_update_cap, current_builds, scenario, year, table_type)
+        table_insert(year_update_cap, year, table_type)
