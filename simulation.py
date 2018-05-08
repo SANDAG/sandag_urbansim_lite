@@ -55,7 +55,7 @@ sched_id = version_ids['sched_dev_version']
 last_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).rstrip()
 
 output_records = pd.DataFrame(columns=['run_id','run_date','subreg_ctrl_id','hh_id','phase_id','assigned_id','sched_id','git','run_description'])
-run_description = 'sched dev 1st 5 yrs'
+run_description = 'add adu 2019'
 run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 output_records.loc[run_id] = [run_id,run_date,subreg_ctrl_id,hh_id,phase_id,assigned_id,sched_id,last_commit,run_description]
 output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False, if_exists='append')

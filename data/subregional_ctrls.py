@@ -143,10 +143,10 @@ sr13_chgst = sr13_chgst[['jcid','yr_from','yr_to','hu_change']].copy()
 
 parcel_sql = '''
     SELECT p.parcel_id, p.site_id, j.name,  p.cap_jurisdiction_id, p.jurisdiction_id, p.mgra_id, p.luz_id,
-    p.capacity AS capacity_base_yr
+    p.capacity_2 AS capacity_base_yr,'par' as capt,du_2017
       FROM urbansim.urbansim.parcel p 
       JOIN urbansim.ref.jurisdiction j on p.cap_jurisdiction_id = j.jurisdiction_id
-      WHERE (capacity > 0 or capacity < 0) and site_id IS NULL
+      WHERE capacity_2 > 0 and site_id IS NULL
   ORDER BY j.name,p.jurisdiction_id, site_id'''
 hs = pd.read_sql(parcel_sql,mssql_engine)
 # print("\n   capacity: {:,}".format(int(hs.capacity_base_yr.sum())))
@@ -518,16 +518,16 @@ sr13.drop(['units', 'units_adj1','adj_forecast_hs'], axis=1,inplace=True)
 
 sr13.fillna(0,inplace=True)
 
-sr13['scenario'] = 6
+sr13['subregional_crtl_id'] = 6
 sr13['geo_id'] = sr13['jcid']
 sr13['max_units'] = None
 sr13['geo'] = 'jur_and_cpa'
-sr13['scenario_desc'] = 'jurisdictions and CPAs, no sched dev in sr14'
+sr13['scenario_desc'] = 'capacity_2'
 sr13['control_type'] = 'percentage'
 
 sr13.loc[sr13.control < 0, 'control'] = 0
-
-controls  = sr13[['scenario','yr','geo','geo_id','control','control_type','max_units','scenario_desc']].copy()
+sr13 = sr13.loc[sr13.yr!=0].copy()
+controls  = sr13[['subregional_crtl_id','yr','geo','geo_id','control','control_type','max_units','scenario_desc']].copy()
 
 # print(controls.loc[controls.geo_id==1901].head())
 #      scenario    yr          geo  geo_id   control control_type max_units  \
@@ -545,7 +545,7 @@ controls  = sr13[['scenario','yr','geo','geo_id','control','control_type','max_u
 # 491  jurisdictions and CPAs
 
 # to write to csv
-# controls.to_csv('subregional_control_3.csv')
-# controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
+# controls.to_csv('out/subregional_control_6.csv')
+controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
 
 
