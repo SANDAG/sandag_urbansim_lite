@@ -28,6 +28,65 @@ def yaml_to_dict(yaml_file, yaml_section):
     return d
 
 
+# def get_run_desc():
+#     while True:
+#         print("Writing to the capacity_parcels table (c), all_parcels table (a), both (b) or neither (n)?")
+#         table_type_input = input("Choose c, a, b or n: ")
+#         if table_type_input == "c":
+#             table_type_list = ["cap"]
+#             break
+#         elif table_type_input == "a":
+#             table_type_list = ["all"]
+#             break
+#         elif table_type_input == "b":
+#             table_type_list = ["cap", "all"]
+#             break
+#         elif table_type_input == "n":
+#             table_type_list = []
+#             break
+#         else:
+#             print("Please insert only lowercase 'c', 'a', 'b' or 'n' as a response.")
+#             continue
+
+
+def add_run_to_db():
+    db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
+    mssql_engine = create_engine(db_connection_string)
+    version_ids = yaml_to_dict('data/scenario_config.yaml', 'scenario')
+    run_description = 'version 106 test'
+    #run_description = get_run_desc()
+
+    run_id_sql = '''
+    SELECT max(run_id)
+      FROM [urbansim].[urbansim].[urbansim_lite_output_runs]
+    '''
+    run_id_df = pd.read_sql(run_id_sql, mssql_engine)
+
+    if run_id_df.values:
+        run_id = int(run_id_df.values) + 1
+    else:
+        run_id = 1
+
+    subregional_controls = version_ids['subregional_ctrl_id']
+    target_housing_units = version_ids['target_housing_units_version']
+    phase_year = version_ids['parcel_phase_yr']
+    additional_capacity = version_ids['additional_capacity_version']
+    scheduled_development = version_ids['sched_dev_version']
+
+    last_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).rstrip()
+
+    output_records = pd.DataFrame(
+        columns=['run_id', 'run_date', 'subregional_controls', 'target_housing_units', 'phase_year',
+                 'additional_capacity', 'scheduled_development', 'git', 'run_description'])
+
+    run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    output_records.loc[run_id] = [run_id, run_date, subregional_controls, target_housing_units, phase_year,
+                                  additional_capacity, scheduled_development, last_commit, run_description]
+    output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False,
+                          if_exists='append')
+    return run_id
+
+
 def largest_remainder_allocation(df, k):
     df.reset_index(inplace=True,drop=True)
     ratios = df.control.values
