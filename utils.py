@@ -1,8 +1,12 @@
 import math
+import datetime
 import numpy as np
 import orca
 import pandas as pd
+import subprocess
 import yaml
+from database import get_connection_string
+from sqlalchemy import create_engine
 
 
 def yaml_to_dict(yaml_file, yaml_section):
@@ -155,13 +159,23 @@ def parcel_table_update_units(parcel_table, current_builds):
 # add all sched dev first - before using jur provided units
 def run_scheduled_development(hu_forecast,households,year):
     print('\n Adding scheduled developments in year: %d' % (year))
-    if year >= 2019:
-        hh = int(households.to_frame().at[year, 'housing_units_add'])
-        adu_share = int((.05 + (.05/31)*(year-2019)) * hh)
-        hh = hh - adu_share
-    else:
-        hh = int(households.to_frame().at[year, 'housing_units_add'])
-        adu_share = 0
+
+    hh = int(households.to_frame().at[year, 'housing_units_add'])
+
+    # running out of units due to reduction in total adu using the following calc
+    # adu_share = int((.05 + (.05/31)*(year-2019)) * hh)
+
+    # prior to 2019 use 0 percent adu
+    # 2019 to 2034 use 1% adu of target housing units
+    # 2035 to 2050 use 5% adu of target housing units
+    # note: anything higher than 1% from 2019 to 2034 with use up all adu capacity in
+    # city of san diego, chula vista, oceanside, el cajon prior to 2035
+    percentages = np.repeat(0, 2).tolist() + np.repeat(.01, 16).tolist() + np.repeat(.05, 16).tolist()
+    yr = list(range(2017, 2051))
+    adu_share_df = pd.DataFrame({'percent_adu': percentages}, index=yr)
+    adu_share = int(round(adu_share_df.loc[year].percent_adu * hh, 0))
+    hh = hh - adu_share
+
     print('\n Number of households in year: %d' % (hh + adu_share))
     sched_dev = orca.get_table('scheduled_development').to_frame()
     sched_dev.sort_values(by=['yr', 'site_id'],inplace=True)
@@ -298,7 +312,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
             # for debugging purposes
             if len(one_row_per_unit_picked.loc[one_row_per_unit_picked.parcel_id==5243722]) > 0:
-                print(one_row_per_unit_picked)
+                print(one_row_per_unit_picked.head(1))
             parcels_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.
                                           groupby(["parcel_id",'capacity_type'])
                                           .size()}).reset_index()
@@ -356,7 +370,20 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
 
     #ADU CALL HERE
     current_hh = int(households.to_frame().at[year, 'housing_units_add'])
-    adu_share = int((.05 + (.05/31)*(year-2019)) * current_hh)
+
+    # running out of units due to reduction in total adu using the following calc
+    # adu_share = int((.05 + (.05/31)*(year-2019)) * current_hh)
+
+    # prior to 2019 use 0 percent adu
+    # 2019 to 2034 use 1% adu of target housing units
+    # 2035 to 2050 use 5% adu of target housing units
+    # note: anything higher than 1% from 2019 to 2034 with use up all adu capacity in
+    # city of san diego, chula vista, oceanside, el cajon prior to 2035
+    percentages = np.repeat(0, 2).tolist() + np.repeat(.01, 16).tolist() + np.repeat(.05, 16).tolist()
+    yr = list(range(2017, 2051))
+    adu_share_df = pd.DataFrame({'percent_adu': percentages}, index=yr)
+    adu_share = int(round(adu_share_df.loc[year].percent_adu * current_hh,0))
+
     adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
     try:
         shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
@@ -455,7 +482,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
         if year is not None:
             sr14cap["year_built"] = year
 
-        print("Adding {:,} parcels capacity type with {:,} {}"
+        print("Adding {:,} parcels with {:,} {}"
                 .format(len(sr14cap),
                         int(sr14cap[supply_fname].sum()),
                         supply_fname))
@@ -477,10 +504,12 @@ def summary(year):
     subregional_control_built = (hu_forecast_year.loc[(hu_forecast_year.source == 2)]).units_added.sum()
     entire_region_built = (hu_forecast_year.loc[(hu_forecast_year.source == 3)]).units_added.sum()
     adus_built = (hu_forecast_year.loc[(hu_forecast_year.source == 5)]).units_added.sum()
+    all_built = hu_forecast_year.units_added.sum()
     print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
     print(' %d units built as ADU in %d' % (adus_built, year))
     print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
+    print(' %d total housing units in %d' % (all_built, year))
     # The below section is also run in bulk_insert. Will comment out the section in bulk_insert
     # Check if parcels occur multiple times (due to multiple sources). Will skip if false.
     current_builds = pd.DataFrame({'units_added': hu_forecast_year.
