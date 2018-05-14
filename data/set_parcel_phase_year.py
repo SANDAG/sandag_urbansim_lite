@@ -15,14 +15,12 @@ run_id_sql = '''
 SELECT max(phase_yr_version_id)
   FROM [urbansim].[urbansim].[urbansim_lite_output]
 '''
-version_id_df = pd.read_sql(run_id_sql, mssql_engine)
+# version_id_df = pd.read_sql(run_id_sql, mssql_engine)
+#
+# if version_id_df.values:
+#     version_id = int(version_id_df.values) + 1
 
-if version_id_df.values:
-    version_id = int(version_id_df .values) + 1
-else:
-    version_id = 102
-
-
+version_id = 106
 
 parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
