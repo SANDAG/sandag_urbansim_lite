@@ -120,7 +120,7 @@ households_sql = '''
     WHERE [version_id] = %s
 '''
 
-households_sql = households_sql % scenarios['demographic_simulation_id']
+households_sql = households_sql % scenarios['target_housing_units_version']
 
 
 hu_forecast_sql = '''

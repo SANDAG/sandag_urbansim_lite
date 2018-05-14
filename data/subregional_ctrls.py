@@ -15,7 +15,7 @@ SELECT [yr], [version_id], [housing_units_add] as sr14hu
   FROM [urbansim].[urbansim].[urbansim_target_housing_units]
   WHERE version_id = %s'''
 
-units_needed_sql = units_needed_sql % versions['demographic_simulation_id']
+units_needed_sql = units_needed_sql % versions['target_housing_units_version']
 hu_df =  pd.read_sql(units_needed_sql, mssql_engine)
 total_units_needed = int(hu_df['sr14hu'].sum())
 # 468866 total units needed (was 396,354)
