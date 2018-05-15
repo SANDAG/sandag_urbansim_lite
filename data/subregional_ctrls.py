@@ -545,7 +545,7 @@ controls  = sr13[['subregional_crtl_id','yr','geo','geo_id','control','control_t
 # 491  jurisdictions and CPAs
 
 # to write to csv
-# controls.to_csv('out/subregional_control_6.csv')
-controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
+controls.to_csv('out/subregional_control_6b.csv')
+# controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
 
 
