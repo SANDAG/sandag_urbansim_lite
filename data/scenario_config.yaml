@@ -5,4 +5,5 @@ scenario:
     #Specifies phase year version in urbansim_lite.urbansim_lite_parcel_control, used in set_parcel_phase_year.py
     parcel_phase_yr: 106
     additional_capacity_version: 106
-    sched_dev_version: 2
+    # [urbansim].[scheduled_development_priority]
+    sched_dev_version: 106

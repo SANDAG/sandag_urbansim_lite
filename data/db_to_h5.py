@@ -75,13 +75,15 @@ all_parcels_df = pd.concat([all_parcels_df,assigned_df])
 
 sched_dev_sql = '''
     SELECT s.parcel_id, p.mgra_id, p.cap_jurisdiction_id, p.jurisdiction_id, p.luz_id, s.site_id, s.capacity_3 as capacity, 
-        p.du_2017 as residential_units, s.yr, 'sch' as capacity_type,0 as capacity_used
+        p.du_2017 as residential_units, s.priority, 'sch' as capacity_type,0 as capacity_used
     FROM urbansim.urbansim.parcel as p
-        inner join urbansim.urbansim.scheduled_development_do_not_use as s
+        inner join [urbansim].[urbansim].[scheduled_development_priority] as s
         on p.parcel_id = s.parcel_id
         WHERE s.sched_version_id = %s
 '''
 sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']
+
+
 
 luz_names_sql = '''
     SELECT zone, name

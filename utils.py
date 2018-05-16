@@ -32,27 +32,6 @@ def yaml_to_dict(yaml_file, yaml_section):
     return d
 
 
-# def get_run_desc():
-#     while True:
-#         print("Writing to the capacity_parcels table (c), all_parcels table (a), both (b) or neither (n)?")
-#         table_type_input = input("Choose c, a, b or n: ")
-#         if table_type_input == "c":
-#             table_type_list = ["cap"]
-#             break
-#         elif table_type_input == "a":
-#             table_type_list = ["all"]
-#             break
-#         elif table_type_input == "b":
-#             table_type_list = ["cap", "all"]
-#             break
-#         elif table_type_input == "n":
-#             table_type_list = []
-#             break
-#         else:
-#             print("Please insert only lowercase 'c', 'a', 'b' or 'n' as a response.")
-#             continue
-
-
 def add_run_to_db():
     db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
     mssql_engine = create_engine(db_connection_string)
@@ -178,7 +157,7 @@ def run_scheduled_development(hu_forecast,households,year):
 
     print('\n Number of households in year: %d' % (hh + adu_share))
     sched_dev = orca.get_table('scheduled_development').to_frame()
-    sched_dev.sort_values(by=['yr', 'site_id'],inplace=True)
+    sched_dev.sort_values(by=['priority', 'site_id'],inplace=True)
     # sched_dev_yr = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity > 0)].copy()
     sched_dev_yr = sched_dev.loc[sched_dev['capacity'] > sched_dev['capacity_used']].copy()
     sched_dev_yr['remaining'] = sched_dev_yr['capacity'] - sched_dev_yr['capacity_used']
