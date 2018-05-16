@@ -1,11 +1,10 @@
 import orca
 import os
 import pandas as pd
+import bulk_insert
 
-from urbansim.utils import misc
 
-
-orca.add_injectable("store", pd.HDFStore(os.path.join(misc.data_dir(), "urbansim.h5"), mode="r"))
+orca.add_injectable("store", pd.HDFStore('.\\data\\urbansim.h5', mode="r"))
 
 
 @orca.table('parcels', cache=True)
@@ -60,3 +59,12 @@ def negative_parcels(store):
 def all_parcels(store):
     df = store['all_parcels']
     return df
+
+
+@orca.table('dev_lu_table', cache=True)
+def dev_lu_table(store):
+    df = store['dev_lu_table']
+    return df
+
+
+orca.add_injectable("parcel_tables", bulk_insert.table_setup())
