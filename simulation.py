@@ -1,4 +1,6 @@
-import models, utils, bulk_insert
+import models
+import utils
+import bulk_insert
 import orca
 from sqlalchemy import create_engine
 from database import get_connection_string

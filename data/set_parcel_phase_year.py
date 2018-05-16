@@ -20,7 +20,7 @@ SELECT max(phase_yr_version_id)
 # if version_id_df.values:
 #     version_id = int(version_id_df.values) + 1
 
-version_id = 106
+version_id = 107
 
 parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 

@@ -77,7 +77,7 @@ def add_run_to_db():
     additional_capacity = version_ids['additional_capacity_version']
     scheduled_development = version_ids['sched_dev_version']
 
-    last_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).rstrip()
+    last_commit = '101' #subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).rstrip()
 
     output_records = pd.DataFrame(
         columns=['run_id', 'run_date', 'subregional_controls', 'target_housing_units', 'phase_year',
