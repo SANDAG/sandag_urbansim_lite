@@ -415,9 +415,9 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     for jur in control_totals.geo_id.unique().tolist():
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id']==jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id']==jur].max_units.values[0]
-        # use nanmin to handle null values for max units
         target_units_for_geo = np.nanmin(np.array([subregion_targets, subregion_max]))
-        # target_units_for_geo = min(subregion_targets, subregion_max)
+        # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
+        # because normally the minimum of a number and NaN would be the NaN-value
         # geo_name = jurs.loc[jurs.cap_jurisdiction_id == jur].name.values[0]
         target_units_for_geo = int(target_units_for_geo)
         geo_name = str(jur)
@@ -425,9 +425,13 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
         # parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
-        if not np.isnan(subregion_max): # check not null before comparing to subregion targets
-            if subregion_targets > subregion_max: #if subregion_max is NaN, this gets skipped (which is fine)
-                # feasible_parcels_df = feasible_parcels_df.drop(feasible_parcels_df[feasible_parcels_df.jur_or_cpa_id == jur].index)
+        if not np.isnan(subregion_max): # Activates if subregion_max has a numeric value (not Null)
+            # May need to add a tracker to update the subregional max for the remaining loop here
+            # subregion_max = subregion_max - subregion_targets
+            # Then would need to carry the new subregion max forward into the remaining loop
+            if subregion_targets > subregion_max:
+                # This removes the jurisdiction if it had a subregional max from feasibility so it won't be picked in
+                # the remaining capacity run later.
                 feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.jur_or_cpa_id!=jur].copy()
         if len(chosen):
             chosen['source'] = 2
