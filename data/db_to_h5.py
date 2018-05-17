@@ -22,8 +22,11 @@ parcel_sql = '''
              du_2017 AS residential_units, 
              0 as partial_build,
              'jur' as capacity_type,
-             development_type_id_2017 as dev_type,
-             NULL as lu
+             development_type_id_2017 as dev_type_2017,
+             development_type_id_2015 as dev_type_2015,
+             lu_2017 as lu_sim,
+             lu_2015,
+             lu_2017
       FROM urbansim.urbansim.parcel p
       WHERE capacity_2 > 0 and site_id IS NULL
 '''
@@ -42,8 +45,11 @@ SELECT  a.parcel_id,
         p.du_2017 as residential_units,
         0 as partial_build,
         type as capacity_type,
-        p.development_type_id_2017 as dev_type,
-        NULL as lu
+        p.development_type_id_2017 as dev_type_2017,
+        p.development_type_id_2015 as dev_type_2015,
+        p.lu_2017 as lu_sim,
+        p.lu_2015,
+        p.lu_2017
   FROM [urbansim].[urbansim].[additional_capacity] a
   join urbansim.parcel p on p.parcel_id = a.parcel_id
   where version_id = %s
@@ -66,16 +72,31 @@ all_parcel_sql = '''
              du_2017 AS residential_units, 
              0 as partial_build,
              'jur' as capacity_type,
-             development_type_id_2017 as dev_type,
-             NULL as lu
+             development_type_id_2017 as dev_type_2017,
+             development_type_id_2015 as dev_type_2015,
+             lu_2017 as lu_sim,
+             lu_2015,
+             lu_2017
       FROM urbansim.urbansim.parcel p
 '''
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
 all_parcels_df = pd.concat([all_parcels_df,assigned_df])
 
 sched_dev_sql = '''
-    SELECT s.parcel_id, p.mgra_id, p.cap_jurisdiction_id, p.jurisdiction_id, p.luz_id, s.site_id, s.capacity_3 as capacity, 
-        p.du_2017 as residential_units, s.priority, 'sch' as capacity_type,0 as capacity_used
+    SELECT s.parcel_id, p.mgra_id, 
+            p.cap_jurisdiction_id, 
+            p.jurisdiction_id, 
+            p.luz_id, 
+            s.site_id, 
+            s.capacity_3 as capacity, 
+            p.du_2017 as residential_units, 
+            s.priority, 'sch' as capacity_type,
+            0 as capacity_used, 
+            p.development_type_id_2017 as dev_type_2017,
+            p.development_type_id_2015 as dev_type_2015,
+            p.lu_2017 as lu_sim,
+            p.lu_2015,
+            p.lu_2017
     FROM urbansim.urbansim.parcel as p
         inner join [urbansim].[urbansim].[scheduled_development_priority] as s
         on p.parcel_id = s.parcel_id
@@ -170,7 +191,7 @@ SELECT parcel_id, gplu as plu
 gplu_df = pd.read_sql(gplu_sql, mssql_engine)
 
 dev_lu_sql = '''
-SELECT development_type_id as dev_type, lu_code as lu
+SELECT development_type_id as dev_type_sim, lu_code as lu_sim
     FROM urbansim.ref.development_type_lu_code
 '''
 dev_lu_df = pd.read_sql(dev_lu_sql, mssql_engine)

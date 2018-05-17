@@ -55,10 +55,13 @@ def table_setup():
                         [hs] [float] NOT NULL,
                         [tot_cap_hs] [float] NOT NULL,
                         [tot_chg_hs] [float] NOT NULL,
-                        [lu] [float] NULL,
-                        [plu] [float] NULL,
+                        [lu_2015] [float] NULL,
+                        [dev_type_2015] [float] NULL,
                         [lu_2017] [float] NULL,
-                        [dev_type] [float] NULL,
+                        [dev_type_2017] [float] NULL,
+                        [plu] [float] NULL,
+                        [lu_sim] [float] NULL,
+                        [dev_type_sim] [float] NULL,
                         [regional_overflow] [bit] NOT NULL,
                         [cap_hs_adu] [float] NULL,
                         [cap_hs_jur] [float] NULL,
@@ -100,10 +103,13 @@ def table_setup():
                                 [hs] [smallint] NOT NULL,
                                 [tot_cap_hs] [smallint] NOT NULL,
                                 [tot_chg_hs] [smallint] NOT NULL,
-                                [lu] [smallint] NULL,
-                                [plu] [smallint] NULL,
+                                [lu_2015] [smallint] NULL,
+                                [dev_type_2015] [tinyint] NULL,
                                 [lu_2017] [smallint] NULL,
-                                [dev_type] [tinyint] NULL,
+                                [dev_type_2017] [tinyint] NULL,
+                                [plu] [smallint] NULL,
+                                [lu_sim] [smallint] NULL,
+                                [dev_type_sim] [tinyint] NULL,
                                 [regional_overflow] [bit] NOT NULL,
                                 [cap_hs_adu] [smallint] NULL,
                                 [cap_hs_jur] [smallint] NULL,
@@ -195,7 +201,6 @@ def year_update_formatter(parcel_table, current_builds, scenario, year, table_ty
     year_update['yr'] = year
     year_update['scenario_id'] = scenario
     year_update['taz'] = np.nan
-    year_update['lu_2017'] = np.nan
     year_update['capacity'].fillna(0,inplace=True)
     year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
     year_update['source_id'] = year_update['source_id'].fillna(0)
@@ -220,8 +225,8 @@ def year_update_formatter(parcel_table, current_builds, scenario, year, table_ty
     year_update.replace('uc', 'sgoa', inplace=True)
     year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr', 'lu_2017',
                             'jurisdiction_id', 'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id',
-                            'lu', 'plu', 'hs', 'regional_overflow'], columns='cap_type',
-                            values=['cap_hs', 'chg_hs']).reset_index()
+                            'lu_sim', 'plu', 'hs', 'regional_overflow', 'lu_2015', 'dev_type_2015', 'dev_type_2017'],
+                            columns='cap_type', values=['cap_hs', 'chg_hs']).reset_index()
     year_update_pivot.replace(to_replace=-99, value=np.nan, inplace=True)
     year_update_pivot['tot_cap_hs'] = year_update_pivot['cap_hs'].sum(axis=1)
     year_update_pivot['cap_hs'] = year_update_pivot['cap_hs'].fillna(0)
@@ -231,13 +236,13 @@ def year_update_formatter(parcel_table, current_builds, scenario, year, table_ty
     colnames = year_update_pivot.columns
     ind = pd.Index([e[0] + e[1] for e in colnames.tolist()])
     year_update_pivot.columns = ind
-    year_update_pivot = pd.merge(year_update_pivot, dev_lu_table, how='left', on='lu')
+    year_update_pivot = pd.merge(year_update_pivot, dev_lu_table, how='left', on='lu_sim')
     year_update_pivot = year_update_pivot[['scenario_id', 'parcel_id', 'yr', 'increment', 'jurisdiction_id',
                                            'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'site_id', 'taz',
-                                           'hs', 'tot_cap_hs', 'tot_chg_hs', 'lu', 'plu', 'lu_2017', 'dev_type',
-                                           'regional_overflow', 'cap_hs_adu', 'cap_hs_jur',
-                                           'cap_hs_sch', 'cap_hs_sgoa', 'chg_hs_adu',
-                                           'chg_hs_jur',  'chg_hs_sch','chg_hs_sgoa']]
+                                           'hs', 'tot_cap_hs', 'tot_chg_hs', 'lu_2015', 'dev_type_2015', 'lu_2017',
+                                           'dev_type_2017', 'plu', 'lu_sim', 'dev_type_sim', 'regional_overflow',
+                                           'cap_hs_adu', 'cap_hs_jur', 'cap_hs_sch', 'cap_hs_sgoa', 'chg_hs_adu',
+                                           'chg_hs_jur', 'chg_hs_sch', 'chg_hs_sgoa']]
     return year_update_pivot
 
 
