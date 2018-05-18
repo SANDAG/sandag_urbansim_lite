@@ -237,10 +237,10 @@ def year_update_formatter(parcel_table, current_builds, scenario, year, table_ty
     ind = pd.Index([e[0] + e[1] for e in colnames.tolist()])
     year_update_pivot.columns = ind
     year_update_pivot = pd.merge(year_update_pivot, dev_lu_table, how='left', on='lu_sim')
-    # There are 10 parcels with dev_type_2017 = 23 or 29, which are military housing. These do no appear in the table
-    # being merged here, so we may want to override those and plug in the dev_type_sim manually:
-    # year_update_pivot.loc[year_update_pivot.dev_type_2017 == 23, 'dev_type_sim'] = 23
-    # year_update_pivot.loc[year_update_pivot.dev_type_2017 == 29, 'dev_type_sim'] = 29
+    # There are parcels with dev_type_2017 = 23 or 29, which are military housing. These do no appear in the table
+    # being merged here, so we override those and plug in the dev_type_sim manually (can handle case-by-case if needed):
+    year_update_pivot.loc[year_update_pivot.dev_type_2017 == 23, 'dev_type_sim'] = 23
+    year_update_pivot.loc[year_update_pivot.dev_type_2017 == 29, 'dev_type_sim'] = 29
     year_update_pivot = year_update_pivot[['scenario_id', 'parcel_id', 'yr', 'increment', 'jurisdiction_id',
                                            'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'site_id', 'taz',
                                            'hs', 'tot_cap_hs', 'tot_chg_hs', 'lu_2015', 'dev_type_2015', 'lu_2017',

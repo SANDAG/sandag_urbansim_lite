@@ -1,9 +1,9 @@
 scenario:
     # database scenario to use in simulation
     subregional_ctrl_id: 6
-    target_housing_units_version: 106
+    target_housing_units_version: 106 #102 for 509k number
     #Specifies phase year version in urbansim_lite.urbansim_lite_parcel_control, used in set_parcel_phase_year.py
     parcel_phase_yr: 106
-    additional_capacity_version: 106
+    additional_capacity_version: 106 #102 for 509k number
     # [urbansim].[scheduled_development_priority]
-    sched_dev_version: 106
+    sched_dev_version: 106 #102 for 509k number
