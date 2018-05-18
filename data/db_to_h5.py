@@ -31,7 +31,7 @@ parcel_sql = '''
       WHERE capacity_2 > 0 and site_id IS NULL
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
-
+parcels_df['site_id'] = parcels_df.site_id.astype(float)
 
 assigned_parcel_sql = '''
 SELECT  a.parcel_id,
@@ -80,6 +80,7 @@ all_parcel_sql = '''
       FROM urbansim.urbansim.parcel p
 '''
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
+all_parcels_df['site_id'] = all_parcels_df.site_id.astype(float)
 all_parcels_df = pd.concat([all_parcels_df,assigned_df])
 
 sched_dev_sql = '''
@@ -196,36 +197,59 @@ SELECT development_type_id as dev_type_sim, lu_code as lu_sim
 '''
 dev_lu_df = pd.read_sql(dev_lu_sql, mssql_engine)
 
-parcels = pd.merge(parcels_df,xref_geography_df,left_on='mgra_id',right_on='mgra_13')
-parcels.loc[parcels.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = parcels['cocpa_2016']
-parcels.loc[((parcels.cap_jurisdiction_id == 19) & (parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = parcels['cocpa_13']
-parcels.loc[parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = parcels['cicpa_13']
-parcels['jur_or_cpa_id'].fillna(parcels['cap_jurisdiction_id'],inplace=True)
+geography_view_sql = '''
+SELECT [parcel_id]
+      ,[taz_13] as taz
+      ,[jcpa] as jur_or_cpa_id
+  FROM [urbansim].[ref].[vi_parcel_xref]'''
+geography_view_df = pd.read_sql(geography_view_sql, mssql_engine)
+
+parcels = pd.merge(parcels_df,geography_view_df, how='left', on='parcel_id')
+# parcels.loc[parcels.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = parcels['cocpa_2016']
+# parcels.loc[((parcels.cap_jurisdiction_id == 19) & (parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = parcels['cocpa_13']
+# parcels.loc[parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = parcels['cicpa_13']
+# parcels['jur_or_cpa_id'].fillna(parcels['cap_jurisdiction_id'],inplace=True)
 parcels.parcel_id = parcels.parcel_id.astype(int)
 parcels.capacity_type = parcels.capacity_type.astype(str)
 parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)
-parcels.loc[parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
-parcels = parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
+# parcels.loc[parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
+# parcels = parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
 parcels = pd.merge(parcels, gplu_df, left_index=True, right_on='parcel_id', how='left')
 
-all_parcels = pd.merge(all_parcels_df,xref_geography_df,left_on='mgra_id',right_on='mgra_13')
-all_parcels.loc[all_parcels.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = all_parcels['cocpa_2016']
-all_parcels.loc[((all_parcels.cap_jurisdiction_id == 19) & (all_parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = all_parcels['cocpa_13']
-all_parcels.loc[all_parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = all_parcels['cicpa_13']
-all_parcels['jur_or_cpa_id'].fillna(all_parcels['cap_jurisdiction_id'],inplace=True)
+
+all_parcels = pd.merge(all_parcels_df,geography_view_df, how='left', on='parcel_id')
+# parcels.loc[parcels.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = parcels['cocpa_2016']
+# parcels.loc[((parcels.cap_jurisdiction_id == 19) & (parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = parcels['cocpa_13']
+# parcels.loc[parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = parcels['cicpa_13']
+# parcels['jur_or_cpa_id'].fillna(parcels['cap_jurisdiction_id'],inplace=True)
 all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
 all_parcels.capacity_type = all_parcels.capacity_type.astype(str)
+all_parcels = all_parcels.loc[~all_parcels.jur_or_cpa_id.isnull()].copy()
 all_parcels.jur_or_cpa_id = all_parcels.jur_or_cpa_id.astype(int)
 all_parcels.set_index('parcel_id',inplace=True)
 all_parcels.sort_index(inplace=True)
-all_parcels.loc[all_parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
-all_parcels = all_parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
+# parcels.loc[parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
+# parcels = parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
 all_parcels = pd.merge(all_parcels, gplu_df, left_index=True, right_on='parcel_id', how='left')
-all_parcels.mgra_id = all_parcels.mgra_id.astype(int)
-all_parcels.luz_id = all_parcels.luz_id.astype(int)
-#There are missing MGRAs / LUZs, spacecore has them but they are parcels with multiple MGRAs /other oddities
+
+# all_parcels = pd.merge(all_parcels_df,xref_geography_df,left_on='mgra_id',right_on='mgra_13')
+# all_parcels.loc[all_parcels.cap_jurisdiction_id == 19,'jur_or_cpa_id'] = all_parcels['cocpa_2016']
+# all_parcels.loc[((all_parcels.cap_jurisdiction_id == 19) & (all_parcels.jur_or_cpa_id.isnull())),'jur_or_cpa_id'] = all_parcels['cocpa_13']
+# all_parcels.loc[all_parcels.cap_jurisdiction_id == 14,'jur_or_cpa_id'] = all_parcels['cicpa_13']
+# all_parcels['jur_or_cpa_id'].fillna(all_parcels['cap_jurisdiction_id'],inplace=True)
+# all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
+# all_parcels.capacity_type = all_parcels.capacity_type.astype(str)
+# all_parcels.jur_or_cpa_id = all_parcels.jur_or_cpa_id.astype(int)
+# all_parcels.set_index('parcel_id',inplace=True)
+# all_parcels.sort_index(inplace=True)
+# all_parcels.loc[all_parcels.mgra_id==19415,'jur_or_cpa_id'] = 1909
+# all_parcels = all_parcels.drop(['mgra_13','luz_13','cocpa_13','cocpa_2016','jurisdiction_2016','cicpa_13'], axis=1)
+# all_parcels = pd.merge(all_parcels, gplu_df, left_index=True, right_on='parcel_id', how='left')
+# all_parcels.mgra_id = all_parcels.mgra_id.astype(int)
+# all_parcels.luz_id = all_parcels.luz_id.astype(int)
+# #There are missing MGRAs / LUZs, spacecore has them but they are parcels with multiple MGRAs /other oddities
 
 
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine)

@@ -36,7 +36,7 @@ def add_run_to_db():
     db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
     mssql_engine = create_engine(db_connection_string)
     version_ids = yaml_to_dict('data/scenario_config.yaml', 'scenario')
-    run_description = 'version 106 test'
+    run_description = input("Please provide a run description: ")
     #run_description = get_run_desc()
 
     run_id_sql = '''
@@ -56,7 +56,7 @@ def add_run_to_db():
     additional_capacity = version_ids['additional_capacity_version']
     scheduled_development = version_ids['sched_dev_version']
 
-    last_commit = '101' #subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).rstrip()
+    last_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).rstrip()
 
     output_records = pd.DataFrame(
         columns=['run_id', 'run_date', 'subregional_controls', 'target_housing_units', 'phase_year',
@@ -341,6 +341,9 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     jurs = jurisdictions.to_frame()
 
     control_totals_by_year = control_totals.loc[control_totals.yr == year].copy()
+    if round(control_totals_by_year.control.sum()) != 1:
+        print("Control totals for %d do not total 100" % year)
+        exit()
     hh = households.to_frame().at[year, 'total_housing_units']
 
     # initialize dataframes for i/o tracking
