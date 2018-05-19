@@ -177,7 +177,7 @@ def run_scheduled_development(hu_forecast,households,year):
         units.reset_index(drop=True, inplace=True)
         units['source'] = units['source'].astype(int)
         orca.add_table("hu_forecast", units)
-        sched_dev_updated = pd.merge( sched_dev,sched_dev_picked[['parcel_id','units_added']],how='left',on='parcel_id')
+        sched_dev_updated = pd.merge(sched_dev,sched_dev_picked[['parcel_id','units_added']],how='left',on='parcel_id')
         sched_dev_updated.units_added.fillna(0,inplace=True)
         sched_dev_updated['residential_units'] = sched_dev_updated['residential_units'] + sched_dev_updated['units_added']
         sched_dev_updated['capacity_used'] = sched_dev_updated['capacity_used'] + sched_dev_updated['units_added']
@@ -289,9 +289,6 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
             one_row_per_unit = priority_then_random.reindex(priority_then_random.index.repeat(priority_then_random.units_for_year)).reset_index(drop=True)
             one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
-            # for debugging purposes
-            if len(one_row_per_unit_picked.loc[one_row_per_unit_picked.parcel_id==5243722]) > 0:
-                print(one_row_per_unit_picked.head(1))
             parcels_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.
                                           groupby(["parcel_id",'capacity_type'])
                                           .size()}).reset_index()
@@ -342,7 +339,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
 
     control_totals_by_year = control_totals.loc[control_totals.yr == year].copy()
     if round(control_totals_by_year.control.sum()) != 1:
-        print("Control totals for %d do not total 100" % year)
+        print("Control percentages for %d do not total 100: Cancelling model run." % year)
         exit()
     hh = households.to_frame().at[year, 'total_housing_units']
 
@@ -361,6 +358,9 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     # 2035 to 2050 use 5% adu of target housing units
     # note: anything higher than 1% from 2019 to 2034 with use up all adu capacity in
     # city of san diego, chula vista, oceanside, el cajon prior to 2035
+
+    # Design to calculate HALF of available ADU in these 3 cities: allocate that amount for 2019-2034, then make all
+    # of it available for 2035-2050. Use dynamic percentages!
     percentages = np.repeat(0, 2).tolist() + np.repeat(.01, 16).tolist() + np.repeat(.05, 16).tolist()
     yr = list(range(2017, 2051))
     adu_share_df = pd.DataFrame({'percent_adu': percentages}, index=yr)

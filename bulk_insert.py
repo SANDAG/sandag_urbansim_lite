@@ -99,7 +99,7 @@ def table_setup():
                                 [mgra_id] [smallint] NULL,
                                 [luz_id] [tinyint] NULL,
                                 [site_id] [smallint] NULL,
-                                [taz] [tinyint] NULL,
+                                [taz] [smallint] NULL,
                                 [hs] [smallint] NOT NULL,
                                 [tot_cap_hs] [smallint] NOT NULL,
                                 [tot_chg_hs] [smallint] NOT NULL,
@@ -200,7 +200,6 @@ def year_update_formatter(parcel_table, current_builds, scenario, year, table_ty
     year_update.loc[year_update.cpa_id < 20, 'cpa_id'] = np.nan
     year_update['yr'] = year
     year_update['scenario_id'] = scenario
-    year_update['taz'] = np.nan
     year_update['capacity'].fillna(0,inplace=True)
     year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
     year_update['source_id'] = year_update['source_id'].fillna(0)
@@ -209,7 +208,6 @@ def year_update_formatter(parcel_table, current_builds, scenario, year, table_ty
     year_update.sort_values(by=['parcel_id'])
     year_update = year_update.reset_index(drop=True)
     year_update.fillna(-99, inplace=True) # pivot does not handle null
-
     ###########################################################################
     # regional overflow
     ##########################################################################
@@ -306,10 +304,9 @@ def run_insert(parcel_tables, year):
         if table_type == "all":
             all_parcels = utils.parcel_table_update_units(all_parcels, current_builds)
             orca.add_table("all_parcels", all_parcels)
-            year_update_cap = all_parcels.copy()
+            year_update = all_parcels.copy()
         if table_type == "cap":
-            year_update_cap = capacity_parcels.copy()
+            year_update = capacity_parcels.copy()
         scenario = scenario_grab(table_type)
-        year_update_cap = year_update_cap.drop(['partial_build'], axis=1)
-        year_update_cap = year_update_formatter(year_update_cap, current_builds, scenario, year, table_type)
-        table_insert(year_update_cap, year, table_type)
+        year_update = year_update_formatter(year_update, current_builds, scenario, year, table_type)
+        table_insert(year_update, year, table_type)
