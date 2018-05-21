@@ -99,6 +99,8 @@ def parcel_table_update_units(parcel_table, current_builds):
     updated_parcel_table.units_added = updated_parcel_table.units_added.fillna(0)
     updated_parcel_table['capacity_used'] = updated_parcel_table['capacity_used'] + updated_parcel_table['units_added']
     updated_parcel_table['lu_sim'].where(updated_parcel_table.units_added == 0, other=updated_parcel_table['plu'], inplace=True)
+    updated_parcel_table['lu_sim'].where(~updated_parcel_table.lu_sim.isnull(), other=updated_parcel_table['lu_2017'],
+                                         inplace=True)
     residential_unit_total = pd.DataFrame({'total_units_added': updated_parcel_table.\
                                           groupby(["parcel_id", "residential_units"]).units_added.sum()}).reset_index()
     residential_unit_total['residential_units'] = residential_unit_total['total_units_added'] + residential_unit_total['residential_units']

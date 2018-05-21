@@ -119,10 +119,10 @@ def table_setup():
                                 [chg_hs_jur] [smallint] NULL,
                                 [chg_hs_sch] [smallint] NULL,
                                 [chg_hs_sgoa] [smallint] NULL
-                                --CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
-                                    --[scenario_id] ASC,
-                                    --[yr] ASC,
-                                    --[parcel_id] ASC)
+                                CONSTRAINT[PK_sr14_residential_{}_parcel_yearly] PRIMARY KEY CLUSTERED(
+                                    [scenario_id] ASC,
+                                    [yr] ASC,
+                                    [parcel_id] ASC)
                                     )WITH (DATA_COMPRESSION = page)'''.format(table_type, table_type)
                         conn.execute(create_table_sql)
                     scenario = int(1)
@@ -161,13 +161,13 @@ def table_setup():
 
 
 def year_update_formatter(parcel_table, current_builds, scenario, year, table_type):
-    phase_year = orca.get_table('devyear').to_frame()
+    #phase_year = orca.get_table('devyear').to_frame()
     dev_lu_table = orca.get_table('dev_lu_table').to_frame()
     sched_dev = orca.get_table('scheduled_development').to_frame()
-    phase_year.reset_index(inplace=True)
-    parcel_table = pd.merge(parcel_table, phase_year[['parcel_id', 'phase_yr', 'capacity_type']], how='left',
-                           on=['parcel_id', 'capacity_type'])
-    sched_dev.rename(columns={"yr": "phase_yr"}, inplace=True)
+    #phase_year.reset_index(inplace=True)
+    #parcel_table = pd.merge(parcel_table, phase_year[['parcel_id', 'phase_yr', 'capacity_type']], how='left',
+    #                       on=['parcel_id', 'capacity_type'])
+    #sched_dev.rename(columns={"yr": "phase_yr"}, inplace=True)
     parcel_table = pd.concat([parcel_table, sched_dev])
     parcel_table.rename(columns={"residential_units": "hs"}, inplace=True)
     #phase_year = pd.concat([phase_year, sched_dev[['parcel_id', 'phase_yr', 'capacity_type']]])
@@ -195,15 +195,18 @@ def year_update_formatter(parcel_table, current_builds, scenario, year, table_ty
         year_update['capacity_used'].fillna(0, inplace=True)
         year_update['cap_hs'] = year_update['capacity'] - year_update['capacity_used']
 
-    year_update.rename(columns={"phase_yr": "phase", "jur_or_cpa_id": "cpa_id", "source": "source_id",
-                                "capacity_type": "cap_type"}, inplace=True)
+    updated_lu_list = year_update.loc[year_update.lu_sim == year_update.plu].parcel_id.tolist()
+    year_update['lu_sim'].where(~year_update.parcel_id.isin(updated_lu_list), other=year_update['plu'], inplace=True)
+
+    year_update.rename(columns={"jur_or_cpa_id": "cpa_id", "source": "source_id",
+                                "capacity_type": "cap_type"}, inplace=True) #"phase_yr": "phase",
     year_update.loc[year_update.cpa_id < 20, 'cpa_id'] = np.nan
     year_update['yr'] = year
     year_update['scenario_id'] = scenario
     year_update['capacity'].fillna(0,inplace=True)
     year_update['chg_hs'] = year_update['chg_hs'].fillna(0)
     year_update['source_id'] = year_update['source_id'].fillna(0)
-    year_update['phase'] = year_update['phase'].fillna(2017)
+    #year_update['phase'] = year_update['phase'].fillna(2017)
     year_update['cap_type'] = year_update['cap_type'].fillna("no capacity")
     year_update.sort_values(by=['parcel_id'])
     year_update = year_update.reset_index(drop=True)
@@ -221,6 +224,7 @@ def year_update_formatter(parcel_table, current_builds, scenario, year, table_ty
     year_update.replace('tc', 'sgoa', inplace=True)
     year_update.replace('tco', 'sgoa', inplace=True)
     year_update.replace('uc', 'sgoa', inplace=True)
+    #year_update = year_update.drop(['source_id', 'priority', 'phase', 'partial_build', 'capacity_used', 'capacity'], axis=1)
     year_update_pivot = pd.pivot_table(year_update, index=['scenario_id', 'increment', 'parcel_id', 'yr', 'lu_2017',
                             'jurisdiction_id', 'cap_jurisdiction_id', 'cpa_id', 'mgra_id', 'luz_id', 'taz', 'site_id',
                             'lu_sim', 'plu', 'hs', 'regional_overflow', 'lu_2015', 'dev_type_2015', 'dev_type_2017'],

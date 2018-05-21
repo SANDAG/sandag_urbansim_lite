@@ -78,6 +78,7 @@ all_parcel_sql = '''
              lu_2015,
              lu_2017
       FROM urbansim.urbansim.parcel p
+      where parcel_id not in (select parcel_id from urbansim.urbansim.scheduled_development_priority)
 '''
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
 all_parcels_df['site_id'] = all_parcels_df.site_id.astype(float)
