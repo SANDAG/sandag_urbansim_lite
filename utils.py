@@ -243,6 +243,9 @@ def run_feasibility(parcels, year=None):
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
     # remove scheduled developments from feasibility table
     feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
+    # no SGOAs before 2035
+    if year < 2035:
+        feasible_parcels = feasible_parcels.loc[feasible_parcels['capacity_type'].isin(['jur', 'adu'])].copy()
     orca.add_table("feasibility", feasible_parcels)
 
 
