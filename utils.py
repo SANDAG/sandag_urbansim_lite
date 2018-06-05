@@ -151,7 +151,7 @@ def run_scheduled_development(hu_forecast,households,year):
     # 2035 to 2050 use 5% adu of target housing units
     # note: anything higher than 1% from 2019 to 2034 with use up all adu capacity in
     # city of san diego, chula vista, oceanside, el cajon prior to 2035
-    percentages = np.repeat(0, 2).tolist() + np.repeat(.01, 16).tolist() + np.repeat(.05, 16).tolist()
+    percentages = np.repeat(0, 2).tolist() + np.repeat(.02, 16).tolist() + np.repeat(.1, 16).tolist()
     yr = list(range(2017, 2051))
     adu_share_df = pd.DataFrame({'percent_adu': percentages}, index=yr)
     adu_share = int(round(adu_share_df.loc[year].percent_adu * hh, 0))
@@ -261,7 +261,7 @@ def adu_picker(year, current_hh, feasible_parcels_df):
 
     # Design to calculate HALF of available ADU in these 3 cities: allocate that amount for 2019-2034, then make all
     # of it available for 2035-2050. Use dynamic percentages!
-    percentages = np.repeat(0, 2).tolist() + np.repeat(.02, 16).tolist() + np.repeat(.08, 16).tolist()
+    percentages = np.repeat(0, 2).tolist() + np.repeat(.02, 16).tolist() + np.repeat(.1, 16).tolist()
     yr = list(range(2017, 2051))
     adu_share_df = pd.DataFrame({'percent_adu': percentages}, index=yr)
     adu_share = int(round(adu_share_df.loc[year].percent_adu * current_hh,0))
@@ -279,7 +279,8 @@ def adu_picker(year, current_hh, feasible_parcels_df):
 
 def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_simulation):
     parcels_picked = pd.DataFrame()
-    parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'adu'].copy()
+    if name_of_geo != 'all':
+        parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'adu'].copy()
     if target_number_of_units > 0:
         if parcels_to_choose.remaining_capacity.sum() < target_number_of_units:
             print("WARNING THERE WERE NOT ENOUGH UNITS TO MATCH DEMAND FOR", name_of_geo, "IN YEAR", year_simulation)
@@ -292,15 +293,17 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
             capacity_jur = shuffled_parcels.loc[(shuffled_parcels.capacity_type=='jur') & (shuffled_parcels.partial_build==0)]
             adu_parcels = shuffled_parcels.loc[shuffled_parcels.capacity_type == 'adu']
-            number_of_adu = math.ceil(.10* target_number_of_units)
-            if len(adu_parcels) > 0:
-                adu_parcels_to_add = adu_parcels.head(number_of_adu)
-            else:
-                adu_parcels_to_add = adu_parcels
-            priority_parcels = pd.concat([previously_picked,capacity_jur,adu_parcels_to_add])
+            # number_of_adu = math.ceil(.10* target_number_of_units)
+            # if len(adu_parcels) > 0:
+            #     adu_parcels_to_add = adu_parcels.head(number_of_adu)
+            # else:
+            #     adu_parcels_to_add = adu_parcels
+            priority_parcels = pd.concat([previously_picked, capacity_jur])
             shuffled_parcels = shuffled_parcels[
                 ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
-            priority_then_random = pd.concat([priority_parcels, shuffled_parcels])
+            shuffled_parcels = shuffled_parcels[
+                ~shuffled_parcels['parcel_id'].isin(adu_parcels.parcel_id.values.tolist())]
+            priority_then_random = pd.concat([priority_parcels, shuffled_parcels, adu_parcels])
             # if name_of_geo == 'all':
             #     adu_parcels = parcels_to_choose.loc[parcels_to_choose.capacity_type == 'adu'].copy()
             #     priority_then_random = pd.concat([priority_then_random, adu_parcels])
@@ -398,8 +401,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     print("Number of units: {:,}".format(int(num_units)))
     target_vacancy = 0
     target_units = int(max(hh / (1 - target_vacancy) - num_units, 0))
-    print("Target of new units = {:,}"
-          .format(target_units))
+    print("Target of new units = {:,}".format(current_hh))
 
 
     print("Target of new units = {:,} after scheduled developments and adu's are built".format(target_units))
@@ -414,7 +416,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
         Do not pick or develop if there are no feasible parcels
     '''
     if len(feasible_parcels_df) == 0:
-        print ('0 feasible parcels')
+        print('0 feasible parcels')
         return
 
     '''
