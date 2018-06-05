@@ -248,7 +248,8 @@ def run_feasibility(parcels, year=None):
 
 def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_simulation):
     parcels_picked = pd.DataFrame()
-    parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'adu'].copy()
+    if name_of_geo != 'all':
+        parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'adu'].copy()
     if target_number_of_units > 0:
         if parcels_to_choose.remaining_capacity.sum() < target_number_of_units:
             print("WARNING THERE WERE NOT ENOUGH UNITS TO MATCH DEMAND FOR", name_of_geo, "IN YEAR", year_simulation)
