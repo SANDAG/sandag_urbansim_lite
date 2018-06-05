@@ -60,7 +60,6 @@ assigned_df['site_id'] = assigned_df.site_id.astype(float)
 
 parcels_df = pd.concat([parcels_df,assigned_df])
 
-
 all_parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
              cap_jurisdiction_id,
@@ -106,8 +105,6 @@ sched_dev_sql = '''
 '''
 sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']
 
-
-
 luz_names_sql = '''
     SELECT zone, name
       FROM data_cafe.ref.geography_zone
@@ -144,9 +141,7 @@ households_sql = '''
      FROM [urbansim].[urbansim].[urbansim_target_housing_units]
     WHERE [version_id] = %s
 '''
-
 households_sql = households_sql % scenarios['target_housing_units_version']
-
 
 hu_forecast_sql = '''
     SELECT parcel_id
@@ -183,8 +178,7 @@ SELECT [parcel_id]
 FROM  [urbansim].[urbansim].[urbansim_lite_parcel_control]
      WHERE phase_yr_version_id = %s
 '''
-parcel_dev_control_sql  = parcel_dev_control_sql % scenarios['parcel_phase_yr']
-
+parcel_dev_control_sql = parcel_dev_control_sql % scenarios['parcel_phase_yr']
 
 gplu_sql = '''
 SELECT parcel_id, gplu as plu
@@ -205,12 +199,19 @@ SELECT [parcel_id]
   FROM [urbansim].[ref].[vi_parcel_xref]'''
 geography_view_df = pd.read_sql(geography_view_sql, mssql_engine)
 
+adu_allocation_sql = '''
+SELECT [yr]
+      ,[allocation]
+  FROM [urbansim].[urbansim].[urbansim_lite_adu_control]
+  where version_id = 1
+'''
+adu_allocation_df = pd.read_sql(adu_allocation_sql, mssql_engine)
+
 parcels = pd.merge(parcels_df, geography_view_df, how='left', on='parcel_id')
 parcels.parcel_id = parcels.parcel_id.astype(int)
 parcels.capacity_type = parcels.capacity_type.astype(str)
 parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels = pd.merge(parcels, gplu_df,  how='left', on='parcel_id')
-#parcels.set_index('parcel_id',inplace=True)
 parcels.sort_index(inplace=True)
 
 
@@ -220,7 +221,6 @@ all_parcels.capacity_type = all_parcels.capacity_type.astype(str)
 all_parcels = all_parcels.loc[~all_parcels.jur_or_cpa_id.isnull()].copy()
 all_parcels.jur_or_cpa_id = all_parcels.jur_or_cpa_id.astype(int)
 all_parcels = pd.merge(all_parcels, gplu_df, how='left', on='parcel_id')
-#all_parcels.set_index('parcel_id',inplace=True)
 all_parcels.sort_index(inplace=True)
 
 
@@ -259,3 +259,4 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('negative_parcels', negative_parcels_df, format='table')
     store.put('all_parcels', all_parcels, format='table')
     store.put('dev_lu_table', dev_lu_df, format='table')
+    store.put('adu_allocation', adu_allocation_df, format='table')

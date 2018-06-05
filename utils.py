@@ -140,21 +140,15 @@ def parcel_table_update_units(parcel_table, current_builds):
 # add all sched dev first - before using jur provided units
 def run_scheduled_development(hu_forecast,households,year):
     print('\n Adding scheduled developments in year: %d' % (year))
-
     hh = int(households.to_frame().at[year, 'housing_units_add'])
-
-    # running out of units due to reduction in total adu using the following calc
-    # adu_share = int((.05 + (.05/31)*(year-2019)) * hh)
-
     # prior to 2019 use 0 percent adu
     # 2019 to 2034 use 1% adu of target housing units
     # 2035 to 2050 use 5% adu of target housing units
     # note: anything higher than 1% from 2019 to 2034 with use up all adu capacity in
     # city of san diego, chula vista, oceanside, el cajon prior to 2035
-    percentages = np.repeat(0, 2).tolist() + np.repeat(.02, 16).tolist() + np.repeat(.1, 16).tolist()
-    yr = list(range(2017, 2051))
-    adu_share_df = pd.DataFrame({'percent_adu': percentages}, index=yr)
-    adu_share = int(round(adu_share_df.loc[year].percent_adu * hh, 0))
+
+    adu_share_df = orca.get_table('adu_allocation').to_frame()
+    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * hh, 0))
     hh = hh - adu_share
 
     print('\n Number of households in year: %d' % (hh + adu_share))
@@ -250,21 +244,16 @@ def run_feasibility(parcels, year=None):
 
 
 def adu_picker(year, current_hh, feasible_parcels_df):
-    # running out of units due to reduction in total adu using the following calc
-    # adu_share = int((.05 + (.05/31)*(year-2019)) * current_hh)
-
     # prior to 2019 use 0 percent adu
     # 2019 to 2034 use 1% adu of target housing units
     # 2035 to 2050 use 5% adu of target housing units
     # note: anything higher than 1% from 2019 to 2034 with use up all adu capacity in
     # city of san diego, chula vista, oceanside, el cajon prior to 2035
 
-    # Design to calculate HALF of available ADU in these 3 cities: allocate that amount for 2019-2034, then make all
+    # Design to calculate HALF of available ADU in these cities: allocate that amount for 2019-2034, then make all
     # of it available for 2035-2050. Use dynamic percentages!
-    percentages = np.repeat(0, 2).tolist() + np.repeat(.02, 16).tolist() + np.repeat(.1, 16).tolist()
-    yr = list(range(2017, 2051))
-    adu_share_df = pd.DataFrame({'percent_adu': percentages}, index=yr)
-    adu_share = int(round(adu_share_df.loc[year].percent_adu * current_hh,0))
+    adu_share_df = orca.get_table('adu_allocation').to_frame()
+    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh,0))
 
     adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
     try:

@@ -67,4 +67,10 @@ def dev_lu_table(store):
     return df
 
 
+@orca.table('adu_allocation', cache=True)
+def adu_allocation(store):
+    df = store['adu_allocation']
+    return df
+
+
 orca.add_injectable("parcel_tables", bulk_insert.table_setup())
