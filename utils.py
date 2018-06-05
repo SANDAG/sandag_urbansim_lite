@@ -249,10 +249,37 @@ def run_feasibility(parcels, year=None):
     orca.add_table("feasibility", feasible_parcels)
 
 
+def adu_picker(year, current_hh, feasible_parcels_df):
+    # running out of units due to reduction in total adu using the following calc
+    # adu_share = int((.05 + (.05/31)*(year-2019)) * current_hh)
+
+    # prior to 2019 use 0 percent adu
+    # 2019 to 2034 use 1% adu of target housing units
+    # 2035 to 2050 use 5% adu of target housing units
+    # note: anything higher than 1% from 2019 to 2034 with use up all adu capacity in
+    # city of san diego, chula vista, oceanside, el cajon prior to 2035
+
+    # Design to calculate HALF of available ADU in these 3 cities: allocate that amount for 2019-2034, then make all
+    # of it available for 2035-2050. Use dynamic percentages!
+    percentages = np.repeat(0, 2).tolist() + np.repeat(.02, 16).tolist() + np.repeat(.08, 16).tolist()
+    yr = list(range(2017, 2051))
+    adu_share_df = pd.DataFrame({'percent_adu': percentages}, index=yr)
+    adu_share = int(round(adu_share_df.loc[year].percent_adu * current_hh,0))
+
+    adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
+    try:
+        shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
+    except ValueError:
+        shuffled_adu = adu_parcels
+    picked_adu_parcels = shuffled_adu.head(adu_share).copy()
+    picked_adu_parcels['source'] = 5
+    picked_adu_parcels['units_added'] = 1
+    return picked_adu_parcels
+
+
 def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_simulation):
     parcels_picked = pd.DataFrame()
-    if name_of_geo != 'all':
-        parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'adu'].copy()
+    parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'adu'].copy()
     if target_number_of_units > 0:
         if parcels_to_choose.remaining_capacity.sum() < target_number_of_units:
             print("WARNING THERE WERE NOT ENOUGH UNITS TO MATCH DEMAND FOR", name_of_geo, "IN YEAR", year_simulation)
@@ -270,10 +297,13 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 adu_parcels_to_add = adu_parcels.head(number_of_adu)
             else:
                 adu_parcels_to_add = adu_parcels
-            priority_parcels = pd.concat([previously_picked,adu_parcels_to_add,capacity_jur])
+            priority_parcels = pd.concat([previously_picked,capacity_jur,adu_parcels_to_add])
             shuffled_parcels = shuffled_parcels[
                 ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
             priority_then_random = pd.concat([priority_parcels, shuffled_parcels])
+            # if name_of_geo == 'all':
+            #     adu_parcels = parcels_to_choose.loc[parcels_to_choose.capacity_type == 'adu'].copy()
+            #     priority_then_random = pd.concat([priority_then_random, adu_parcels])
 
             # shuffled_parcels['project_urgency'] = (shuffled_parcels.remaining_capacity - 250)/(2051 - year_simulation + 1)
             #if shuffled_parcels.project_urgency.max() > 500:
@@ -353,50 +383,23 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
     sr14cap = pd.DataFrame()
     feasible_parcels_df = feasibility.to_frame()
 
-    #ADU CALL HERE
+
     current_hh = int(households.to_frame().at[year, 'housing_units_add'])
-
-    # running out of units due to reduction in total adu using the following calc
-    # adu_share = int((.05 + (.05/31)*(year-2019)) * current_hh)
-
-    # prior to 2019 use 0 percent adu
-    # 2019 to 2034 use 1% adu of target housing units
-    # 2035 to 2050 use 5% adu of target housing units
-    # note: anything higher than 1% from 2019 to 2034 with use up all adu capacity in
-    # city of san diego, chula vista, oceanside, el cajon prior to 2035
-
-    # Design to calculate HALF of available ADU in these 3 cities: allocate that amount for 2019-2034, then make all
-    # of it available for 2035-2050. Use dynamic percentages!
-    percentages = np.repeat(0, 2).tolist() + np.repeat(.01, 16).tolist() + np.repeat(.05, 16).tolist()
-    yr = list(range(2017, 2051))
-    adu_share_df = pd.DataFrame({'percent_adu': percentages}, index=yr)
-    adu_share = int(round(adu_share_df.loc[year].percent_adu * current_hh,0))
-
-    adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
+    adu_builds = adu_picker(year, current_hh, feasible_parcels_df)
     try:
-        shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
-    except ValueError:
-        shuffled_adu = adu_parcels
-    picked_adu_parcels = shuffled_adu.head(adu_share).copy()
-    picked_adu_parcels['source'] = 5
-    picked_adu_parcels['units_added'] = 1
-    try:
-        sr14cap = sr14cap.append(picked_adu_parcels[['parcel_id', 'capacity_type', 'units_added', 'source']])
+        sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']])
         sr14cap.set_index('parcel_id', inplace=True)
     except KeyError:
         sr14cap
+    adu_build_count = len(adu_builds)
 
-    adu_build = len(sr14cap)
-    num_units = hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum() + adu_build
+    num_units = hu_forecast.to_frame().loc[hu_forecast.year_built > 2016][supply_fname].sum() + adu_build_count
     print("Number of households: {:,}".format(int(hh)))
     print("Number of units: {:,}".format(int(num_units)))
     target_vacancy = 0
     target_units = int(max(hh / (1 - target_vacancy) - num_units, 0))
     print("Target of new units = {:,}"
           .format(target_units))
-
-
-
 
 
     print("Target of new units = {:,} after scheduled developments and adu's are built".format(target_units))
@@ -447,7 +450,7 @@ def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdi
         sr14cap = sr14cap.append(chosen)
 
     if len(sr14cap):
-        remaining_units = target_units - int(sr14cap.units_added.sum()) + adu_build
+        remaining_units = target_units - int(sr14cap.units_added.sum()) + adu_build_count
     else: remaining_units = target_units
 
     if remaining_units > 0:
