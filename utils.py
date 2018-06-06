@@ -11,19 +11,14 @@ from sqlalchemy import create_engine
 
 def yaml_to_dict(yaml_file, yaml_section):
     """
-    Load YAML from a file
-    Read specific section to dictionary
+    Load YAML from a file; read specific section to dictionary.
 
-    Parameters
-    ----------
-    yaml_file : File name from which to load YAML
-    yaml_section : Section of YAML file to process
-
-    Returns
-    -------
-    dict
-        Conversion from YAML for a specific section.
-
+    :param
+    yaml_file: File name from which to load YAML.
+    :param
+    yaml_section: Section of YAML file to process.
+    :return:
+    dict: Conversion from YAML for a specific section.
     """
 
     with open(yaml_file,'r') as f:
@@ -33,36 +28,53 @@ def yaml_to_dict(yaml_file, yaml_section):
 
 
 def add_run_to_db():
+    """
+    Generates new run_id and saves input information to SQL.
+
+    :return:
+    int: the numerical run_id.
+    """
+
+    # Link to SQL Server
     db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
     mssql_engine = create_engine(db_connection_string)
-    version_ids = yaml_to_dict('data/scenario_config.yaml', 'scenario')
-    run_description = input("Please provide a run description: ")
-    #run_description = get_run_desc()
 
+    # Retrieve input information from scenario_config.yaml
+    version_ids = yaml_to_dict('data/scenario_config.yaml', 'scenario')
+    # Gives the user an opportunity to describe the run_id
+    run_description = input("Please provide a run description: ")
+
+    # Retrieves maximum existing run_id from the table. If none exists, creates run_id = 1
     run_id_sql = '''
     SELECT max(run_id)
       FROM [urbansim].[urbansim].[urbansim_lite_output_runs]
     '''
     run_id_df = pd.read_sql(run_id_sql, mssql_engine)
-
     if run_id_df.values:
         run_id = int(run_id_df.values) + 1
     else:
         run_id = 1
 
+    # Retrieves the input version_id values for the run, places them with run_id in the record
     subregional_controls = version_ids['subregional_ctrl_id']
     target_housing_units = version_ids['target_housing_units_version']
     phase_year = version_ids['parcel_phase_yr']
     additional_capacity = version_ids['additional_capacity_version']
     scheduled_development = version_ids['sched_dev_version']
+    # Need to add adu_allocation to scenario_config.yaml; will require modified output table (adding a new column).
 
+    # Pulls git of last commit
     last_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).rstrip()
 
+    # Creates dataframe of run_id information
     output_records = pd.DataFrame(
         columns=['run_id', 'run_date', 'subregional_controls', 'target_housing_units', 'phase_year',
                  'additional_capacity', 'scheduled_development', 'git', 'run_description'])
 
+    # Records the time of the commit
     run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    # Places the collected information into the dataframe and appends to the existing table in SQL
     output_records.loc[run_id] = [run_id, run_date, subregional_controls, target_housing_units, phase_year,
                                   additional_capacity, scheduled_development, last_commit, run_description]
     output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False,
@@ -70,43 +82,94 @@ def add_run_to_db():
     return run_id
 
 
-def largest_remainder_allocation(df, k):
-    df.reset_index(inplace=True,drop=True)
-    ratios = df.control.values
-    frac, results = np.modf(k * ratios)
-    remainder = int(k - results.sum()) # how many left
+def largest_remainder_allocation(regional_targets, target_units):
+    """
+    Ensures that yearly targets are whole numbers, and that the sum of all targets is the correct total.
+
+    :param regional_targets:
+    A dataframe containing geo_id and percentage targets that sum to 1, with one entry per geography.
+    :param target_units:
+    The integer target total after scheduled development and additional dwelling units are accounted for.
+    :return:
+    dataframe: the given dataframe, with an additional column of target units (as integers), which sum to target_units.
+    """
+
+    regional_targets.reset_index(inplace=True,drop=True)
+
+    # Converts percentages into an array
+    ratios = regional_targets.control.values
+
+    # Converts percentages into float unit totals
+    frac, results = np.modf(target_units * ratios)
+
+    # Determines how many additional units need to be assigned to reach the target
+    remainder = int(target_units - results.sum())
+
+    # Sorts by largest fractional unit
     indices = np.argsort(frac)[::-1]
     if remainder > 0:
-        results[indices[0:remainder]] += 1 # add one to the ones with the highest decimal.
+        # Add one to the geographies with the largest fractional unit
+        results[indices[0:remainder]] += 1
+
     if remainder < 0:
-            idx = df.index[df.geo_id == 1920]
-            results[idx] = results[idx] + remainder
-            print('\n\nNegative remainder: %d' % (remainder))
-    df['targets'] = results.astype(int).tolist()
+        # If there is an over-allocation of units, deducts the extra(s) from region cpa=1920 (Valley Center)
+        # This is because the Unincorporated County expects to fill up later than other cities
+        idx = regional_targets.index[regional_targets.geo_id == 1920]
+        results[idx] = results[idx] + remainder
+        print('\n\nNegative remainder: %d' % (remainder))
+    regional_targets['targets'] = results.astype(int).tolist()
 
-    return df
-
-
+    return regional_targets
 
 
 def parcel_table_update_units(parcel_table, current_builds):
-    # This is the new parcel update section
-    # Now merges parcels that were updated in the current year with existing parcel table
+    """
+    Updates the parcel table with the results of the model run for the year.
+
+    :param parcel_table:
+    The parcel dataframe being updated: 'parcels' will be updated yearly, even if no detailed
+    reporting is selected (this is necessary for the code to know what has been built in previous years).
+    'all_parcels' will only be updated if the user has requested the detailed reporting for that table.
+    :param
+    current_builds: The dataframe of parcels modified in that year.
+    :return:
+    dataframe: the updated parcel table.
+    """
+
     parcel_table.reset_index(inplace=True, drop=True)
+
+    # Merges the units added in this year with the main parcel table, matching parcel_id and capacity_type (as some
+    # parcels exist with multiple capacity types (namely provided capacity and SGOA, or multiple SGOA types)
     updated_parcel_table = pd.merge(parcel_table, current_builds[['parcel_id', 'capacity_type', 'units_added']],\
                                     how='left', left_on=['parcel_id', 'capacity_type'],\
                                     right_on=['parcel_id', 'capacity_type'])
+
+    # Sets units added to 0 if the parcel was unchanged and adds the value to the amount of capacity used already
     updated_parcel_table.units_added = updated_parcel_table.units_added.fillna(0)
     updated_parcel_table['capacity_used'] = updated_parcel_table['capacity_used'] + updated_parcel_table['units_added']
-    updated_parcel_table['lu_sim'].where(updated_parcel_table.units_added == 0, other=updated_parcel_table['plu'], inplace=True)
-    updated_parcel_table['lu_sim'].where(~updated_parcel_table.lu_sim.isnull(), other=updated_parcel_table['lu_2017'],
+
+    # If a parcel has units_added, replace lu_sim (land use in simulation) with the plu (planned land use)
+    # If units_added == 0, lu_sim is not modified
+    # If lu_sim is null or missing, it is reset to the current lu (lu_2017)
+    updated_parcel_table['lu_sim'].where(updated_parcel_table.units_added == 0, other=updated_parcel_table['plu'],\
                                          inplace=True)
+    updated_parcel_table['lu_sim'].where(~updated_parcel_table.lu_sim.isnull(), other=updated_parcel_table['lu_2017'],\
+                                         inplace=True)
+
+    # Sums the units added on each parcel (across capacity_types), and updates the parcel with the new total units.
+    # This allows parcels with multiple capacity_types to stay consistent with the number of units built on the parcel.
     residential_unit_total = pd.DataFrame({'total_units_added': updated_parcel_table.\
                                           groupby(["parcel_id", "residential_units"]).units_added.sum()}).reset_index()
-    residential_unit_total['residential_units'] = residential_unit_total['total_units_added'] + residential_unit_total['residential_units']
+    residential_unit_total['residential_units'] = (residential_unit_total['total_units_added'] +
+                                                   residential_unit_total['residential_units'])
+
+    # Partial build is assigned to parcels where units were added but not all units of the capacity_type were built,
+    # flagging that parcel for priority construction in the following year.
     updated_parcel_table = updated_parcel_table.drop(['partial_build'], 1)
     updated_parcel_table['partial_build'] = updated_parcel_table.units_added
     updated_parcel_table.partial_build = updated_parcel_table.partial_build.fillna(0)
+
+    # Remove the units_added and residential_units columns from the parcel table, then add the new residential_units
     updated_parcel_table = updated_parcel_table.drop(['units_added'], 1)
     updated_parcel_table = updated_parcel_table.drop(['residential_units'], 1)
     updated_parcel_table = pd.merge(updated_parcel_table, residential_unit_total[['parcel_id','residential_units']], \
@@ -115,64 +178,76 @@ def parcel_table_update_units(parcel_table, current_builds):
     return updated_parcel_table
 
 
-# def run_scheduled_development(hu_forecast, year):
-#     print('\n Adding scheduled developments in year: %d' % (year))
-#     sched_dev = orca.get_table('scheduled_development').to_frame()
-#     sched_dev_yr = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity > 0)].copy()
-#     if len(sched_dev_yr) > 0:
-#         sched_dev_yr['year_built'] = year
-#         sched_dev_yr['units_added'] = sched_dev_yr['capacity']
-#         sched_dev_yr['source'] = 1
-#         b = hu_forecast.to_frame(hu_forecast.local_columns)
-#         units = pd.concat([b,sched_dev_yr[b.columns]])
-#         units.reset_index(drop=True,inplace=True)
-#         units['source'] = units['source'].astype(int)
-#         orca.add_table("hu_forecast",units)
-#         sched_dev = pd.merge(sched_dev,sched_dev_yr[['parcel_id', 'units_added']],\
-#                              how='left', left_on=['parcel_id'], right_on=['parcel_id'])
-#         sched_dev.units_added.fillna(0,inplace=True)
-#         sched_dev['residential_units'] = sched_dev['residential_units'] + sched_dev['units_added']
-#         sched_dev['capacity_used'] = sched_dev['capacity_used'] + sched_dev['units_added']
-#         sched_dev = sched_dev.drop(['units_added'], axis=1)
-#         orca.add_table("scheduled_development", sched_dev)
-
-
-# add all sched dev first - before using jur provided units
 def run_scheduled_development(hu_forecast,households,year):
+    """
+    Builds the scheduled development parcels.
+
+    :param hu_forecast:
+    The dataframe of buildable parcels, used to track new builds during the simulation.
+    :param households:
+    The dataframe of target units by year.
+    :param year:
+    The iteration year of the simulation.
+    :return:
+    Does not return an object, but does update the scheduled_development and hu_forecast tables.
+    """
+
+    # As of 06/06/2018 scheduled_development is being built on a priority system, rather than by scheduled date.
+    # Each site_id (and all parcels included in it) are assigned a value 1-10. These priorities have been randomly
+    # assigned. All parcels listed as priority 1 are built first, followed by 2, etc. With the exception of ADUs
+    # beginning in 2019, all scheduled developments are constructed before any other capacity_type is built.
+
     print('\n Adding scheduled developments in year: %d' % (year))
-    hh = int(households.to_frame().at[year, 'housing_units_add'])
-    # prior to 2019 use 0 percent adu
-    # 2019 to 2034 use 1% adu of target housing units
-    # 2035 to 2050 use 5% adu of target housing units
-    # note: anything higher than 1% from 2019 to 2034 with use up all adu capacity in
-    # city of san diego, chula vista, oceanside, el cajon prior to 2035
 
+    # Find the target number of units to be built in the current simulation year.
+    target_units = int(households.to_frame().at[year, 'housing_units_add'])
+    print('\n Number of households in year: %d' % target_units)
+
+    # Determine if ADUs are expected in the given year, and 'under-produce' scheduled developments to allow for the
+    # appropriate number of ADUs without exceeding the target number of units for the year.
     adu_share_df = orca.get_table('adu_allocation').to_frame()
-    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * hh, 0))
-    hh = hh - adu_share
+    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * target_units, 0))
+    target_units = target_units - adu_share
 
-    print('\n Number of households in year: %d' % (hh + adu_share))
+    # Retrieve the scheduled_development table and organize by priority and site_id.
     sched_dev = orca.get_table('scheduled_development').to_frame()
     sched_dev.sort_values(by=['priority', 'site_id'],inplace=True)
-    # sched_dev_yr = sched_dev[(sched_dev.yr==year) & (sched_dev.capacity > 0)].copy()
+
+    # Remove parcels that have already used up capacity, then calculate how much capacity is remaining.
+    # Note: 'capacity' is not subtracted from the built parcels, so 'capacity' should always be >= 'capacity_used'.
     sched_dev_yr = sched_dev.loc[sched_dev['capacity'] > sched_dev['capacity_used']].copy()
     sched_dev_yr['remaining'] = sched_dev_yr['capacity'] - sched_dev_yr['capacity_used']
-    sched_dev_yr['remaining'] =  sched_dev_yr['remaining'].astype(int)
+    sched_dev_yr['remaining'] = sched_dev_yr['remaining'].astype(int)
+
+    # If there is no scheduled development capacity remaining at the start of the year, the function ends here.
     if sched_dev_yr.remaining.sum() > 0:
+        # Converts dataframe to have one row for each unit of capacity available. If a parcel has 'capacity' = 20,
+        # 'capacity_used' = 18 and 'remaining' = 2, the new dataframe will have 2 rows for that parcel.
         one_row_per_unit = sched_dev_yr.reindex(sched_dev_yr.index.repeat(sched_dev_yr.remaining)).\
             reset_index(drop=True)
-        one_row_per_unit_picked = one_row_per_unit.head(hh)
-        # for debugging purposes
-        sched_dev_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.
-                                      groupby(["parcel_id"]).size()}).reset_index()
+
+        # Takes the subset of the dataframe equal to the target number of units.
+        # If target_units > len(one_row_per_unit), one_row_per_unit_picked will simply contain the entire dataframe.
+        one_row_per_unit_picked = one_row_per_unit.head(target_units)
+
+        # Recombines the picked units into a dataframe, and determines how much capacity from each parcel was selected.
+        # Due to the nature of the selection, at most one parcel could be not fully built.
+        sched_dev_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.groupby(["parcel_id"]).size()}).\
+            reset_index()
+
+        # Assigns build information to the parcels built. Source 1 is scheduled development.
         sched_dev_picked['year_built'] = year
         sched_dev_picked['source'] = 1
         sched_dev_picked['capacity_type'] = 'sch'
-        b = hu_forecast.to_frame(hu_forecast.local_columns)
-        units = pd.concat([b, sched_dev_picked[b.columns]])
-        units.reset_index(drop=True, inplace=True)
-        units['source'] = units['source'].astype(int)
-        orca.add_table("hu_forecast", units)
+
+        # Adds the new scheduled_developments to the hu_forecast table.
+        sim_builds = hu_forecast.to_frame(hu_forecast.local_columns)
+        sim_units = pd.concat([sim_builds, sched_dev_picked[sim_builds.columns]])
+        sim_units.reset_index(drop=True, inplace=True)
+        sim_units['source'] = sim_units['source'].astype(int)
+        orca.add_table("hu_forecast", sim_units)
+
+        # Updates the scheduled_development table with the selected builds for the iteration year.
         sched_dev_updated = pd.merge(sched_dev,sched_dev_picked[['parcel_id','units_added']],how='left',on='parcel_id')
         sched_dev_updated.units_added.fillna(0,inplace=True)
         sched_dev_updated['residential_units'] = sched_dev_updated['residential_units'] + sched_dev_updated['units_added']
@@ -182,31 +257,67 @@ def run_scheduled_development(hu_forecast,households,year):
 
 
 def run_reducer(hu_forecast, year):
+    """
+    Account for parcels that have a negative capacity.
+
+    :param hu_forecast:
+    The dataframe of buildable parcels, used to track new builds during the simulation.
+    :param year:
+    The iteration year of the simulation.
+    :return:
+    Does not return an object, but does update the hu_forecast table.
+    """
+
+    # As of 06/06/2018, there are no negative capacity parcels. This function may need to be updated if they are
+    # reintroduced, as significant changes have been made since they were last included.
+
+    # Try to load the negative parcel dataframe. If it fails (due to the dataframe being empty) it passes.
     try:
         reducible_parcels = orca.get_table('negative_parcels').to_frame()
     except KeyError:
         pass
     else:
-        neg_cap_parcels = reducible_parcels[reducible_parcels['capacity_2'] < 0]
-        reduce_first_parcels = neg_cap_parcels[(neg_cap_parcels.yr == year)]
+        # Double check that only parcels with negative capacity are included.
+        neg_cap_parcels = reducible_parcels[reducible_parcels['capacity_2'] < 0].copy()
+
+        # If a parcel has a specific year to be demolished, it will be selected in that year and won't be available to
+        # reduce in other years. All other negative capacity parcels (year is null) will be included.
+        reduce_first_parcels = neg_cap_parcels[(neg_cap_parcels.yr == year)].copy()
         neg_cap_parcels = neg_cap_parcels[neg_cap_parcels['yr'].isnull()]
-        if len(neg_cap_parcels) > 0:
-            parcels_to_reduce = (len(neg_cap_parcels) / (2025 - year)) + len(reduce_first_parcels)
+
+        # Execute the below statement only if there are parcels with negative capacity.
+        if (len(neg_cap_parcels) + len(reduce_first_parcels)) > 0:
+            # This is designed to evenly space out demolition of parcels yearly through 2024.
+            # parcels_to_reduce is an integer number of parcels to demolish in the simulation year.
+            try:
+                parcels_to_reduce = (len(neg_cap_parcels) / (2025 - year)) + len(reduce_first_parcels)
+            except ValueError:
+                print('There are negative null-year parcels in 2025!')
+                parcels_to_reduce = len(neg_cap_parcels) + len(reduce_first_parcels)
             parcels_to_reduce = min((len(neg_cap_parcels) + len(reduce_first_parcels)), int(np.ceil(parcels_to_reduce)))
+
+            # Randomly reorder the null-year parcels, then append them below the list of year-specific parcels.
             random_neg_parcels = neg_cap_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
-            reducer = pd.concat([reduce_first_parcels, random_neg_parcels])
-            parcels_reduced = reducer.head(parcels_to_reduce)
+            reducable_parcels = pd.concat([reduce_first_parcels, random_neg_parcels])
+
+            # Selects the parcels to reduce.
+            parcels_reduced = reducable_parcels.head(parcels_to_reduce)
             parcels_reduced = parcels_reduced.set_index('index')
+
+            # Assigns build information to the parcels chosen. Source 4 is demolition / reduction.
+            # This section may need updating if new negative parcels are introduced.
             parcels_reduced['year_built'] = year
             parcels_reduced['hu_forecast_type_id'] = ''
             parcels_reduced['residential_units'] = parcels_reduced['capacity_2']
             parcels_reduced['source'] = 4
             for parcel in parcels_reduced['parcel_id'].tolist():
                 reducible_parcels.loc[reducible_parcels.parcel_id == parcel, 'capacity_2'] = 0
+
+            # Updates the negative_parcel and hu_forecast tables.
             orca.add_table("negative_parcels", reducible_parcels)
             all_hu_forecast = pd.concat([hu_forecast.to_frame(hu_forecast.local_columns),\
                                          parcels_reduced[hu_forecast.local_columns]])
-            all_hu_forecast .reset_index(drop=True,inplace=True)
+            all_hu_forecast.reset_index(drop=True,inplace=True)
             orca.add_table("hu_forecast", all_hu_forecast)
     
 

@@ -267,6 +267,7 @@ def table_insert(parcel_table, year, table_type):
     # Load table to M: drive
     start_time = time.monotonic()
     path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}_{}.csv'.format(table_type, year)
+    # path_name = 'M:\\RES\\estimates & forecast\\SR14 Forecast\\UrbanSim\\Capacity_Parcel_Updates\\year_update_{}_{}.csv'.format(table_type, year)
     parcel_table.to_csv(path_name, index=False)
     end_time = time.monotonic()
     print("Time to write {}_table to drive:".format(table_type), timedelta(seconds=end_time - start_time))
@@ -283,6 +284,7 @@ def table_insert(parcel_table, year, table_type):
                 FROM '\\\\sandag.org\\home\\shared\\TEMP\\noz\\outputs\\year_update_{}_{}.csv'
                 WITH (FIRSTROW = 2, FIELDTERMINATOR = ',')
                 '''.format(table_type, year)
+        # '\\\\sandag.org\\home\\shared\\RES\\estimates & forecast\\SR14 Forecast\\UrbanSim\\Capacity_Parcel_Updates\\year_update_{}_{}.csv'
         conn.execute(bulk_insert_staging_sql)
 
     # Move from staging table to target table
