@@ -13,11 +13,11 @@ def yaml_to_dict(yaml_file, yaml_section):
     Load YAML from a file; read specific section to dictionary.
 
     :param yaml_file:
-    File name from which to load YAML.
+        File name from which to load YAML.
     :param yaml_section:
-    Section of YAML file to process.
+        Section of YAML file to process.
     :return:
-    dict: Conversion from YAML for a specific section.
+        dict: Conversion from YAML for a specific section.
     """
 
     with open(yaml_file, 'r') as f:
@@ -31,7 +31,7 @@ def add_run_to_db():
     Generates new run_id and saves input information to SQL.
 
     :return:
-    int: the numerical run_id.
+        int: the numerical run_id.
     """
 
     # Link to SQL Server.
@@ -86,11 +86,11 @@ def largest_remainder_allocation(regional_targets, target_units):
     Ensures that yearly targets are whole numbers, and that the sum of all targets is the correct total.
 
     :param regional_targets:
-    A dataframe containing geo_id and percentage targets that sum to 1, with one entry per geography.
+        A dataframe containing geo_id and percentage targets that sum to 1, with one entry per geography.
     :param target_units:
-    The integer target total units, after scheduled development and additional dwelling units are accounted for.
+        The integer target total units, after scheduled development and additional dwelling units are accounted for.
     :return:
-    dataframe: the given dataframe, with an additional column of target units (as integers), which sum to target_units.
+        dataframe: the given dataframe with an additional column of target units (integer), which sums to target_units.
     """
 
     regional_targets.reset_index(inplace=True, drop=True)
@@ -126,13 +126,13 @@ def parcel_table_update_units(parcel_table, current_builds):
     Updates the parcel table with the results of the model run for the year.
 
     :param parcel_table:
-    The parcel dataframe being updated: 'parcels' will be updated yearly, even if no detailed
-    reporting is selected (this is necessary for the code to know what has been built in previous years).
-    'all_parcels' will only be updated if the user has requested the detailed reporting for that table.
+        The parcel dataframe being updated: 'parcels' will be updated yearly, even if no detailed reporting is selected
+    (this is necessary for the code to know what has been built in previous years). 'all_parcels' will only be updated
+    if the user has requested the detailed reporting for that table.
     :param current_builds:
-    The dataframe of parcels modified in that year.
+        The dataframe of parcels modified in that year.
     :return:
-    dataframe: the updated parcel table.
+        dataframe: the updated parcel table.
     """
 
     parcel_table.reset_index(inplace=True, drop=True)
@@ -182,13 +182,13 @@ def run_scheduled_development(hu_forecast, households, year):
     Builds the scheduled development parcels.
 
     :param hu_forecast:
-    The dataframe of buildable parcels, used to track new builds during the simulation.
+        The dataframe of buildable parcels, used to track new builds during the simulation.
     :param households:
-    The dataframe of target units by year.
+        The dataframe of target units by year.
     :param year:
-    The iteration year of the simulation.
+        The iteration year of the simulation.
     :return:
-    Does not return an object, but does update the scheduled_development and hu_forecast tables in orca.
+        Does not return an object, but does update the scheduled_development and hu_forecast tables in orca.
     """
 
     # As of 06/06/2018 scheduled_development is being built on a priority system, rather than by scheduled date.
@@ -262,11 +262,11 @@ def run_reducer(hu_forecast, year):
     Account for parcels that have a negative capacity.
 
     :param hu_forecast:
-    The dataframe of buildable parcels, used to track new builds during the simulation.
+        The dataframe of buildable parcels, used to track new builds during the simulation.
     :param year:
-    The iteration year of the simulation.
+        The iteration year of the simulation.
     :return:
-    Does not return an object, but does update the hu_forecast table in orca.
+        Does not return an object, but does update the hu_forecast table in orca.
     """
 
     # As of 06/06/2018, there are no negative capacity parcels. This function may need to be updated if they are
@@ -327,9 +327,9 @@ def run_feasibility(year):
     Determines feasible parcels for iteration year.
 
     :param year:
-    The iteration year of the simulation.
+        The iteration year of the simulation.
     :return:
-    Does not return an object, but adds a dataframe of feasible parcels to orca.
+        Does not return an object, but adds a dataframe of feasible parcels to orca.
     """
 
     print("Computing feasibility")
@@ -337,10 +337,11 @@ def run_feasibility(year):
     # Retrieve dataframes of parcels and development restrictions, and combines them by parcel_id and capacity_type.
     parcels = orca.get_table('parcels').to_frame()
     devyear = orca.get_table('devyear').to_frame()
-    parcels.reset_index(inplace=True,drop=True)
+    parcels.reset_index(inplace=True, drop=True)
     devyear.reset_index(inplace=True, drop=False)
-    parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
-    parcels.set_index('parcel_id',inplace=True)
+    parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'],
+                       right_on=['parcel_id', 'capacity_type'])
+    parcels.set_index('parcel_id', inplace=True)
 
     # Select parcels that have more capacity than is used.
     # Note: 'capacity' is not subtracted from the built parcels, so 'capacity' should always be >= 'capacity_used'.
@@ -361,13 +362,13 @@ def adu_picker(year, current_hh, feasible_parcels_df):
     Selects additional dwelling unit parcels to build each year (1 additional unit on an existing residential parcel).
 
     :param year:
-    The iteration year of the simulation.
+        The iteration year of the simulation.
     :param current_hh:
-    The integer target total units, after scheduled development units are accounted for.
+        The integer target total units, after scheduled development units are accounted for.
     :param feasible_parcels_df:
-    The dataframe generated in feasibility (contains parcels that are available to build on).
+        The dataframe generated in feasibility (contains parcels that are available to build on).
     :return:
-    dataframe: the selected ADU table.
+        dataframe: the selected ADU table.
     """
 
     # As of 06/06/2018, the external table used for these targets was generated manually. In the future, this would
@@ -381,7 +382,7 @@ def adu_picker(year, current_hh, feasible_parcels_df):
     # Note: Due to the priority system used in scheduled development, both sections should be double checked that they
     # match here or the model can over/under produce.
     adu_share_df = orca.get_table('adu_allocation').to_frame()
-    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh,0))
+    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
 
     # Only choose from feasible parcels with ADU capacity_type.
     adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
@@ -400,10 +401,45 @@ def adu_picker(year, current_hh, feasible_parcels_df):
 
 
 def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_simulation):
+    """
+    Chooses parcels to build by region, and how much to build on them, for the simulation.
+
+    :param parcels_to_choose:
+        A subset of the feasibility dataframe, limited to parcels in the geographical region identified by name_of_geo.
+    :param target_number_of_units:
+        The target number of units to build in this geographical region, determined by the sub-regional target
+    percentage derived from the largest_remainder_allocation function, the target total units, and any other
+    limitations in place for the region (ie. a region may ask to intentionally limit production in certain years).
+    :param name_of_geo:
+        An integer geography_id for the sub-region being simulated. Currently this is the jurisdiction_id (1-13, 15-18)
+    for most cities in the region. The City of San Diego (jurisdiction_id = 14) and the Unincorporated regions of the
+    county (jurisdiction_id = 19) are broken down into CPA-level areas.
+        This could accommodate any geographical distinction, such as MGRA or LUZ.
+        This could also be 'all', meaning that after all the regions were fed through the parcel_picker, there was a
+    shortage of units below the year's target total units. This occurs if a sub-region has less available units than
+    the target_number_of_units. The picker will instead choose from feasible parcels randomly from the entire county.
+        Note: There are possible edge cases in the 'all' cycle where a sub-region may be given units beyond what is
+    requested by the jurisdiction. However, the 'all' cycle allows for a level of randomized selection that we believe
+    is reasonable to assume in any given year.
+    :param year_simulation:
+        The iteration year of the simulation.
+    :return:
+        dataframe: the parcels selected for the region, and the number of units added to those parcels.
+    """
+
+    # Create an empty dataframe to add selected parcels to.
     parcels_picked = pd.DataFrame()
+
+    # This statement removes ADU parcels from the pool of allowed parcels in the 'all' cycle, preventing over-selection
+    # of the ADUs in early years.
     if name_of_geo != 'all':
         parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'adu'].copy()
+
+    # This checks that the sub-region has a target number of units to build. If not, the function ends and returns the
+    # empty dataframe.
     if target_number_of_units > 0:
+
+        # 
         if parcels_to_choose.remaining_capacity.sum() < target_number_of_units:
             print("WARNING THERE WERE NOT ENOUGH UNITS TO MATCH DEMAND FOR", name_of_geo, "IN YEAR", year_simulation)
             if len(parcels_to_choose):
@@ -415,32 +451,18 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
             capacity_jur = shuffled_parcels.loc[(shuffled_parcels.capacity_type=='jur') & (shuffled_parcels.partial_build==0)]
             adu_parcels = shuffled_parcels.loc[shuffled_parcels.capacity_type == 'adu']
-            # number_of_adu = math.ceil(.10* target_number_of_units)
-            # if len(adu_parcels) > 0:
-            #     adu_parcels_to_add = adu_parcels.head(number_of_adu)
-            # else:
-            #     adu_parcels_to_add = adu_parcels
             priority_parcels = pd.concat([previously_picked, capacity_jur])
             shuffled_parcels = shuffled_parcels[
                 ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
             shuffled_parcels = shuffled_parcels[
                 ~shuffled_parcels['parcel_id'].isin(adu_parcels.parcel_id.values.tolist())]
             priority_then_random = pd.concat([priority_parcels, shuffled_parcels, adu_parcels])
-            # if name_of_geo == 'all':
-            #     adu_parcels = parcels_to_choose.loc[parcels_to_choose.capacity_type == 'adu'].copy()
-            #     priority_then_random = pd.concat([priority_then_random, adu_parcels])
-
             # shuffled_parcels['project_urgency'] = (shuffled_parcels.remaining_capacity - 250)/(2051 - year_simulation + 1)
             #if shuffled_parcels.project_urgency.max() > 500:
             #    large_projects = shuffled_parcels.loc[shuffled_parcels.project_urgency > 500]
             #    priority_parcels = pd.concat([previously_picked, large_projects])
             #else:
             # priority_parcels = pd.concat([previously_picked])
-            # if name_of_geo == "all":
-             #   priority_then_random = pd.concat([shuffled_parcels, priority_parcels])
-                #to remove edge-case double picking, could make this: priority_the_random = shuffled_parcels
-            # else:
-            #    priority_then_random = pd.concat([priority_parcels, shuffled_parcels])
             priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
             large_build_checker = priority_then_random.remaining_capacity >= 250
             priority_then_random.loc[large_build_checker, 'units_for_year'] = 250
