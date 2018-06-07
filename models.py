@@ -20,8 +20,8 @@ def negative_parcel_reducer(hu_forecast, year):
 
 
 @orca.step('feasibility')
-def feasibility(parcels, year):
-    utils.run_feasibility(parcels, year)
+def feasibility(year):
+    utils.run_feasibility(year)
 
 
 @orca.step('residential_developer')
