@@ -512,11 +512,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
     return parcels_picked
 
 
-def run_developer(forms, parcels, households, hu_forecast, reg_controls, jurisdictions, supply_fname,
-                  total_units, feasibility, year=None,
-                  target_vacancy=.03, form_to_btype_callback=None,
-                  add_more_columns_callback=None, max_parcel_size=200000,
-                  residential=True, bldg_sqft_per_job=400.0):
+def run_developer(parcels, households, hu_forecast, reg_controls, jurisdictions, supply_fname, feasibility, year):
     """
     Run the developer model to pick and build hu_forecast
 
