@@ -13,8 +13,10 @@ mssql_engine = create_engine(db_connection_string)
 
 def table_setup():
     while True:
-        print("Writing to the capacity_parcels table (c), all_parcels table (a), both (b) or neither (n)?")
-        table_type_input = input("Choose c, a, b or n: ")
+        # print("Writing to the capacity_parcels table (c), all_parcels table (a), both (b) or neither (n)?")
+        # table_type_input = input("Choose c, a, b or n: ")
+        print("Writing detailed results to the database is currently disabled. (Preferred run is already stored.)")
+        table_type_input = "n"
         if table_type_input == "c":
             table_type_list = ["cap"]
             break
