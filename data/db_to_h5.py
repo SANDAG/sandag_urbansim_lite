@@ -60,7 +60,7 @@ assigned_parcel_sql = assigned_parcel_sql % scenarios['additional_capacity_versi
 assigned_df = pd.read_sql(assigned_parcel_sql, mssql_engine)
 assigned_df['site_id'] = assigned_df.site_id.astype(float)
 
-parcels_df = pd.concat([parcels_df,assigned_df])
+parcels_df = pd.concat([parcels_df, assigned_df])
 
 all_parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
@@ -84,7 +84,7 @@ all_parcel_sql = '''
 '''
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
 all_parcels_df['site_id'] = all_parcels_df.site_id.astype(float)
-all_parcels_df = pd.concat([all_parcels_df,assigned_df])
+all_parcels_df = pd.concat([all_parcels_df, assigned_df])
 
 sched_dev_sql = '''
     SELECT s.parcel_id, p.mgra_id, 
@@ -269,7 +269,7 @@ negative_parcels_df.capacity_type = negative_parcels_df.capacity_type.astype(str
 with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('scheduled_development', sched_dev, format='table')
     store.put('parcels', parcels, format='table')
-    store.put('households',households_df,format='table')
+    store.put('households', households_df, format='table')
     store.put('hu_forecast', hu_forecast_df)
     store.put('regional_controls', regional_controls_df, format='table')
     store.put('jurisdictions', jurisdictions_df, format='table')

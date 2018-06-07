@@ -507,47 +507,28 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             # Recombines the picked units into a dataframe, and determines how much capacity from each parcel was
             # selected. Due to the nature of the selection, one parcel may be split in addition to the large_builds.
             parcels_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.groupby(
-                ["parcel_id",'capacity_type']).size()}).reset_index()
+                ["parcel_id", 'capacity_type']).size()}).reset_index()
             parcels_picked.set_index('parcel_id', inplace=True)
     return parcels_picked
 
 
-def run_developer(parcels, households, hu_forecast, reg_controls, jurisdictions, supply_fname, feasibility, year):
+def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibility, year):
     """
-    Run the developer model to pick and build hu_forecast
+    Run the developer model to pick and build for the hu_forecast.
 
-    Parameters
-    ----------
-
-    parcels : DataFrame Wrapper
-        Used to update residential units at the parcel level
-    agents : DataFrame Wrapper
-        Used to compute the current demand for units/floorspace in the area
-         (households)
-    hu_forecast : DataFrame Wrapper
-        Used to compute the current supply of units/floorspace in the area
-    supply_fname : string
-        Identifies the column in hu_forecast which indicates the supply of
-        units/floorspace ("residential units")
-    total_units : Series
-        Passed directly to dev.pick - total current residential_units /
-        job_spaces
-    feasibility : DataFrame Wrapper
-        The output from feasibility above (the table called 'feasibility')
-    year : int
-        The year of the simulation - will be assigned to 'year_built' on the
-        new hu_forecast
-    target_vacancy : float
-        The target vacancy rate - used to determine how much to build
-
-    Returns
-    -------
-    Writes the result back to the hu_forecast table (returns nothing)
+    :param households:
+        A dataframe with the target number of units by year.
+    :param hu_forecast:
+        The dataframe of constructed units. This starts as an empty dataframe with columns for parcel_id, units_added,
+    year_built, source, and capacity_type. For each iteration year, this dataframe is populated with the relevant
+    information for each parcel chosen and built. The final hu_forecast table is the output used for other modeling.
+    :param reg_controls:
+    :param supply_fname:
+    :param feasibility:
+    :param year:
+    :return:
     """
-
-    parcels = parcels.to_frame()
     control_totals = reg_controls.to_frame()
-    jurs = jurisdictions.to_frame()
 
     control_totals_by_year = control_totals.loc[control_totals.yr == year].copy()
     if round(control_totals_by_year.control.sum()) != 1:
