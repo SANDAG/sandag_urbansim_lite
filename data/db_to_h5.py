@@ -29,6 +29,7 @@ parcel_sql = '''
              lu_2017
       FROM urbansim.urbansim.parcel p
       WHERE capacity_2 > 0 and site_id IS NULL
+      ORDER BY parcel_id
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 parcels_df['site_id'] = parcels_df.site_id.astype(float)
@@ -53,6 +54,7 @@ SELECT  a.parcel_id,
   FROM [urbansim].[urbansim].[additional_capacity] a
   join urbansim.parcel p on p.parcel_id = a.parcel_id
   where version_id = %s
+  ORDER BY a.parcel_id
 '''
 assigned_parcel_sql = assigned_parcel_sql % scenarios['additional_capacity_version']
 assigned_df = pd.read_sql(assigned_parcel_sql, mssql_engine)
@@ -78,6 +80,7 @@ all_parcel_sql = '''
              lu_2017
       FROM urbansim.urbansim.parcel p
       where parcel_id not in (select parcel_id from urbansim.urbansim.scheduled_development_priority)
+      ORDER BY parcel_id
 '''
 all_parcels_df = pd.read_sql(all_parcel_sql, mssql_engine)
 all_parcels_df['site_id'] = all_parcels_df.site_id.astype(float)
@@ -102,6 +105,7 @@ sched_dev_sql = '''
         inner join [urbansim].[urbansim].[scheduled_development_priority] as s
         on p.parcel_id = s.parcel_id
         WHERE s.sched_version_id = %s
+        ORDER BY s.parcel_id
 '''
 sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']
 
@@ -109,30 +113,35 @@ luz_names_sql = '''
     SELECT zone, name
       FROM data_cafe.ref.geography_zone
      WHERE geography_type_id = 64
+     ORDER BY zone
 '''
 
 jurisdictions_names_sql = '''
     SELECT zone, name
       FROM data_cafe.ref.geography_zone
      WHERE geography_type_id = 150
+     ORDER BY zone
 '''
 
 cicpa_names_sql = '''
     SELECT zone, name
       FROM data_cafe.ref.geography_zone
      WHERE geography_type_id = 147
+     ORDER BY zone
 '''
 
 cocpa_names_sql = '''
     SELECT zone, name
       FROM data_cafe.ref.geography_zone
      WHERE geography_type_id = 148
+     ORDER BY zone
 '''
 
 xref_geography_sql = '''
     SELECT mgra_13, luz_13, cocpa_13, cocpa_2016,
            jurisdiction_2016, cicpa_13
       FROM data_cafe.ref.vi_xref_geography_mgra_13
+      ORDER BY mgra_13
 '''
 xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
 
@@ -140,6 +149,7 @@ households_sql = '''
   SELECT  [yr],[housing_units_add]
      FROM [urbansim].[urbansim].[urbansim_target_housing_units]
     WHERE [version_id] = %s
+    ORDER BY yr
 '''
 households_sql = households_sql % scenarios['target_housing_units_version']
 
@@ -151,6 +161,7 @@ hu_forecast_sql = '''
         ,'no_cap' as capacity_type
      FROM urbansim.urbansim.building
      where year_built > 2016
+     ORDER BY parcel_id
 '''
 
 negative_capacity_parcels = '''
@@ -161,6 +172,7 @@ negative_capacity_parcels = '''
         'neg_cap' as capacity_type
     FROM urbansim.urbansim.parcel p
     WHERE capacity_2 < 0 and site_id is null
+    ORDER BY parcel_id
 '''
 
 regional_capacity_controls_sql = '''
@@ -168,6 +180,7 @@ regional_capacity_controls_sql = '''
            geo_id, control, control_type, max_units
       FROM urbansim.urbansim.urbansim_lite_subregional_control
      WHERE subregional_crtl_id = %s
+     ORDER BY yr,geo
 '''
 regional_capacity_controls_sql = regional_capacity_controls_sql % scenarios['subregional_ctrl_id']
 
@@ -177,18 +190,21 @@ SELECT [parcel_id]
       ,[capacity_type]
 FROM  [urbansim].[urbansim].[urbansim_lite_parcel_control]
      WHERE phase_yr_version_id = %s
+     ORDER BY parcel_id
 '''
 parcel_dev_control_sql = parcel_dev_control_sql % scenarios['parcel_phase_yr']
 
 gplu_sql = '''
 SELECT parcel_id, gplu as plu
   FROM [urbansim].[urbansim].[general_plan_parcel]
+  ORDER BY parcel_id
 '''
 gplu_df = pd.read_sql(gplu_sql, mssql_engine)
 
 dev_lu_sql = '''
 SELECT development_type_id as dev_type_sim, lu_code as lu_sim
     FROM urbansim.ref.development_type_lu_code
+    ORDER BY development_type_id
 '''
 dev_lu_df = pd.read_sql(dev_lu_sql, mssql_engine)
 
@@ -196,7 +212,8 @@ geography_view_sql = '''
 SELECT [parcel_id]
       ,[taz_13] as taz
       ,[jcpa] as jur_or_cpa_id
-  FROM [urbansim].[ref].[vi_parcel_xref]'''
+  FROM [urbansim].[ref].[vi_parcel_xref]
+  ORDER BY parcel_id'''
 geography_view_df = pd.read_sql(geography_view_sql, mssql_engine)
 
 adu_allocation_sql = '''
@@ -204,6 +221,7 @@ SELECT [yr]
       ,[allocation]
   FROM [urbansim].[urbansim].[urbansim_lite_adu_control]
   where version_id = 1
+  ORDER BY yr
 '''
 adu_allocation_df = pd.read_sql(adu_allocation_sql, mssql_engine)
 
