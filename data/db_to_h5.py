@@ -220,9 +220,11 @@ adu_allocation_sql = '''
 SELECT [yr]
       ,[allocation]
   FROM [urbansim].[urbansim].[urbansim_lite_adu_control]
-  where version_id = 1
+  where version_id = %s
   ORDER BY yr
 '''
+
+adu_allocation_sql = adu_allocation_sql % scenarios['adu_control']
 adu_allocation_df = pd.read_sql(adu_allocation_sql, mssql_engine)
 
 parcels = pd.merge(parcels_df, geography_view_df, how='left', on='parcel_id')

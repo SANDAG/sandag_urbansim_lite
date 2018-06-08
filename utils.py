@@ -60,6 +60,7 @@ def add_run_to_db():
     phase_year = version_ids['parcel_phase_yr']
     additional_capacity = version_ids['additional_capacity_version']
     scheduled_development = version_ids['sched_dev_version']
+    adu_control = version_ids['adu_control']
     # Need to add adu_allocation to scenario_config.yaml; will require modified output table (adding a new column).
 
     # Pulls git of last commit.
@@ -68,14 +69,14 @@ def add_run_to_db():
     # Creates dataframe of run_id information.
     output_records = pd.DataFrame(
         columns=['run_id', 'run_date', 'subregional_controls', 'target_housing_units', 'phase_year',
-                 'additional_capacity', 'scheduled_development', 'git', 'run_description'])
+                 'additional_capacity', 'scheduled_development', 'git', 'run_description','adu_control'])
 
     # Records the time of the commit.
     run_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
     # Places the collected information into the dataframe and appends to the existing table in SQL.
     output_records.loc[run_id] = [run_id, run_date, subregional_controls, target_housing_units, phase_year,
-                                  additional_capacity, scheduled_development, last_commit, run_description]
+                                  additional_capacity, scheduled_development, last_commit, run_description,adu_control]
     output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False,
                           if_exists='append')
     return run_id
