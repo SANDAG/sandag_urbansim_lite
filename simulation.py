@@ -49,9 +49,9 @@ hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='ur
 end_time = time.monotonic()
 
 # Display total model run time
-print("Total time to run Simulation:", timedelta(seconds=end_time - start_time))
+print("Total time to run Simulation:", timedelta(seconds=round(end_time - start_time, 2)))
 # Typical times (as of 06/06/2018):
-# - With no SQL parcel tables: 1.5-2 minutes
-# - With SQL cap_parcel table: 4-5 minutes
-# - With SQL all_parcel table: 40-45 minutes
-# - With SQL cap_parcel and all_parcel tables: 45-50 minutes
+# # With no SQL parcel tables: 1.5-2 minutes
+# # With SQL cap_parcel table: 4-5 minutes
+# # With SQL all_parcel table: 40-45 minutes
+# # With SQL cap_parcel and all_parcel tables: 45-50 minutes
