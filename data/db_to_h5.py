@@ -125,32 +125,8 @@ ORDER BY s.[parcel_id]
 sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine)
 
-# SQL statements for geography area names.
-# Can this be condensed? luz = 64, cicpa = 147, cocpa = 148, jurs = 150 (and we only use jurs currently).
-luz_names_sql = '''
-SELECT [zone]
-    ,[name]
-FROM [data_cafe].[ref].[geography_zone]
-WHERE [geography_type_id] = 64
-ORDER BY [zone]
-'''
-
-cicpa_names_sql = '''
-SELECT [zone]
-    ,[name]
-FROM [data_cafe].[ref].[geography_zone]
-WHERE [geography_type_id] = 147
-ORDER BY [zone]
-'''
-
-cocpa_names_sql = '''
-SELECT [zone]
-    ,[name]
-FROM [data_cafe].[ref].[geography_zone]
-WHERE [geography_type_id] = 148
-ORDER BY [zone]
-'''
-
+# SQL statement for geography area names. Changing the geography_type_id will result in different name groups:
+# LUZ = 64, City CPAs = 147, County CPAs = 148, Jurisdictions = 150. We don't use this currently.
 jurisdictions_names_sql = '''
 SELECT [zone]
     ,[name]
