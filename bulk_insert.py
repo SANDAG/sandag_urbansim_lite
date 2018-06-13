@@ -427,10 +427,7 @@ def table_insert(parcel_table, year, table_type):
     start_time = time.monotonic()
 
     # Set the path and write the detailed update as a .csv
-    # the second path is a more permanent location than my temp file. Planning to save that as final once it is
-    # confirmed as working.
-    path_name = 'M:\\TEMP\\noz\\outputs\\year_update_{}_{}.csv'.format(table_type, year)
-    # path_name = 'M:\\RES\\estimates & forecast\\SR14 Forecast\\UrbanSim\\Capacity_Parcel_Updates\\year_update_{}_{}.csv'.format(table_type, year)
+    path_name = 'M:\\RES\\estimates & forecast\\SR14 Forecast\\UrbanSim\\Capacity_Parcel_Updates\\year_update_{}_{}.csv'.format(table_type, year)
     parcel_table.to_csv(path_name, index=False)
 
     # Save the end time to track how long the program takes to write to the M Drive.
@@ -451,10 +448,9 @@ def table_insert(parcel_table, year, table_type):
     with conn.begin() as trans:
         bulk_insert_staging_sql = '''
                 BULK INSERT urbansim.sr14_residential_parcel_staging
-                FROM '\\\\sandag.org\\home\\shared\\TEMP\\noz\\outputs\\year_update_{}_{}.csv'
+                FROM '\\\\sandag.org\\home\\shared\\RES\\estimates & forecast\\SR14 Forecast\\UrbanSim\\Capacity_Parcel_Updates\\year_update_{}_{}.csv'
                 WITH (FIRSTROW = 2, FIELDTERMINATOR = ',')
                 '''.format(table_type, year)
-        # '\\\\sandag.org\\home\\shared\\RES\\estimates & forecast\\SR14 Forecast\\UrbanSim\\Capacity_Parcel_Updates\\year_update_{}_{}.csv'
         conn.execute(bulk_insert_staging_sql)
 
     # Move from staging table to target table.
