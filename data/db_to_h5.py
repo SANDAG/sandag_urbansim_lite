@@ -149,20 +149,8 @@ households_sql = households_sql % scenarios['target_housing_units_version']
 households_df = pd.read_sql(households_sql, mssql_engine, index_col='yr')
 households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
 
-# SQL statement for the output table.
-# This should be empty when pulled, as no buildings are listed as being built in 2016 or later.
-hu_forecast_sql = '''
-SELECT [parcel_id]
-    ,0 AS units_added
-    ,COALESCE(year_built, 0) AS year_built
-    ,0 AS source
-    ,'no_cap' AS capacity_type
-FROM [urbansim].[urbansim].[building]
-WHERE [year_built] > 2016
-ORDER BY [parcel_id]
-'''
-hu_forecast_df = pd.read_sql(hu_forecast_sql, mssql_engine)
-hu_forecast_df.capacity_type = hu_forecast_df.capacity_type.astype(str)
+# output table.
+hu_forecast_df = pd.DataFrame(columns=['parcel_id', 'units_added', 'year_built', 'source', 'capacity_type'])
 
 # SQL statement for parcels with negative capacity (excludes scheduled development).
 # As of 06/06/2018, there are no parcels with a negative capacity.
