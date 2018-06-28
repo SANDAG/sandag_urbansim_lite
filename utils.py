@@ -191,6 +191,12 @@ def run_scheduled_development(hu_forecast, households, year):
         Does not return an object, but does update the scheduled_development and hu_forecast tables in orca.
     """
 
+    # Sched_dev_rework branch: 06/28/18
+    # scheduled development should no longer be built using priority, due to the issues with needed staggering of
+    # development across subregions in early years (and some developments with later end dates). This comment is
+    # marking the start of this process. It will either involve a large overhaul of this function, or possibly removal
+    # and conversion of sched dev into a special type of priority in regular development.
+
     # As of 06/06/2018 scheduled_development is being built on a priority system, rather than by scheduled date.
     # Each site_id (and all parcels included in it) are assigned a value 1-10. These priorities have been randomly
     # assigned. All parcels listed as priority 1 are built first, followed by 2, etc. With the exception of ADUs

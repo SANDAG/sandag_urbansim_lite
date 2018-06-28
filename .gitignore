@@ -52,6 +52,8 @@ desktop.ini
 *.h5
 *.csv
 *.xlsx
+*.ppt
+*.pptx
 pysandag-master/
 .ipynb_checkpoints
 *.pdf
