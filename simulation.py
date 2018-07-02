@@ -20,7 +20,7 @@ run_id = utils.add_run_to_db()
 
 # Run the urbansim model iterations (see subsections for details)
 orca.run([
-    "scheduled_development_events",
+    #"scheduled_development_events",
     "negative_parcel_reducer",
     "feasibility",
     "residential_developer",
