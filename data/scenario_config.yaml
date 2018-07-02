@@ -1,7 +1,7 @@
 scenario:
 
     # database scenario to use in simulation
-    subregional_ctrl_id: 6
+    subregional_ctrl_id: 7
 
     # target housing units for simulation
     target_housing_units_version: 109
