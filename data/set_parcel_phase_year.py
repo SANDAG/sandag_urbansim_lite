@@ -11,16 +11,16 @@ mssql_engine = create_engine(db_connection_string)
 scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 
 
-run_id_sql = '''
-SELECT max(phase_yr_version_id)
-  FROM [urbansim].[urbansim].[urbansim_lite_output]
-'''
+# run_id_sql = '''
+# SELECT max(phase_yr_version_id)
+#   FROM [urbansim].[urbansim].[urbansim_lite_output]
+# '''
 # version_id_df = pd.read_sql(run_id_sql, mssql_engine)
 #
 # if version_id_df.values:
 #     version_id = int(version_id_df.values) + 1
 
-version_id = 107
+version_id = 108
 
 parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
@@ -34,22 +34,22 @@ parcel_sql = '''
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 
-xref_geography_sql = '''
-    SELECT mgra_13, cocpa_2016, cicpa_13,cocpa_13, jurisdiction_2016, 
-           COALESCE(cocpa_2016,cicpa_13,cocpa_13) as CPAs
-      FROM data_cafe.ref.vi_xref_geography_mgra_13'''
-xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
-# simulation output
-parcels_df = pd.merge(parcels_df,xref_geography_df,left_on='mgra_id',right_on='mgra_13',how='left')
-parcels_df.loc[parcels_df.cap_jurisdiction_id == 19,'jcid'] = parcels_df['cocpa_2016']
-parcels_df.loc[parcels_df.cap_jurisdiction_id == 14,'jcid'] = parcels_df['cicpa_13']
-parcels_df['jcid'].fillna(parcels_df['cap_jurisdiction_id'],inplace=True)
+# xref_geography_sql = '''
+#     SELECT mgra_13, cocpa_2016, cicpa_13,cocpa_13, jurisdiction_2016,
+#            COALESCE(cocpa_2016,cicpa_13,cocpa_13) as CPAs
+#       FROM data_cafe.ref.vi_xref_geography_mgra_13'''
+# xref_geography_df = pd.read_sql(xref_geography_sql, mssql_engine)
+# # simulation output
+# parcels_df = pd.merge(parcels_df,xref_geography_df,left_on='mgra_id',right_on='mgra_13',how='left')
+# parcels_df.loc[parcels_df.cap_jurisdiction_id == 19,'jcid'] = parcels_df['cocpa_2016']
+# parcels_df.loc[parcels_df.cap_jurisdiction_id == 14,'jcid'] = parcels_df['cicpa_13']
+# parcels_df['jcid'].fillna(parcels_df['cap_jurisdiction_id'],inplace=True)
 
-parcels_df.reset_index(inplace=True, drop=False)
-#
-parcels_df.drop_duplicates('parcel_id',inplace=True)
-#
-parcels_df.parcel_id = parcels_df.parcel_id.astype(int)
+# parcels_df.reset_index(inplace=True, drop=False)
+# #
+# parcels_df.drop_duplicates('parcel_id',inplace=True)
+# #
+# parcels_df.parcel_id = parcels_df.parcel_id.astype(int)
 #
 parcels_df.set_index('parcel_id',inplace=True)
 #
@@ -127,9 +127,17 @@ sched_dev_df.parcel_id = sched_dev_df.parcel_id.astype(int)
 sched_dev_df.set_index('parcel_id',inplace=True)
 #
 sched_dev_df['phase_yr'] = 2017
+
+sched_dev_df.loc[(sched_dev_df.site_id==15005),'phase_yr'] = 2025
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1730,1731,14088])),'phase_yr'] = 2025
+sched_dev_df.loc[(sched_dev_df.site_id.isin([14084,14085,14086])),'phase_yr'] = 2030
+sched_dev_df.loc[(sched_dev_df.site_id.isin([15035,15019,15028,15029,15004,15007,15015,15016,2019,3063,2003,2015,2011,2013,2014,2001])),'phase_yr'] = 2040
+
+
 sched_dev_df['phase_yr_version_id'] = version_id
 sched_dev_df['capacity_type'] = 'sch'
 sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','capacity_type']]
+
 
 # WRITE TO DB
 sched_dev_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
