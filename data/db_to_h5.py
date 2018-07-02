@@ -31,6 +31,7 @@ SELECT [parcel_id]
     ,'jur' AS capacity_type
     ,0 AS capacity_used
     ,0 AS partial_build
+    ,0 AS priority
 FROM [urbansim].[urbansim].[parcel]
 WHERE [capacity_2] > 0 and [site_id] IS NULL
 ORDER BY parcel_id
@@ -82,6 +83,7 @@ SELECT a.[parcel_id]
     ,a.[type] AS capacity_type
     ,0 as capacity_used
     ,0 as partial_build
+    ,0 AS priority
 FROM [urbansim].[urbansim].[additional_capacity] AS a
 JOIN [urbansim].[parcel] AS p 
 ON p.[parcel_id] = a.[parcel_id]
@@ -115,6 +117,7 @@ SELECT s.[parcel_id]
     ,p.[lu_2017] AS lu_sim
     ,'sch' AS capacity_type
     ,0 as capacity_used
+    ,0 AS partial_build
     ,s.[priority]
 FROM [urbansim].[urbansim].[parcel] AS p
 INNER JOIN [urbansim].[urbansim].[scheduled_development_priority] as s
@@ -124,7 +127,7 @@ ORDER BY s.[parcel_id]
 '''
 sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine)
-
+parcels_df = pd.concat([parcels_df, sched_dev_df])
 # SQL statement for geography area names. Changing the geography_type_id will result in different name groups:
 # LUZ = 64, City CPAs = 147, County CPAs = 148, Jurisdictions = 150. We don't use this currently.
 jurisdictions_names_sql = '''
