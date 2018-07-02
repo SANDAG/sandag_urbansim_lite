@@ -7,7 +7,7 @@ scenario:
     target_housing_units_version: 109
 
     #Specifies phase year version in urbansim.urbansim_lite_parcel_control, used in set_parcel_phase_year.py
-    parcel_phase_yr: 107
+    parcel_phase_yr: 108
 
     # additional capacity units for simulation
     additional_capacity_version: 107
