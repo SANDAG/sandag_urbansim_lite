@@ -645,7 +645,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         # If parcels were chosen for the sub-region, assign build information to the parcels built. Source 2 is
         # expected stochastic development for a sub-region.
         if len(chosen):
-            chosen['source'] = 2
+            chosen['source'] = np.where(chosen['capacity_type'] == 'sch', 1, 2)
 
         # Add the selected parcels and units to the sr14cap dataframe.
         sr14cap = sr14cap.append(chosen)
