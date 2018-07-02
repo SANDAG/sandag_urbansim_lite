@@ -356,11 +356,12 @@ def run_feasibility(year):
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
     # Restrict feasible parcels based on assigned phase years (not feasible before phase year occurs).
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
+    # feasible_parcels = pd.concat([feasible_parcels,sched_dev])
     # Remove scheduled developments from feasibility table.
-    feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
+    # feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
     # Double check that SGOAs won't be built before 2035
     if year < 2035:
-        feasible_parcels = feasible_parcels.loc[feasible_parcels['capacity_type'].isin(['jur', 'adu'])].copy()
+        feasible_parcels = feasible_parcels.loc[feasible_parcels['capacity_type'].isin(['jur', 'adu','sch'])].copy()
     orca.add_table("feasibility", feasible_parcels)
 
 
