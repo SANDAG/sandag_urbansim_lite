@@ -7,6 +7,8 @@ from database import get_connection_string
 import sqlalchemy
 from datetime import timedelta
 import time
+import pandas as pd
+import numpy as np
 
 # Save the start time to track how long the program takes to run from start to finish
 start_time = time.monotonic()
@@ -21,12 +23,14 @@ run_id = utils.add_run_to_db()
 # Run the urbansim model iterations (see subsections for details)
 orca.run([
     #"scheduled_development_events",
-    "negative_parcel_reducer",
-    "feasibility",
-    "residential_developer",
-    "summary",
-    "write_to_sql"
-     ], iter_vars=range(2017, 2051))
+    #"negative_parcel_reducer",
+    #"subregional_share"
+     "feasibility",
+     "residential_developer",
+     "summary",
+     "write_to_sql"
+      ], iter_vars=range(2017, 2051))
+
 
 
 # Write the output of the model to SQL
