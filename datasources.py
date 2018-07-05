@@ -12,6 +12,12 @@ def parcels(store):
     df = store['parcels']
     return df
 
+# for subregional percentage controls
+@orca.table('controls', cache=True)
+def controls(store):
+    df = store['controls']
+    return df
+
 
 @orca.table('households', cache=True)
 def households(store):
