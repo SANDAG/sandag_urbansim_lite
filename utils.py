@@ -327,7 +327,82 @@ def run_reducer(hu_forecast, year):
                                          parcels_reduced[hu_forecast.local_columns]])  # type: pd.DataFrame
             all_hu_forecast.reset_index(drop=True, inplace=True)
             orca.add_table("hu_forecast", all_hu_forecast)
-    
+
+
+def run_subregional_share(year,households):
+    """
+    Determines feasible parcels for iteration year.
+
+    :param year:
+        The iteration year of the simulation.
+    :return:
+        Does not return an object, but adds a dataframe of feasible parcels to orca.
+    """
+
+    print("Computing feasibility")
+
+    # Retrieve dataframes of parcels and development restrictions, and combines them by parcel_id and capacity_type.
+    controls = orca.get_table('controls').to_frame()
+    parcels = orca.get_table('parcels').to_frame()
+    devyear = orca.get_table('devyear').to_frame()
+    parcels.reset_index(inplace=True, drop=True)
+    devyear.reset_index(inplace=True, drop=False)
+    parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'],
+                       right_on=['parcel_id', 'capacity_type'])
+    parcels.set_index('parcel_id', inplace=True)
+    jcpa = parcels.jur_or_cpa_id.unique().tolist()
+    df  = pd.DataFrame({'jur_or_cpa_id': jcpa})
+
+    # Select parcels that have more capacity than is used.
+    # Note: 'capacity' is not subtracted from the built parcels, so 'capacity' should always be >= 'capacity_used'.
+    feasible_parcels = parcels.loc[parcels['capacity'] > parcels['capacity_used']].copy()
+    feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
+    # Restrict feasible parcels based on assigned phase years (not feasible before phase year occurs).
+    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
+    feasible_parcels = feasible_parcels.loc[~feasible_parcels['capacity_type'].isin(['adu'])].copy()
+    # feasible_parcels = pd.concat([feasible_parcels,sched_dev])
+    # Remove scheduled developments from feasibility table.
+    # feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
+    # Double check that SGOAs won't be built before 2035
+    #if year < 2035:
+    #    feasible_parcels = feasible_parcels.loc[feasible_parcels['capacity_type'].isin(['jur', 'adu','sch'])].copy()
+    feasible_parcels['rem'] = feasible_parcels['capacity'] - feasible_parcels['capacity_used']
+    feasible_parcels[['jur_or_cpa_id', 'jurisdiction_id', 'capacity', 'capacity_used','rem']].head()
+    sum_df = pd.DataFrame({'capacity': feasible_parcels.groupby(['jur_or_cpa_id']). \
+                          rem.sum()}).reset_index()
+    controls_yr = controls.loc[controls.yr==year-1]
+    sum_df['year'] = year - 1
+    sum_df_yr = pd.merge(sum_df, controls_yr[['year', 'jur_or_cpa_id','capacity_used']], left_on=['year','jur_or_cpa_id'], right_on=['year','jur_or_cpa_id'], how='left')
+    sum_df_yr['capacity_used'].fillna(0,inplace=True)
+    sum_df_yr['rem'] = sum_df_yr['capacity'] - sum_df_yr['capacity_used']
+    sum_df_yr['tot'] = sum_df_yr.rem.sum()
+    sum_df_yr['share'] = sum_df_yr.rem/sum_df_yr.tot
+    sum_df_yr['yr']  = year
+    hh_df = households.to_frame()
+    hh_df.reset_index(inplace=True)
+    adu_share_df = orca.get_table('adu_allocation').to_frame()
+    hh_df.set_index('yr',inplace=True)
+    current_hh = int(hh_df.at[year, 'housing_units_add'])
+    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
+    hh_df.reset_index(inplace=True)
+    sumdfx = pd.merge(sum_df_yr, hh_df[['yr','housing_units_add']], left_on='yr', right_on='yr', how='left')
+    sumdfx['housing_units_add'] = sumdfx['housing_units_add'] - adu_share
+    sumdfx['new_capacity_used'] = sumdfx['share'] * sumdfx['housing_units_add']
+    sumdfx['capacity_used'] = sumdfx['new_capacity_used'] + sumdfx['capacity_used']
+    sumdfx.drop(['new_capacity_used'], axis=1,inplace=True)
+
+    sumdfx['rem'] = sumdfx['capacity'] - sumdfx['capacity_used']
+    jcpa = parcels.jur_or_cpa_id.unique().tolist()
+    sumdfx.set_index('jur_or_cpa_id',inplace=True)
+    sumdfxi = sumdfx.reindex(jcpa)
+    sumdfxi.fillna(0,inplace=True)
+    sumdfxi['year'] = year
+    sumdfxi.reset_index(inplace=True)
+    sumdfxi.sort_values(by=['jur_or_cpa_id'],inplace=True)
+    controls = pd.concat([controls,sumdfxi])
+    if year == 2050:
+        controls.to_csv('data/control_totals.csv')
+    orca.add_table("controls", controls)
 
 def run_feasibility(year):
     """
