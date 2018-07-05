@@ -20,7 +20,7 @@ scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 # if version_id_df.values:
 #     version_id = int(version_id_df.values) + 1
 
-version_id = 108
+version_id = 109
 
 parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
@@ -83,7 +83,7 @@ assigned_df.parcel_id = assigned_df.parcel_id.astype(int)
 #
 assigned_df.set_index('parcel_id',inplace=True)
 #
-assigned_df['phase_yr'] = 2035
+assigned_df['phase_yr'] = 2030
 assigned_df['phase_yr_version_id'] = version_id
 
 # The following jurisdictions have agreed to make their ADUs available for "realization" beginning from 2019
