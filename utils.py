@@ -81,6 +81,47 @@ def add_run_to_db():
     return run_id
 
 
+def create_control_percents():
+    """
+    Generates new control percentages and saves input information to SQL.
+
+    :return:
+        int: the numerical run_id.
+    """
+
+    # Link to SQL Server.
+    db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
+    mssql_engine = create_engine(db_connection_string)
+
+    # Retrieves maximum existing run_id from the table. If none exists, creates run_id = 1.
+    sub_reg_control_id_sql = '''
+      SELECT max(subregional_crtl_id)
+      FROM [urbansim].[urbansim].[urbansim_lite_subregional_control]
+    '''
+    sub_reg_control_id_df = pd.read_sql(sub_reg_control_id_sql, mssql_engine)
+    if sub_reg_control_id_df.values:
+        sub_reg_control_id = int(sub_reg_control_id_df.values) + 1
+    else:
+        sub_reg_control_id = 1
+    matchregion = orca.get_table('controls').to_frame()
+    matchregion['yr'] = matchregion['year']
+    matchregion['subregional_crtl_id'] = sub_reg_control_id
+    matchregion['geo'] = 'jur_and_cpa'
+    matchregion['geo_id'] = matchregion['jur_or_cpa_id']
+    matchregion['control'] = matchregion['share']
+    matchregion['control_type'] = 'proportion'
+    matchregion['max_units'] = None
+    matchregion['scenario_desc'] = 'match_to_region'
+
+    controls = matchregion[
+        ['subregional_crtl_id', 'yr', 'geo', 'geo_id', 'control', 'control_type', 'max_units', 'scenario_desc']].copy()
+
+    # write to db
+    controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,
+                    if_exists='append')
+
+
+
 def largest_remainder_allocation(regional_targets, target_units):
     """
     Ensures that yearly targets are whole numbers, and that the sum of all targets is the correct total.
@@ -400,8 +441,6 @@ def run_subregional_share(year,households):
     sumdfxi.reset_index(inplace=True)
     sumdfxi.sort_values(by=['jur_or_cpa_id'],inplace=True)
     controls = pd.concat([controls,sumdfxi])
-    if year == 2050:
-        controls.to_csv('data/control_totals.csv')
     orca.add_table("controls", controls)
 
 def run_feasibility(year):
@@ -471,6 +510,20 @@ def adu_picker(year, current_hh, feasible_parcels_df):
     adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
 
     # Randomize the parcels to be selected, and select the target number.
+    # try:
+    #     # shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
+    #     adu_select_list = pd.DataFrame()
+    #     while len(adu_select_list) < adu_share:
+    #         for geo in adu_parcels.jur_or_cpa_id.unique().tolist():
+    #             adu_grab = adu_parcels.loc[adu_parcels['jur_or_cpa_id'] == geo].head(1)
+    #             adu_parcels = adu_parcels[~adu_parcels.index.isin(adu_grab.index)]
+    #             adu_select_list = pd.concat([adu_select_list, adu_grab])
+    #
+    # except ValueError:
+    #     adu_select_list = adu_parcels
+    # picked_adu_parcels = adu_select_list.head(adu_share).copy()
+
+
     try:
         shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
     except ValueError:

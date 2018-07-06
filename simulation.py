@@ -31,7 +31,8 @@ orca.run([
      "write_to_sql"
       ], iter_vars=range(2017, 2051))
 
-
+# for adding control percents
+#utils.create_control_percents()
 
 # Write the output of the model to SQL
 hu_forecast = orca.get_table('hu_forecast').to_frame()
