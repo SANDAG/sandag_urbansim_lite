@@ -1,14 +1,14 @@
 scenario:
 
     # database scenario to use in simulation
-    subregional_ctrl_id: 11
+    subregional_ctrl_id: 13
 
     # target housing units for simulation
     target_housing_units_version: 109
 
     #Specifies phase year version in urbansim.urbansim_lite_parcel_control, used in set_parcel_phase_year.py
     # parcel sgoa at 2030
-    parcel_phase_yr: 109
+    parcel_phase_yr: 111
 
     # additional capacity units for simulation
     additional_capacity_version: 107

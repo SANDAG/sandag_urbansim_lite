@@ -20,7 +20,7 @@ scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 # if version_id_df.values:
 #     version_id = int(version_id_df.values) + 1
 
-version_id = 109
+version_id = 111
 
 parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
