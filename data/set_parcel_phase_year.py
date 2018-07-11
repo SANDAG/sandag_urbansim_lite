@@ -20,7 +20,7 @@ scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 # if version_id_df.values:
 #     version_id = int(version_id_df.values) + 1
 
-version_id = 111
+version_id = 112
 
 parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
@@ -83,7 +83,7 @@ assigned_df.parcel_id = assigned_df.parcel_id.astype(int)
 #
 assigned_df.set_index('parcel_id',inplace=True)
 #
-assigned_df['phase_yr'] = 2030
+assigned_df['phase_yr'] = 2017
 assigned_df['phase_yr_version_id'] = version_id
 
 # The following jurisdictions have agreed to make their ADUs available for "realization" beginning from 2019
@@ -92,6 +92,8 @@ assigned_df['phase_yr_version_id'] = version_id
 # Oceanside
 # El Cajon
 # see https://sandag.atlassian.net/wiki/spaces/LUM/pages/726302736/Additional+Capacity
+
+assigned_df.loc[((assigned_df.capacity_type=='adu')),'phase_yr'] = 2030
 
 assigned_df.loc[((assigned_df.jur_id==14) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
 assigned_df.loc[((assigned_df.jur_id==2) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
