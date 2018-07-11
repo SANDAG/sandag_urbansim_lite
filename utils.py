@@ -103,6 +103,7 @@ def create_control_percents():
         sub_reg_control_id = int(sub_reg_control_id_df.values) + 1
     else:
         sub_reg_control_id = 1
+    print('\n\nNew subregional control id: %d' %  sub_reg_control_id)
     matchregion = orca.get_table('controls').to_frame()
     matchregion['yr'] = matchregion['year']
     matchregion['subregional_crtl_id'] = sub_reg_control_id
@@ -115,7 +116,7 @@ def create_control_percents():
 
     controls = matchregion[
         ['subregional_crtl_id', 'yr', 'geo', 'geo_id', 'control', 'control_type', 'max_units', 'scenario_desc']].copy()
-
+    print('controls to db')
     # write to db
     controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,
                     if_exists='append')
@@ -392,7 +393,6 @@ def run_subregional_share(year,households):
                        right_on=['parcel_id', 'capacity_type'])
     parcels.set_index('parcel_id', inplace=True)
     jcpa = parcels.jur_or_cpa_id.unique().tolist()
-    df  = pd.DataFrame({'jur_or_cpa_id': jcpa})
 
     # Select parcels that have more capacity than is used.
     # Note: 'capacity' is not subtracted from the built parcels, so 'capacity' should always be >= 'capacity_used'.
@@ -400,13 +400,10 @@ def run_subregional_share(year,households):
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
     # Restrict feasible parcels based on assigned phase years (not feasible before phase year occurs).
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
-    feasible_parcels = feasible_parcels.loc[~feasible_parcels['capacity_type'].isin(['adu'])].copy()
-    # feasible_parcels = pd.concat([feasible_parcels,sched_dev])
-    # Remove scheduled developments from feasibility table.
-    # feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
-    # Double check that SGOAs won't be built before 2035
-    #if year < 2035:
-    #    feasible_parcels = feasible_parcels.loc[feasible_parcels['capacity_type'].isin(['jur', 'adu','sch'])].copy()
+
+    # comment out for new controls
+    # feasible_parcels = feasible_parcels.loc[~feasible_parcels['capacity_type'].isin(['adu'])].copy()
+
     feasible_parcels['rem'] = feasible_parcels['capacity'] - feasible_parcels['capacity_used']
     feasible_parcels[['jur_or_cpa_id', 'jurisdiction_id', 'capacity', 'capacity_used','rem']].head()
     sum_df = pd.DataFrame({'capacity': feasible_parcels.groupby(['jur_or_cpa_id']). \
@@ -427,7 +424,7 @@ def run_subregional_share(year,households):
     adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
     hh_df.reset_index(inplace=True)
     sumdfx = pd.merge(sum_df_yr, hh_df[['yr','housing_units_add']], left_on='yr', right_on='yr', how='left')
-    sumdfx['housing_units_add'] = sumdfx['housing_units_add'] - adu_share
+    #sumdfx['housing_units_add'] = sumdfx['housing_units_add'] - adu_share
     sumdfx['new_capacity_used'] = sumdfx['share'] * sumdfx['housing_units_add']
     sumdfx['capacity_used'] = sumdfx['new_capacity_used'] + sumdfx['capacity_used']
     sumdfx.drop(['new_capacity_used'], axis=1,inplace=True)
@@ -716,7 +713,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # current iteration year. target_units will be the target taking into account the cumulative totals. In essence,
     # this is a check that the year-by-year values match the cumulative totals. target_units should be equal to
     # current_hh less ADU and scheduled development units for the current year.
-    num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum() + adu_build_count)
+    num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())#+ adu_build_count)
     target_units = int(max(net_hh - num_units, 0))
 
     # Print statements to see the current values of the above numbers.
@@ -749,7 +746,8 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         # already iteration year specific (see above).
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id'] == jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id'] == jur].max_units.values[0]
-
+        if jur==1405:
+            print(jur)
         # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
         # because the minimum of a number and NaN would be NaN. (Usually subregion_max will be a null value).
         target_units_for_geo = np.nanmin(np.array([subregion_targets, subregion_max]))
@@ -761,6 +759,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
 
         # Run the parcel_picker function to select parcels and build units for the sub-region.
+        target_units_for_geo = target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur])
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
 
         # Activates if subregion_max has a numeric value (non-Null). If the subregion_max was built, remove parcels in
@@ -786,7 +785,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # year to reach the target. If a region had less capacity than it's sub-regional target, or if a sub-region was
     # limited by a sub-region max_units, then there will be remaining units needed to reach the target.
     if len(sr14cap):
-        remaining_units = target_units - int(sr14cap.units_added.sum()) + adu_build_count
+        remaining_units = target_units - int(sr14cap.units_added.sum()) #+ adu_build_count
     else:
         # If no units were built above, the remaining target will be equal to the original target. This should be 0,
         # but might not be if the entire region has run out of capacity.
