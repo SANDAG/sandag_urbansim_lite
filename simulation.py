@@ -20,19 +20,24 @@ mssql_engine = create_engine(db_connection_string)
 # Generate run_id and record information about run_id details
 run_id = utils.add_run_to_db()
 
+print("Create a new set of subregional controls?")
+write_controls = input("Choose y or n: ")
+
 # Run the urbansim model iterations (see subsections for details)
 orca.run([
     #"scheduled_development_events",
     #"negative_parcel_reducer",
-    #"subregional_share"
-     "feasibility",
-     "residential_developer",
-     "summary",
-     "write_to_sql"
+      "subregional_share",
+      "feasibility",
+      "residential_developer",
+      "summary",
+      "write_to_sql"
       ], iter_vars=range(2017, 2051))
 
 # for adding control percents
-#utils.create_control_percents()
+
+if write_controls == "y":
+    utils.create_control_percents()
 
 # Write the output of the model to SQL
 hu_forecast = orca.get_table('hu_forecast').to_frame()
