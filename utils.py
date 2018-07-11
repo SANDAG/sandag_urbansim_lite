@@ -6,6 +6,7 @@ import subprocess
 import yaml
 from database import get_connection_string
 from sqlalchemy import create_engine
+import sqlalchemy
 
 
 def yaml_to_dict(yaml_file, yaml_section):
@@ -79,6 +80,28 @@ def add_run_to_db():
     output_records.to_sql(name='urbansim_lite_output_runs', con=mssql_engine, schema='urbansim', index=False,
                           if_exists='append')
     return run_id
+
+
+def write_results(run_id):
+    # Link to SQL Server.
+    db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
+    mssql_engine = create_engine(db_connection_string)
+
+    # Write the output of the model to SQL
+    hu_forecast = orca.get_table('hu_forecast').to_frame()
+    hu_forecast_out = hu_forecast[['parcel_id', 'units_added', 'year_built', 'source', 'capacity_type']].copy()
+    hu_forecast_out.rename(columns={'year_built': 'year_simulation'}, inplace=True)
+    hu_forecast_out.rename(columns={'units_added': 'unit_change'}, inplace=True)
+    hu_forecast_out['run_id'] = run_id
+    hu_forecast_out.to_csv('data/new_units.csv')
+
+    hu_forecast_out.to_sql(name='urbansim_lite_output', con=mssql_engine, schema='urbansim', index=False,
+                           if_exists='append', dtype={'parcel_id': sqlalchemy.types.INTEGER(),
+                                                      'unit_change': sqlalchemy.types.INTEGER(),
+                                                      'year_simulation': sqlalchemy.types.INTEGER(),
+                                                      'source': sqlalchemy.types.INTEGER(),
+                                                      'capacity_type': sqlalchemy.types.VARCHAR(length=50),
+                                                      'run_id': sqlalchemy.types.INTEGER()})
 
 
 def create_control_percents():
