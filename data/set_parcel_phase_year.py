@@ -20,7 +20,19 @@ scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 # if version_id_df.values:
 #     version_id = int(version_id_df.values) + 1
 
-version_id = 112
+# version_id = 112
+
+# Retrieves maximum existing run_id from the table. If none exists, creates run_id = 1.
+version_id_sql = '''
+  SELECT max(phase_yr_version_id)
+  FROM [urbansim].[urbansim].[urbansim_lite_parcel_control]
+'''
+version_id_df = pd.read_sql(version_id_sql, mssql_engine)
+if version_id_df.values:
+    version_id = int(version_id_df.values) + 1
+else:
+    version_id = 1
+
 
 parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
@@ -93,7 +105,7 @@ assigned_df['phase_yr_version_id'] = version_id
 # El Cajon
 # see https://sandag.atlassian.net/wiki/spaces/LUM/pages/726302736/Additional+Capacity
 
-assigned_df.loc[((assigned_df.capacity_type=='adu')),'phase_yr'] = 2030
+assigned_df.loc[((assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
 
 assigned_df.loc[((assigned_df.jur_id==14) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
 assigned_df.loc[((assigned_df.jur_id==2) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
