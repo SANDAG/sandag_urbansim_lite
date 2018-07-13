@@ -408,6 +408,7 @@ def run_subregional_share(year,households):
 
     # Retrieve dataframes of parcels and development restrictions, and combines them by parcel_id and capacity_type.
     controls = orca.get_table('controls').to_frame()
+    adu_share_df = orca.get_table('adu_allocation').to_frame()
     parcels = orca.get_table('parcels').to_frame()
     devyear = orca.get_table('devyear').to_frame()
     parcels.reset_index(inplace=True, drop=True)
@@ -415,11 +416,12 @@ def run_subregional_share(year,households):
     parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'],
                        right_on=['parcel_id', 'capacity_type'])
     parcels.set_index('parcel_id', inplace=True)
-    jcpa = parcels.jur_or_cpa_id.unique().tolist()
+
 
     # Select parcels that have more capacity than is used.
     # Note: 'capacity' is not subtracted from the built parcels, so 'capacity' should always be >= 'capacity_used'.
-    feasible_parcels = parcels.loc[parcels['capacity'] > parcels['capacity_used']].copy()
+    # feasible_parcels = parcels.loc[parcels['capacity'] > parcels['capacity_used']].copy()
+    feasible_parcels = parcels.copy()
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
     # Restrict feasible parcels based on assigned phase years (not feasible before phase year occurs).
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
@@ -427,15 +429,22 @@ def run_subregional_share(year,households):
     # comment out for new controls
     # feasible_parcels = feasible_parcels.loc[~feasible_parcels['capacity_type'].isin(['adu'])].copy()
 
-    feasible_parcels['rem'] = feasible_parcels['capacity'] - feasible_parcels['capacity_used']
-    feasible_parcels[['jur_or_cpa_id', 'jurisdiction_id', 'capacity', 'capacity_used','rem']].head()
+    # feasible_parcels['rem'] = feasible_parcels['capacity'] - feasible_parcels['capacity_used']
+    feasible_parcels[['jur_or_cpa_id', 'jurisdiction_id', 'capacity', 'capacity_used']].head()
+    # feasible_parcels[['jur_or_cpa_id', 'jurisdiction_id', 'capacity', 'capacity_type', 'capacity_used', 'rem']].loc[
+    #    feasible_parcels.jur_or_cpa_id == 1].head()
+    # feasible_parcels[['jur_or_cpa_id', 'jurisdiction_id', 'capacity', 'capacity_type', 'capacity_used', 'rem']].loc[
+    #     (feasible_parcels.jur_or_cpa_id == 1) & (feasible_parcels.capacity_type == 'adu')].head()
     sum_df = pd.DataFrame({'capacity': feasible_parcels.groupby(['jur_or_cpa_id']). \
-                          rem.sum()}).reset_index()
+                          capacity.sum()}).reset_index()
+
+    sum_df.fillna(0,inplace=True)
+    sum_df['capacity_w_adu'] = sum_df['capacity']
     controls_yr = controls.loc[controls.yr==year-1]
     sum_df['year'] = year - 1
     sum_df_yr = pd.merge(sum_df, controls_yr[['year', 'jur_or_cpa_id','capacity_used']], left_on=['year','jur_or_cpa_id'], right_on=['year','jur_or_cpa_id'], how='left')
     sum_df_yr['capacity_used'].fillna(0,inplace=True)
-    sum_df_yr['rem'] = sum_df_yr['capacity'] - sum_df_yr['capacity_used']
+    sum_df_yr['rem'] = sum_df_yr['capacity_w_adu'] - sum_df_yr['capacity_used']
     sum_df_yr['tot'] = sum_df_yr.rem.sum()
     sum_df_yr['share'] = sum_df_yr.rem/sum_df_yr.tot
     sum_df_yr['yr']  = year
@@ -444,10 +453,11 @@ def run_subregional_share(year,households):
     adu_share_df = orca.get_table('adu_allocation').to_frame()
     hh_df.set_index('yr',inplace=True)
     current_hh = int(hh_df.at[year, 'housing_units_add'])
-    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
+    # adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0)
+    # adu_share = adu_share_df.loc[adu_share_df['yr'] == year].allocation.sum()
     hh_df.reset_index(inplace=True)
     sumdfx = pd.merge(sum_df_yr, hh_df[['yr','housing_units_add']], left_on='yr', right_on='yr', how='left')
-    #sumdfx['housing_units_add'] = sumdfx['housing_units_add'] - adu_share
+    # sumdfx['housing_units_add'] = sumdfx['housing_units_add'] - adu_share
     sumdfx['new_capacity_used'] = sumdfx['share'] * sumdfx['housing_units_add']
     sumdfx['capacity_used'] = sumdfx['new_capacity_used'] + sumdfx['capacity_used']
     sumdfx.drop(['new_capacity_used'], axis=1,inplace=True)
@@ -460,6 +470,7 @@ def run_subregional_share(year,households):
     sumdfxi['year'] = year
     sumdfxi.reset_index(inplace=True)
     sumdfxi.sort_values(by=['jur_or_cpa_id'],inplace=True)
+    sumdfxi.reset_index(inplace=True,drop=True)
     controls = pd.concat([controls,sumdfxi])
     orca.add_table("controls", controls)
 
