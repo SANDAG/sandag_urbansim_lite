@@ -17,13 +17,13 @@ db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
 # Generate run_id and record information about run_id details
-print("Write results to db?")
+print("\n\nWrite results to db?")
 write_results_to_db = input("\nChoose y or n: ")
 if write_results_to_db == 'y':
       run_id = utils.add_run_to_db()
 
-print("Create a new set of subregional controls?")
-write_controls = input("\n\nChoose y or n: ")
+print("\n\nCreate a new set of subregional controls?")
+write_controls = input("\nChoose y or n: ")
 
 # Run the urbansim model iterations (see subsections for details)
 orca.run([
