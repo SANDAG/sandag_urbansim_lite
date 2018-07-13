@@ -234,6 +234,7 @@ geography_view_df = pd.read_sql(geography_view_sql, mssql_engine)
 adu_allocation_sql = '''
 SELECT [yr]
     ,[allocation]
+    ,[jcpa]
 FROM [urbansim].[urbansim].[urbansim_lite_adu_control]
 WHERE [version_id] = %s
 ORDER BY [yr]
