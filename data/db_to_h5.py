@@ -154,7 +154,7 @@ households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
 
 # output table.
 hu_forecast_df = pd.DataFrame(columns=['parcel_id', 'units_added', 'year_built', 'source', 'capacity_type'])
-controls = pd.DataFrame(columns=['jur_or_cpa_id', 'capacity', 'tot', 'share', 'year', 'yr',
+controls = pd.DataFrame(columns=['jur_or_cpa_id', 'capacity', 'tot', 'share', 'yr',
                                  'housing_units_add', 'capacity_used', 'rem'])
 # SQL statement for parcels with negative capacity (excludes scheduled development).
 # As of 06/06/2018, there are no parcels with a negative capacity.
@@ -278,6 +278,19 @@ ORDER BY [yr]
 adu_allocation_sql = adu_allocation_sql % scenarios['adu_control']
 adu_allocation_df = pd.read_sql(adu_allocation_sql, mssql_engine)
 
+
+# SQL statement for the target ADU units per year table.
+adu_allocation_sql = '''
+SELECT [yr]
+    ,[allocation]
+    ,[jcpa]
+FROM [urbansim].[urbansim].[urbansim_lite_adu_control]
+WHERE [version_id] = 2
+ORDER BY [yr]
+'''
+# adu_allocation_sql = adu_allocation_sql % scenarios['adu_control']
+adu_allocation_df2 = pd.read_sql(adu_allocation_sql, mssql_engine)
+
 # Combine capacity parcel table with additional geography and plu information.
 parcels = pd.merge(parcels_df, geography_view_df, how='left', on='parcel_id')
 parcels.parcel_id = parcels.parcel_id.astype(int)
@@ -316,3 +329,4 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('all_parcels', all_parcels, format='table')
     store.put('dev_lu_table', dev_lu_df, format='table')
     store.put('adu_allocation', adu_allocation_df, format='table')
+    store.put('adu_allocation2', adu_allocation_df2, format='table')
