@@ -128,7 +128,6 @@ def create_control_percents():
         sub_reg_control_id = 1
     print('\n\nNew subregional control id: %d' %  sub_reg_control_id)
     matchregion = orca.get_table('controls').to_frame()
-    matchregion['yr'] = matchregion['year']
     matchregion['subregional_crtl_id'] = sub_reg_control_id
     matchregion['geo'] = 'jur_and_cpa'
     matchregion['geo_id'] = matchregion['jur_or_cpa_id']
@@ -142,7 +141,7 @@ def create_control_percents():
     print('controls to db')
     # write to db
     controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,
-                    if_exists='append')
+                   if_exists='append')
 
 
 
@@ -404,75 +403,55 @@ def run_subregional_share(year,households):
         Does not return an object, but adds a dataframe of feasible parcels to orca.
     """
 
-    print("Computing feasibility")
-
-    # Retrieve dataframes of parcels and development restrictions, and combines them by parcel_id and capacity_type.
     controls = orca.get_table('controls').to_frame()
-    adu_share_df = orca.get_table('adu_allocation').to_frame()
     parcels = orca.get_table('parcels').to_frame()
-    devyear = orca.get_table('devyear').to_frame()
-    parcels.reset_index(inplace=True, drop=True)
-    devyear.reset_index(inplace=True, drop=False)
-    parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'],
+    jcpa = parcels.jur_or_cpa_id.unique().tolist() # list of all jcpa for index
+    phase_yr = orca.get_table('devyear').to_frame()
+    phase_yr.reset_index(inplace=True,drop=False)
+    # use phase year only for adus
+    phase_yr = phase_yr.loc[phase_yr.capacity_type=='adu']
+    parcels = pd.merge(parcels, phase_yr, how='left', left_on=['parcel_id', 'capacity_type'],
                        right_on=['parcel_id', 'capacity_type'])
-    parcels.set_index('parcel_id', inplace=True)
+    parcels.phase_yr = parcels.phase_yr.fillna(2017)
+    parcels = parcels.loc[parcels['phase_yr'] <= year].copy()
 
+    capacity = pd.DataFrame({'capacity': parcels.groupby(['jur_or_cpa_id']).capacity.sum()}).reset_index()
 
-    # Select parcels that have more capacity than is used.
-    # Note: 'capacity' is not subtracted from the built parcels, so 'capacity' should always be >= 'capacity_used'.
-    # feasible_parcels = parcels.loc[parcels['capacity'] > parcels['capacity_used']].copy()
-    feasible_parcels = parcels.copy()
-    feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
-    # Restrict feasible parcels based on assigned phase years (not feasible before phase year occurs).
-    feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
+    # set capacity to zero for 1432 and 1467
+    capacity.loc[(capacity.jur_or_cpa_id == 1432), 'capacity'] = 0
+    capacity.loc[(capacity.jur_or_cpa_id == 1467), 'capacity'] = 0
 
-    # comment out for new controls
-    # feasible_parcels = feasible_parcels.loc[~feasible_parcels['capacity_type'].isin(['adu'])].copy()
+    # subtract capacity used based on controls from previous year
+    controls_yr = controls.loc[controls.yr == year - 1]
+    capacity = pd.merge(capacity, controls_yr[['jur_or_cpa_id', 'capacity_used']], left_on=['jur_or_cpa_id'],
+                         right_on=['jur_or_cpa_id'], how='left')
+    capacity['capacity_used'].fillna(0, inplace=True)
+    capacity['rem'] = capacity['capacity'] - capacity['capacity_used']
+    capacity['tot'] = capacity.rem.sum()
 
-    # feasible_parcels['rem'] = feasible_parcels['capacity'] - feasible_parcels['capacity_used']
-    feasible_parcels[['jur_or_cpa_id', 'jurisdiction_id', 'capacity', 'capacity_used']].head()
-    # feasible_parcels[['jur_or_cpa_id', 'jurisdiction_id', 'capacity', 'capacity_type', 'capacity_used', 'rem']].loc[
-    #    feasible_parcels.jur_or_cpa_id == 1].head()
-    # feasible_parcels[['jur_or_cpa_id', 'jurisdiction_id', 'capacity', 'capacity_type', 'capacity_used', 'rem']].loc[
-    #     (feasible_parcels.jur_or_cpa_id == 1) & (feasible_parcels.capacity_type == 'adu')].head()
-    sum_df = pd.DataFrame({'capacity': feasible_parcels.groupby(['jur_or_cpa_id']). \
-                          capacity.sum()}).reset_index()
+    # calculate subregional share. remaining capacity divided by total capacity
+    capacity['share'] = capacity.rem / capacity.tot
+    capacity['yr'] = year
 
-    sum_df.fillna(0,inplace=True)
-    sum_df['capacity_w_adu'] = sum_df['capacity']
-    controls_yr = controls.loc[controls.yr==year-1]
-    sum_df['year'] = year - 1
-    sum_df_yr = pd.merge(sum_df, controls_yr[['year', 'jur_or_cpa_id','capacity_used']], left_on=['year','jur_or_cpa_id'], right_on=['year','jur_or_cpa_id'], how='left')
-    sum_df_yr['capacity_used'].fillna(0,inplace=True)
-    sum_df_yr['rem'] = sum_df_yr['capacity_w_adu'] - sum_df_yr['capacity_used']
-    sum_df_yr['tot'] = sum_df_yr.rem.sum()
-    sum_df_yr['share'] = sum_df_yr.rem/sum_df_yr.tot
-    sum_df_yr['yr']  = year
+    # calculate capacity used by multiplying w/ households
     hh_df = households.to_frame()
     hh_df.reset_index(inplace=True)
-    adu_share_df = orca.get_table('adu_allocation').to_frame()
-    hh_df.set_index('yr',inplace=True)
-    current_hh = int(hh_df.at[year, 'housing_units_add'])
-    # adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0)
-    # adu_share = adu_share_df.loc[adu_share_df['yr'] == year].allocation.sum()
-    hh_df.reset_index(inplace=True)
-    sumdfx = pd.merge(sum_df_yr, hh_df[['yr','housing_units_add']], left_on='yr', right_on='yr', how='left')
-    # sumdfx['housing_units_add'] = sumdfx['housing_units_add'] - adu_share
-    sumdfx['new_capacity_used'] = sumdfx['share'] * sumdfx['housing_units_add']
-    sumdfx['capacity_used'] = sumdfx['new_capacity_used'] + sumdfx['capacity_used']
-    sumdfx.drop(['new_capacity_used'], axis=1,inplace=True)
-
-    sumdfx['rem'] = sumdfx['capacity'] - sumdfx['capacity_used']
-    jcpa = parcels.jur_or_cpa_id.unique().tolist()
-    sumdfx.set_index('jur_or_cpa_id',inplace=True)
-    sumdfxi = sumdfx.reindex(jcpa)
-    sumdfxi.fillna(0,inplace=True)
-    sumdfxi['year'] = year
-    sumdfxi.reset_index(inplace=True)
-    sumdfxi.sort_values(by=['jur_or_cpa_id'],inplace=True)
-    sumdfxi.reset_index(inplace=True,drop=True)
-    controls = pd.concat([controls,sumdfxi])
+    capacity = pd.merge(capacity, hh_df[['yr','housing_units_add']], left_on='yr', right_on='yr', how='left')
+    capacity['new_capacity_used'] = capacity['share'] * capacity['housing_units_add']
+    capacity['capacity_used'] = capacity['new_capacity_used'] + capacity['capacity_used']
+    capacity.drop(['new_capacity_used'], axis=1,inplace=True)
+    # add to controls table with shares for each year
+    # add every cpa - fill with zeros for those w no capacity in given yr
+    capacity.set_index('jur_or_cpa_id',inplace=True)
+    capacity = capacity.reindex(jcpa)
+    capacity.fillna(0,inplace=True)
+    capacity['yr'] = year # fill in year for cpas with zero capacity
+    capacity.reset_index(inplace=True, drop=False)
+    controls = pd.concat([controls,capacity])
     orca.add_table("controls", controls)
+
+
+
 
 def run_feasibility(year):
     """
@@ -501,12 +480,6 @@ def run_feasibility(year):
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
     # Restrict feasible parcels based on assigned phase years (not feasible before phase year occurs).
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
-    # feasible_parcels = pd.concat([feasible_parcels,sched_dev])
-    # Remove scheduled developments from feasibility table.
-    # feasible_parcels = feasible_parcels.loc[feasible_parcels['site_id'].isnull()].copy()
-    # Double check that SGOAs won't be built before 2035
-    #if year < 2035:
-    #    feasible_parcels = feasible_parcels.loc[feasible_parcels['capacity_type'].isin(['jur', 'adu','sch'])].copy()
     orca.add_table("feasibility", feasible_parcels)
 
 
@@ -597,11 +570,6 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
     # Create an empty dataframe to add selected parcels to.
     parcels_picked = pd.DataFrame()
 
-    # This statement removes ADU parcels from the pool of allowed parcels in the 'all' cycle, preventing over-selection
-    # of the ADUs in early years.
-    if name_of_geo != 'all':
-        parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'adu'].copy()
-
     # This checks that the sub-region has a target number of units to build. If not, the function ends and returns the
     # empty dataframe.
     if target_number_of_units > 0:
@@ -619,34 +587,36 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 parcels_picked['units_added'] = parcels_picked['remaining_capacity']
                 parcels_picked.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True)
         else:
-            # Randomize the order of available parcels
-            shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
 
-            # Subset parcels that are partially completed from the year before
-            previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
+            capacity_sch = parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'sch')].copy()
+            parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.capacity_type != 'sch'].copy()
+            previously_picked = parcels_to_choose.loc[parcels_to_choose.partial_build > 0]
+            parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.partial_build <= 0].copy()
 
-            # Subset parcels with jurisdiction-provided capacity and that aren't partially built
-            capacity_jur = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'jur') &
-                                                (shuffled_parcels.partial_build == 0)]
+            parcels_to_choose['weight'] = 0
 
-            capacity_sch = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'sch') &
-                                                (shuffled_parcels.partial_build == 0)].copy()
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'jur'), 'weight'] = 100
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'adu'), 'weight'] = 20
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'cc'), 'weight'] = 1
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'mc'), 'weight'] = 1
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'tc'), 'weight'] = 1
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'tco'), 'weight'] = 1
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'uc'), 'weight'] = 1
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'sgoa'), 'weight'] = 1
+            #parcels_to_choose[['capacity_type', 'remaining_capacity', 'weight']].head()
+            if len(parcels_to_choose) > 0:
+                shuffled_parcels = parcels_to_choose.sample(frac=1,replace=False,weights='weight',random_state=50).reset_index(drop=False)
+            else:
+                shuffled_parcels = pd.DataFrame()
+            #shuffled_parcels[['parcel_id','capacity_type', 'remaining_capacity', 'weight']].head()
+
             capacity_sch.sort_values(by=['priority', 'site_id'], inplace=True)
-            # Subset ADU parcels
-            adu_parcels = shuffled_parcels.loc[shuffled_parcels.capacity_type == 'adu']
 
             # This places parcels that are partially built before jurisdiction-provided parcels
-            priority_parcels = pd.concat([previously_picked,capacity_sch, capacity_jur])  # type: pd.DataFrame
 
-            # Remove the subset parcels above from the rest of the shuffled parcels. In effect this should leave
-            # only parcels with an SGOA capacity_type in the shuffled parcels dataframe.
-            shuffled_parcels = shuffled_parcels[
-                ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
-            shuffled_parcels = shuffled_parcels[
-                ~shuffled_parcels['parcel_id'].isin(adu_parcels.parcel_id.values.tolist())]
-
-            # This places the SGOA parcels and ADU parcels after the prioritized parcels.
-            priority_then_random = pd.concat([priority_parcels, shuffled_parcels, adu_parcels])  # type: pd.DataFrame
+            priority_parcels = pd.concat([previously_picked,capacity_sch])
+            priority_parcels.reset_index(inplace=True,drop=False)
+            priority_then_random = pd.concat([priority_parcels, shuffled_parcels])
 
             # This section prohibits building very large projects in one year. If a parcel has over 250 or 500
             # available capacity, is capped at 250 or 500, respectively, units when selected. This generally assumes
@@ -665,6 +635,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
 
             # Creates dataframe that has one row for each 'units_for_year' on a parcel in priority_then_random. If a
             # parcel has 'units_for_year' = 2, the new dataframe will have 2 rows for that parcel.
+            priority_then_random.reset_index(inplace=True,drop=True)
             one_row_per_unit = priority_then_random.reindex(priority_then_random.index.repeat(
                 priority_then_random.units_for_year)).reset_index(drop=True)
 
@@ -734,14 +705,14 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # Run the adu_picker before determining other builds for the year. Doing this first allows for better control of
     # how many ADUs are chosen in each year rather than allowing them to be randomly selected from the pool of
     # feasible parcels.
-    adu_builds = adu_picker(year, current_hh, feasible_parcels_df)
+    # adu_builds = adu_picker(year, current_hh, feasible_parcels_df) # commented out 7/15/19
 
     # If ADU parcels were chosen, add them to the dataframe of parcel changes. If there are no parcels selected (such
     # as in 2017-2018) simply return the original empty dataframe.
-    adu_build_count = len(adu_builds)
-    if adu_build_count > 0:
-        sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']])
-        sr14cap.set_index('parcel_id', inplace=True)
+    #adu_build_count = len(adu_builds) # commented out 7/15/19
+    #if adu_build_count > 0: # commented out 7/15/19
+    #    sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']]) # commented out 7/15/19
+    #    sr14cap.set_index('parcel_id', inplace=True) # commented out 7/15/19
 
     # num_units will have the sum of all units built since the start of the simulation, including the ADU units for the
     # current iteration year. target_units will be the target taking into account the cumulative totals. In essence,
@@ -778,9 +749,11 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     for jur in control_totals.geo_id.unique().tolist():
         # Pull the appropriate sub-regional target unit value, and the max_units for the sub-region. These values are
         # already iteration year specific (see above).
+        if jur==1999:
+            print(jur)
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id'] == jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id'] == jur].max_units.values[0]
-        if jur==1405:
+        if jur==1404:
             print(jur)
         # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
         # because the minimum of a number and NaN would be NaN. (Usually subregion_max will be a null value).
@@ -796,7 +769,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
 
         # Run the parcel_picker function to select parcels and build units for the sub-region.
-        target_units_for_geo = target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur])
+        # target_units_for_geo = target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur]) # commented out 7/15/19
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
 
         # Activates if subregion_max has a numeric value (non-Null). If the subregion_max was built, remove parcels in
