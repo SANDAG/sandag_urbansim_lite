@@ -95,7 +95,7 @@ assigned_df.parcel_id = assigned_df.parcel_id.astype(int)
 #
 assigned_df.set_index('parcel_id',inplace=True)
 #
-assigned_df['phase_yr'] = 2017
+assigned_df['phase_yr'] = 2019
 assigned_df['phase_yr_version_id'] = version_id
 
 # The following jurisdictions have agreed to make their ADUs available for "realization" beginning from 2019
@@ -145,7 +145,8 @@ sched_dev_df['phase_yr'] = 2017
 sched_dev_df.loc[(sched_dev_df.site_id==15005),'phase_yr'] = 2025
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1730,1731,14088])),'phase_yr'] = 2025
 sched_dev_df.loc[(sched_dev_df.site_id.isin([14084,14085,14086])),'phase_yr'] = 2030
-sched_dev_df.loc[(sched_dev_df.site_id.isin([15035,15019,15028,15029,15004,15007,15015,15016,2019,3063,2003,2015,2011,2013,2014,2001])),'phase_yr'] = 2040
+sched_dev_df.loc[(sched_dev_df.site_id.isin([2019,3063,2003,2015,2011,2013,2014,2001])),'phase_yr'] = 2033
+sched_dev_df.loc[(sched_dev_df.site_id.isin([15035,15019,15028,15029,15004,15007,15015,15016])),'phase_yr'] = 2034
 
 
 sched_dev_df['phase_yr_version_id'] = version_id
