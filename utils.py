@@ -510,7 +510,7 @@ def run_feasibility(year):
     orca.add_table("feasibility", feasible_parcels)
 
 
-def adu_picker(year, current_hh, feasible_parcels_df):
+def adu_picker(year, current_hh, feasible_parcels_df, subregional_targets):
     """
     Selects additional dwelling unit parcels to build each year (1 additional unit on an existing residential parcel).
 
@@ -560,6 +560,24 @@ def adu_picker(year, current_hh, feasible_parcels_df):
     except ValueError:
         shuffled_adu = adu_parcels
     picked_adu_parcels = shuffled_adu.head(adu_share).copy()
+
+    adu_jcpa = pd.DataFrame({'adu_sum':  picked_adu_parcels.
+                             groupby(["jur_or_cpa_id"]).capacity.sum()}).reset_index()
+
+    targets_w_adus = pd.merge(subregional_targets,adu_jcpa,how='left',left_on='geo_id',right_on = 'jur_or_cpa_id')
+
+    targets_w_adus['rem'] = targets_w_adus['targets'] - targets_w_adus['adu_sum']
+
+#    if len(targets_w_adus.loc[targets_w_adus.rem < 0]):
+#        print(len(targets_w_adus.loc[targets_w_adus.rem < 0]))
+
+    jcpas_w_overage = targets_w_adus.loc[targets_w_adus.rem < 0].jur_or_cpa_id.tolist()
+
+    for jur in jcpas_w_overage:
+        #int(grp.iloc[0]['rem'])
+        extra_units = int(abs(targets_w_adus.loc[targets_w_adus.jur_or_cpa_id==jur].rem.iloc[0]))
+        parcels_to_drop = (picked_adu_parcels.loc[picked_adu_parcels['jur_or_cpa_id'] == jur].head(extra_units)).parcel_id.tolist()
+        picked_adu_parcels = picked_adu_parcels[~picked_adu_parcels.parcel_id.isin(parcels_to_drop)].copy()
 
     # Assigns build information to the parcels built. Source 5 is ADU.
     picked_adu_parcels['source'] = 5
@@ -767,7 +785,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # Run the adu_picker before determining other builds for the year. Doing this first allows for better control of
     # how many ADUs are chosen in each year rather than allowing them to be randomly selected from the pool of
     # feasible parcels.
-    adu_builds = adu_picker(year, current_hh, feasible_parcels_df)
+    adu_builds = adu_picker(year, current_hh, feasible_parcels_df,subregional_targets)
 
     # If ADU parcels were chosen, add them to the dataframe of parcel changes. If there are no parcels selected (such
     # as in 2017-2018) simply return the original empty dataframe.
