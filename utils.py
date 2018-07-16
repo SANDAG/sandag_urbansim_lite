@@ -778,6 +778,22 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())#+ adu_build_count)
     target_units = int(max(net_hh - num_units, 0))
 
+    # If there are year-specific jurisdiction targets, set those at a CPA level for San Diego and Unincorporated
+    for jur in [14, 19]:
+        control_adjustments = control_totals_by_year.loc[control_totals_by_year.jurisdiction_id == jur].copy()
+        adjust = (1 / control_adjustments.control.sum())
+        control_adjustments['control'] = control_adjustments.control * adjust
+        try:
+            specific_targets = int(control_adjustments.target_units.values[0])
+        except ValueError:
+            continue
+        cpa_targets = largest_remainder_allocation(control_adjustments, specific_targets)
+        cpa_targets = cpa_targets[['yr', 'geo_id', 'targets']]
+        control_totals_by_year = pd.merge(control_totals_by_year, cpa_targets, how='left', on=['yr', 'geo_id'])
+        control_totals_by_year['target_units'].where(control_totals_by_year.targets.isnull(),
+                                                     other=control_totals_by_year['targets'], inplace=True)
+        control_totals_by_year = control_totals_by_year.drop('targets', axis=1)
+
     # Use the sub-regional percentages and target units to determine integer sub-regional targets by running the
     # largest_remainder_allocation function.
     subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
@@ -800,24 +816,6 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     print("Target of new units = {:,} total".format(current_hh))
     print("Target of new units = {:,} after scheduled developments and ADUs are built".format(target_units))
     print("{:,} feasible parcels before running developer (excludes sched dev)".format(len(feasible_parcels_df)))
-
-    # If there are year-specific jurisdiction targets, set those at a CPA level for San Diego and Unincorporated
-    for jur in [14, 19]:
-        control_adjustments = control_totals_by_year.loc[control_totals_by_year.jurisdiction_id == jur].copy()
-        adjust = (1 / control_adjustments.control.sum())
-        control_adjustments['control'] = control_adjustments.control * adjust
-        try:
-            specific_targets = int(control_adjustments.target_units.values[0])
-        except ValueError:
-            continue
-        cpa_targets = largest_remainder_allocation(control_adjustments, specific_targets)
-        cpa_targets = cpa_targets[['yr', 'geo_id', 'targets']]
-        control_totals_by_year = pd.merge(control_totals_by_year, cpa_targets, how='left', on=['yr', 'geo_id'])
-        control_totals_by_year['target_units'].where(control_totals_by_year.targets.isnull(),
-                                                     other=control_totals_by_year['targets'], inplace=True)
-        control_totals_by_year = control_totals_by_year.drop('targets', axis=1)
-
-
 
     # If there are no feasible parcels, no building can occur. This is primarily a debugging tool, but it can occur if
     # development is too rapid in early years and the region runs out of capacity. The code will continue to run, but
