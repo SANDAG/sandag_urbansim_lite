@@ -753,6 +753,17 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     net_hh = int(hh_df.at[year, 'total_housing_units'])
     current_hh = int(hh_df.at[year, 'housing_units_add'])
 
+    # num_units will have the sum of all units built since the start of the simulation, including the ADU units for the
+    # current iteration year. target_units will be the target taking into account the cumulative totals. In essence,
+    # this is a check that the year-by-year values match the cumulative totals. target_units should be equal to
+    # current_hh less ADU and scheduled development units for the current year.
+    num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())#+ adu_build_count)
+    target_units = int(max(net_hh - num_units, 0))
+
+    # Use the sub-regional percentages and target units to determine integer sub-regional targets by running the
+    # largest_remainder_allocation function.
+    subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
+
     # Run the adu_picker before determining other builds for the year. Doing this first allows for better control of
     # how many ADUs are chosen in each year rather than allowing them to be randomly selected from the pool of
     # feasible parcels.
@@ -764,14 +775,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     if adu_build_count > 0:
         sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']])
         sr14cap.set_index('parcel_id', inplace=True)
-
-    # num_units will have the sum of all units built since the start of the simulation, including the ADU units for the
-    # current iteration year. target_units will be the target taking into account the cumulative totals. In essence,
-    # this is a check that the year-by-year values match the cumulative totals. target_units should be equal to
-    # current_hh less ADU and scheduled development units for the current year.
-    num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())#+ adu_build_count)
-    target_units = int(max(net_hh - num_units, 0))
-
+        
     # Print statements to see the current values of the above numbers.
     print("Number of households: {:,}".format(net_hh))
     print("Number of units: {:,}".format(num_units))
@@ -795,9 +799,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
                                                      other=control_totals_by_year['targets'], inplace=True)
         control_totals_by_year = control_totals_by_year.drop('targets', axis=1)
 
-    # Use the sub-regional percentages and target units to determine integer sub-regional targets by running the
-    # largest_remainder_allocation function.
-    subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
+
 
     # If there are no feasible parcels, no building can occur. This is primarily a debugging tool, but it can occur if
     # development is too rapid in early years and the region runs out of capacity. The code will continue to run, but
