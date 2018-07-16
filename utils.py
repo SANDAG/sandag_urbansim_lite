@@ -420,6 +420,8 @@ def run_subregional_share(year,households):
     # set capacity to zero for 1432 and 1467
     capacity.loc[(capacity.jur_or_cpa_id == 1432), 'capacity'] = 0
     capacity.loc[(capacity.jur_or_cpa_id == 1467), 'capacity'] = 0
+    #cpas with majority sched dev: 1462,1464,1465, 1954
+    # Torrey Highlands, Black Mountain Ranch, Pacific Highlands Ranch, Pendleton-De Luz,
 
     # subtract capacity used based on controls from previous year
     controls_yr = controls.loc[controls.yr == year - 1]
@@ -594,15 +596,17 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             parcels_to_choose = parcels_to_choose.loc[parcels_to_choose.partial_build <= 0].copy()
 
             parcels_to_choose['weight'] = 0
+            jur_weight = parcels_to_choose.loc[parcels_to_choose.capacity_type=='jur'].capacity.sum()
+            adu_weight = parcels_to_choose.loc[parcels_to_choose.capacity_type == 'adu'].remaining_capacity.sum()
+            sgoa_weight = parcels_to_choose.loc[parcels_to_choose.capacity_type.isin(['cc','mc','tc','tco','uc'])].capacity.sum()
 
-            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'jur'), 'weight'] = 100
-            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'adu'), 'weight'] = 20
-            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'cc'), 'weight'] = 1
-            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'mc'), 'weight'] = 1
-            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'tc'), 'weight'] = 1
-            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'tco'), 'weight'] = 1
-            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'uc'), 'weight'] = 1
-            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'sgoa'), 'weight'] = 1
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'jur'), 'weight'] = jur_weight * 4
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'adu'), 'weight'] = adu_weight
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'cc'), 'weight'] = sgoa_weight/4
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'mc'), 'weight'] = sgoa_weight/4
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'tc'), 'weight'] = sgoa_weight/4
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'tco'), 'weight'] = sgoa_weight/4
+            parcels_to_choose.loc[(parcels_to_choose.capacity_type == 'uc'), 'weight'] = sgoa_weight/4
             #parcels_to_choose[['capacity_type', 'remaining_capacity', 'weight']].head()
             if len(parcels_to_choose) > 0:
                 shuffled_parcels = parcels_to_choose.sample(frac=1,replace=False,weights='weight',random_state=50).reset_index(drop=False)
@@ -727,6 +731,9 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     print("Target of new units = {:,} total".format(current_hh))
     print("Target of new units = {:,} after scheduled developments and ADUs are built".format(target_units))
     print("{:,} feasible parcels before running developer (excludes sched dev)".format(len(feasible_parcels_df)))
+    if num_units != current_hh:
+        print(num_units)
+        print(current_hh)
 
     # Use the sub-regional percentages and target units to determine integer sub-regional targets by running the
     # largest_remainder_allocation function.
