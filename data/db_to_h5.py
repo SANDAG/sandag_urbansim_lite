@@ -171,6 +171,7 @@ ORDER BY [parcel_id]
 negative_parcels_df = pd.read_sql(negative_capacity_parcels, mssql_engine)
 negative_parcels_df.capacity_type = negative_parcels_df.capacity_type.astype(str)
 
+
 # SQL statement for sub-regional allocations.
 regional_capacity_controls_sql = '''
 SELECT [subregional_crtl_id]
@@ -200,11 +201,13 @@ SELECT [yr]
   WHERE [version_id] = %s
   ORDER BY [yr], [jurisdiction_id]
 '''
-# subregional_targets_sql = subregional_targets_sql % scenarios['some_specific_name_id']
-subregional_targets_sql = subregional_targets_sql % 110
+subregional_targets_sql = subregional_targets_sql % scenarios['subregional_targets_id']
 subregional_targets_df = pd.read_sql(subregional_targets_sql, mssql_engine)
 
 regional_controls_df = pd.merge(regional_controls_df, subregional_targets_df, how='left', on=['yr', 'jurisdiction_id'])
+regional_controls_df.jurisdiction_id = regional_controls_df.jurisdiction_id.astype(int)
+
+
 
 for year in regional_controls_df.yr.unique().tolist():
     for jur in [14, 19]:
