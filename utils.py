@@ -415,11 +415,14 @@ def run_subregional_share(year,households):
                        right_on=['parcel_id', 'capacity_type'])
     parcels.phase_yr = parcels.phase_yr.fillna(2017)
     parcels = parcels.loc[parcels['phase_yr'] <= year].copy()
-    slim_df = parcels[['cap_jurisdiction_id', 'capacity', 'capacity_type', 'jur_or_cpa_id']].copy()
-    slim_df.loc[(slim_df.jur_or_cpa_id == 1432), 'capacity'] = 0
-    slim_df.loc[(slim_df.jur_or_cpa_id == 1467), 'capacity'] = 0
+    parcels.loc[(parcels.jur_or_cpa_id == 1432), 'capacity'] = 0
+    parcels.loc[(parcels.jur_or_cpa_id == 1467), 'capacity'] = 0
+    # slim_df = parcels[['cap_jurisdiction_id', 'capacity', 'capacity_type', 'jur_or_cpa_id']].copy()
     # capacity = pd.DataFrame({'capacity': parcels.groupby(['jur_or_cpa_id']).capacity.sum()}).reset_index()
     capacity = pd.DataFrame({'capacity': parcels.groupby(['cap_jurisdiction_id']).capacity.sum()}).reset_index()
+    capacity.loc[(capacity.cap_jurisdiction_id == 6), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 6)].capacity.values[0] + 85
+    capacity.loc[(capacity.cap_jurisdiction_id == 8), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 8)].capacity.values[0] + 260 # 275 running out of units
+    capacity.loc[(capacity.cap_jurisdiction_id == 19), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 19)].capacity.values[0] + 6000
 
     # set capacity to zero for 1432 and 1467
     #capacity.loc[(capacity.jur_or_cpa_id == 1432), 'capacity'] = 0
