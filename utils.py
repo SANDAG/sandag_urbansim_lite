@@ -654,10 +654,11 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             # available capacity, is capped at 250 or 500, respectively, units when selected. This generally assumes
             # that larger projects can build faster than smaller ones, but prevents them from building instantaneously.
             priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
-            large_build_checker = priority_then_random.remaining_capacity >= 250
-            priority_then_random.loc[large_build_checker, 'units_for_year'] = 250
-            max_build_checker = priority_then_random.remaining_capacity >= 500
-            priority_then_random.loc[max_build_checker, 'units_for_year'] = 500
+            if year_simulation < 2048:
+                large_build_checker = priority_then_random.remaining_capacity >= 250
+                priority_then_random.loc[large_build_checker, 'units_for_year'] = 250
+            #max_build_checker = priority_then_random.remaining_capacity >= 500
+            #priority_then_random.loc[max_build_checker, 'units_for_year'] = 500
 
             # This statement allows a sub-region to fully complete large projects immediately if there is not enough
             # other capacity to reach the target_number_of_units. This also allows a large parcel picked late in the
@@ -842,6 +843,16 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # current_hh less ADU and scheduled development units for the current year.
     num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())  # + adu_build_count)
     target_units = int(max(net_hh - num_units, 0))
+
+    # recalculate control percentages based on what is feasible
+    #units_available = feasible_parcels_df.groupby(['jur_or_cpa_id'], as_index=False)['remaining_capacity'].sum()
+    #units_available['control'] = units_available.remaining_capacity / units_available.remaining_capacity.sum()
+    #control_totals_by_year = control_totals_by_year.drop(['control'], 1)
+    #control_totals_by_year = pd.merge(control_totals_by_year, units_available[['jur_or_cpa_id', 'control']],
+    #                                  how='left', left_on='geo_id', right_on='jur_or_cpa_id')
+    # control_totals_by_year.control = control_totals_by_year.control.fillna(0)
+    #
+
     subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
 
     # Run the adu_picker before determining other builds for the year. Doing this first allows for better control of
@@ -853,12 +864,13 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # as in 2017-2018) simply return the original empty dataframe.
     adu_build_count = len(adu_builds) # commented out 7/15/19
     if adu_build_count > 0: # commented out 7/15/19
-        sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']]) # commented out 7/15/19
-        sr14cap.set_index('parcel_id', inplace=True) # commented out 7/15/19
+        sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']])
+        sr14cap.set_index('parcel_id', inplace=True)
+        feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(adu_builds.parcel_id.tolist())]
 
 
 
-    # Print statements to see the current values of the above numbers.
+        # Print statements to see the current values of the above numbers.
     print("Number of households: {:,}".format(net_hh))
     print("Number of units: {:,}".format(num_units))
     print("Target of new units = {:,} total".format(current_hh))
