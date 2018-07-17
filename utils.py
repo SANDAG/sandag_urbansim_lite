@@ -749,18 +749,19 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     #                    inplace=True)
     #     slim_df.replace(['cc', 'mc', 'tc', 'tco', 'uc'], 'sgoa', inplace=True)
     #     units_available = slim_df.loc[slim_df.jur_id == jur].copy()
-    #     units_available = units_available.groupby(['jcpa', 'capacity_type'], as_index=False)['cap'].sum()
-    #     sch_cpas = units_available.loc[units_available.capacity_type == 'sch'].jcpa.tolist()
-    #     no_sch_cpas = [x for x in units_available.jcpa.tolist() if x not in sch_cpas]
-    #     units_available = units_available.groupby('capacity_type', as_index=False)['cap'].sum()
-    #     sch_target = units_available.loc[units_available.capacity_type == 'sch'].cap.values[0]
-    #     if len(sch_cpas) and (sch_target > 0):
-    #         adjust_sch = ((.7*jur_percent) / control_adjustments.loc[control_adjustments.geo_id.isin(sch_cpas)].control.sum())
-    #         control_totals_by_year.loc[control_totals_by_year.geo_id.isin(sch_cpas), 'control'] = \
-    #             control_totals_by_year.loc[control_totals_by_year.geo_id.isin(sch_cpas), 'control'] * adjust_sch
-    #         adjust_jur = ((.3*jur_percent) / control_adjustments.loc[~control_adjustments.geo_id.isin(sch_cpas)].control.sum())
-    #         control_totals_by_year.loc[control_totals_by_year.geo_id.isin(no_sch_cpas), 'control'] = \
-    #             control_totals_by_year.loc[control_totals_by_year.geo_id.isin(no_sch_cpas), 'control'] * adjust_jur
+    #     if len(units_available.loc[units_available.capacity_type == 'sch']) > 0:
+    #       units_available = units_available.groupby(['jcpa', 'capacity_type'], as_index=False)['cap'].sum()
+    #       sch_cpas = units_available.loc[units_available.capacity_type == 'sch'].jcpa.tolist()
+    #       no_sch_cpas = [x for x in units_available.jcpa.tolist() if x not in sch_cpas]
+    #       units_available = units_available.groupby('capacity_type', as_index=False)['cap'].sum()
+    #       sch_target = units_available.loc[units_available.capacity_type == 'sch'].cap.values[0]
+    #       if len(sch_cpas) and (sch_target > 0):
+    #           adjust_sch = ((.7*jur_percent) / control_adjustments.loc[control_adjustments.geo_id.isin(sch_cpas)].control.sum())
+    #           control_totals_by_year.loc[control_totals_by_year.geo_id.isin(sch_cpas), 'control'] = \
+    #               control_totals_by_year.loc[control_totals_by_year.geo_id.isin(sch_cpas), 'control'] * adjust_sch
+    #           adjust_jur = ((.3*jur_percent) / control_adjustments.loc[~control_adjustments.geo_id.isin(sch_cpas)].control.sum())
+    #           control_totals_by_year.loc[control_totals_by_year.geo_id.isin(no_sch_cpas), 'control'] = \
+    #               control_totals_by_year.loc[control_totals_by_year.geo_id.isin(no_sch_cpas), 'control'] * adjust_jur
 
     # Check that the target percentages sum to 1 (100%). If not, print statement and cancel the run.
     # This would need to be modified if sub-regional targets were changed away from percentage-based values.
