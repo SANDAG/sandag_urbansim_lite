@@ -154,7 +154,7 @@ households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
 
 # output table.
 hu_forecast_df = pd.DataFrame(columns=['parcel_id', 'units_added', 'year_built', 'source', 'capacity_type'])
-controls = pd.DataFrame(columns=['jur_or_cpa_id', 'capacity', 'tot', 'share', 'yr',
+controls = pd.DataFrame(columns=['jur_or_cpa_id','cap_jurisdiction_id', 'capacity', 'tot', 'share', 'yr',
                                  'housing_units_add', 'capacity_used', 'rem'])
 # SQL statement for parcels with negative capacity (excludes scheduled development).
 # As of 06/06/2018, there are no parcels with a negative capacity.
@@ -209,23 +209,23 @@ regional_controls_df.jurisdiction_id = regional_controls_df.jurisdiction_id.asty
 
 
 
-for year in regional_controls_df.yr.unique().tolist():
-    for jur in [14, 19]:
-        control_adjustments = regional_controls_df.loc[(regional_controls_df.jurisdiction_id == jur) &
-                                                   (regional_controls_df.yr == year)].copy()
-        adjust = (1 / control_adjustments.control.sum())
-        control_adjustments['control'] = control_adjustments.control * adjust
-        try:
-            target_units = int(control_adjustments.target_units.values[0])
-        except ValueError:
-            break
-        cpa_targets = utils.largest_remainder_allocation(control_adjustments, target_units)
-        cpa_targets = cpa_targets[['yr', 'geo_id', 'targets']]
-        regional_controls_df = pd.merge(regional_controls_df, cpa_targets, how='left', on=['yr', 'geo_id'])
-        regional_controls_df['target_units'].where(regional_controls_df.targets.isnull(),
-                                                   other=regional_controls_df['targets'], inplace=True)
-        regional_controls_df = regional_controls_df.drop('targets', axis=1)
-
+# for year in regional_controls_df.yr.unique().tolist():
+#     for jur in [14, 19]:
+#         control_adjustments = regional_controls_df.loc[(regional_controls_df.jurisdiction_id == jur) &
+#                                                    (regional_controls_df.yr == year)].copy()
+#         adjust = (1 / control_adjustments.control.sum())
+#         control_adjustments['control'] = control_adjustments.control * adjust
+#         try:
+#             target_units = int(control_adjustments.target_units.values[0])
+#         except ValueError:
+#             break
+#         cpa_targets = utils.largest_remainder_allocation(control_adjustments, target_units)
+#         cpa_targets = cpa_targets[['yr', 'geo_id', 'targets']]
+#         regional_controls_df = pd.merge(regional_controls_df, cpa_targets, how='left', on=['yr', 'geo_id'])
+#         regional_controls_df['target_units'].where(regional_controls_df.targets.isnull(),
+#                                                    other=regional_controls_df['targets'], inplace=True)
+#         regional_controls_df = regional_controls_df.drop('targets', axis=1)
+#
 regional_controls_df = regional_controls_df.drop('jurisdiction_id', axis=1)
 
 # SQL statement for parcel control table. This is used to phase specific parcels.
