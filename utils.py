@@ -463,8 +463,6 @@ def run_subregional_share(year,households):
     orca.add_table("controls", controls)
 
 
-
-
 def run_feasibility(year):
     """
     Determines feasible parcels for iteration year.
@@ -602,6 +600,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
         dataframe: the parcels selected for the region, and the number of units added to those parcels.
     """
 
+    original_target = target_number_of_units
     # Create an empty dataframe to add selected parcels to.
     parcels_picked = pd.DataFrame()
 
@@ -625,23 +624,60 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             # Randomize the order of available parcels
             shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
 
+            capacity_sch = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'sch')].copy()
+            capacity_site = capacity_sch.groupby(['site_id', 'phase_yr', 'priority', 'jur_or_cpa_id']).\
+                agg({'remaining_capacity': 'sum', 'partial_build': 'sum'}).reset_index()
+
             # Subset parcels that are partially completed from the year before
-            previously_picked = shuffled_parcels.loc[shuffled_parcels.partial_build > 0]
+            previously_picked = shuffled_parcels.loc[(shuffled_parcels.partial_build > 0) &
+                                                     (shuffled_parcels.capacity_type != 'sch')]
 
             # Subset parcels with jurisdiction-provided capacity and that aren't partially built
             capacity_jur = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'jur') &
                                                 (shuffled_parcels.partial_build == 0)]
 
-            capacity_sch = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'sch') &
-                                                (shuffled_parcels.partial_build == 0)].copy()
-            # capacity_sch.sort_values(by=['priority', 'site_id'], inplace=True)
             # Subset ADU parcels
             adu_parcels = shuffled_parcels.loc[shuffled_parcels.capacity_type == 'adu']
 
             # This places parcels that are partially built before jurisdiction-provided parcels
             # changed order - sched dev first. otherwise previously picked sgoa was getting
             # chosen ahead of sched dev for chula vista
-            priority_parcels = pd.concat([capacity_sch, previously_picked, capacity_jur])
+
+            if len(capacity_site):
+                capacity_site.sort_values(by=['partial_build', 'priority', 'site_id'], ascending=[False, True, True],
+                                          inplace=True)
+                capacity_site['units_for_year'] = capacity_site.remaining_capacity
+                if year_simulation < 2048:
+                    large_build_checker = capacity_site.remaining_capacity >= 250
+                    capacity_site.loc[large_build_checker, 'units_for_year'] = 250
+                if capacity_site.units_for_year.sum() < target_number_of_units:
+                    capacity_site['units_for_year'] = capacity_site.remaining_capacity
+                one_row_per_unit = capacity_site.reindex(capacity_site.index.repeat(
+                    capacity_site.units_for_year)).reset_index(drop=True)
+                one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
+                sites_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.groupby(['site_id']).
+                                            size()}).reset_index()
+                new_sch = capacity_sch[['parcel_id', 'site_id', 'remaining_capacity']].sample(frac=1,random_state=50).\
+                    sort_values(by='site_id')
+                merge_sch = pd.merge(new_sch, sites_picked, how='left', on=['site_id'])
+                merge_sch['cum_remaining'] = merge_sch.groupby('site_id')['remaining_capacity'].cumsum()
+                merge_sch['remaining_units'] = merge_sch['units_added'].subtract(merge_sch['cum_remaining'],
+                                                                                 level=merge_sch['site_id'])
+                merge_sch['remaining_units'] = merge_sch.groupby(['site_id'])['remaining_units'].shift(1)
+                merge_sch.loc[merge_sch['units_added'].notnull(), 'remaining_units'] = \
+                    merge_sch.loc[:, ['units_added', 'remaining_units']].min(axis=1)
+                merge_sch.loc[merge_sch['units_added'].notnull(), 'units_added'] = \
+                    merge_sch.loc[:, ['remaining_capacity', 'remaining_units']].min(axis=1)
+                merge_sch.loc[merge_sch['units_added'] < 0, 'units_added'] = 0
+                sch_picked = merge_sch[['parcel_id', 'units_added']].copy()
+                sch_picked['capacity_type'] = 'sch'
+                target_number_of_units = int(target_number_of_units - merge_sch['units_added'].sum())
+
+            else:
+                sch_picked = pd.DataFrame(columns=['parcel_id', 'capacity_type', 'units_added'])
+
+            # Non-Scheduled Development Parcels
+            priority_parcels = pd.concat([previously_picked, capacity_jur])
 
             # Remove the subset parcels above from the rest of the shuffled parcels. In effect this should leave
             # only parcels with an SGOA capacity_type in the shuffled parcels dataframe.
@@ -683,7 +719,12 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             # selected. Due to the nature of the selection, one parcel may be split in addition to the large_builds.
             parcels_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.groupby(
                 ["parcel_id", 'capacity_type']).size()}).reset_index()
+
+            parcels_picked = pd.concat([parcels_picked, sch_picked])
+
             parcels_picked.set_index('parcel_id', inplace=True)
+            if original_target != parcels_picked['units_added'].sum():
+                print('{0} UNITS PRODUCED INSTEAD OF TARGET {1}!'.format(parcels_picked['units_added'].sum(), original_target))
     return parcels_picked
 
 
