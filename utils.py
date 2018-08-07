@@ -650,8 +650,8 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 if year_simulation < 2048:
                     large_build_checker = capacity_site.remaining_capacity >= 250
                     capacity_site.loc[large_build_checker, 'units_for_year'] = 250
-                if capacity_site.units_for_year.sum() < target_number_of_units:
-                    capacity_site['units_for_year'] = capacity_site.remaining_capacity
+                # if capacity_site.units_for_year.sum() < target_number_of_units:
+                #     capacity_site['units_for_year'] = capacity_site.remaining_capacity
                 one_row_per_unit = capacity_site.reindex(capacity_site.index.repeat(
                     capacity_site.units_for_year)).reset_index(drop=True)
                 one_row_per_unit_picked = one_row_per_unit.head(target_number_of_units)
@@ -669,12 +669,22 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 merge_sch.loc[merge_sch['units_added'].notnull(), 'units_added'] = \
                     merge_sch.loc[:, ['remaining_capacity', 'remaining_units']].min(axis=1)
                 merge_sch.loc[merge_sch['units_added'] < 0, 'units_added'] = 0
+                merge_sch = merge_sch.loc[merge_sch['units_added'] > 0]
                 sch_picked = merge_sch[['parcel_id', 'units_added']].copy()
+                shuffled_parcels = pd.merge(shuffled_parcels, sch_picked, how='left', on=['parcel_id'])
+                shuffled_parcels['units_added'] = shuffled_parcels['units_added'].fillna(0).astype(int)
+                shuffled_parcels['remaining_capacity'] = shuffled_parcels['remaining_capacity'] - shuffled_parcels[
+                    'units_added']
+                shuffled_parcels = shuffled_parcels.drop(['units_added'], axis=1)
                 sch_picked['capacity_type'] = 'sch'
                 target_number_of_units = int(target_number_of_units - merge_sch['units_added'].sum())
+                selected_sites_parcels = shuffled_parcels[shuffled_parcels['site_id'].isin(merge_sch.site_id.values.tolist())]
+                shuffled_parcels = shuffled_parcels[
+                    ~shuffled_parcels['site_id'].isin(merge_sch.site_id.values.tolist())]
 
             else:
                 sch_picked = pd.DataFrame(columns=['parcel_id', 'capacity_type', 'units_added'])
+                selected_sites_parcels = pd.DataFrame()
 
             # Non-Scheduled Development Parcels
             priority_parcels = pd.concat([previously_picked, capacity_jur])
@@ -687,7 +697,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 ~shuffled_parcels['parcel_id'].isin(adu_parcels.parcel_id.values.tolist())]
 
             # This places the SGOA parcels and ADU parcels after the prioritized parcels.
-            priority_then_random = pd.concat([priority_parcels, shuffled_parcels, adu_parcels])
+            priority_then_random = pd.concat([priority_parcels, shuffled_parcels, adu_parcels, selected_sites_parcels])
 
             # This section prohibits building very large projects in one year. If a parcel has over 250 or 500
             # available capacity, is capped at 250 or 500, respectively, units when selected. This generally assumes
