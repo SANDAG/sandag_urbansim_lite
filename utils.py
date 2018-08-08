@@ -697,7 +697,12 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 ~shuffled_parcels['parcel_id'].isin(adu_parcels.parcel_id.values.tolist())]
 
             # This places the SGOA parcels and ADU parcels after the prioritized parcels.
-            priority_then_random = pd.concat([priority_parcels, shuffled_parcels, adu_parcels, selected_sites_parcels])
+            if year_simulation < 2048:
+                priority_then_random = pd.concat([priority_parcels, selected_sites_parcels, shuffled_parcels,
+                                                  adu_parcels])
+            else:
+                priority_then_random = pd.concat([selected_sites_parcels, priority_parcels, shuffled_parcels,
+                                                  adu_parcels])
 
             # This section prohibits building very large projects in one year. If a parcel has over 250 or 500
             # available capacity, is capped at 250 or 500, respectively, units when selected. This generally assumes
