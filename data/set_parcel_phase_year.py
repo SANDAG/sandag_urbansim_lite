@@ -33,7 +33,7 @@ if version_id_df.values:
     version_id = int(version_id_df.values) + 1
 else:
     version_id = 1
-
+print('\nNew version_id: {}'.format(version_id))
 
 parcel_sql = '''
       SELECT parcel_id, p.mgra_id, 
@@ -96,7 +96,7 @@ assigned_df.parcel_id = assigned_df.parcel_id.astype(int)
 #
 assigned_df.set_index('parcel_id',inplace=True)
 #
-assigned_df['phase_yr'] = 2019
+assigned_df['phase_yr'] = 2036
 assigned_df['phase_yr_version_id'] = version_id
 
 # The following jurisdictions have agreed to make their ADUs available for "realization" beginning from 2019
@@ -106,7 +106,7 @@ assigned_df['phase_yr_version_id'] = version_id
 # El Cajon
 # see https://sandag.atlassian.net/wiki/spaces/LUM/pages/726302736/Additional+Capacity
 
-assigned_df.loc[((assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
+# assigned_df.loc[((assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
 
 assigned_df.loc[((assigned_df.jur_id==14) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
 assigned_df.loc[((assigned_df.jur_id==2) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
@@ -203,13 +203,14 @@ sched_dev_df.loc[sched_dev_df['startdate'] > 2049, 'phase_yr'] = (2048-(sched_de
 sched_dev_df['phase_yr'].where((sched_dev_df['phase_yr'] > 2017), other=2017, inplace=True)
 sched_dev_df['phase_yr'] = sched_dev_df['phase_yr'].apply(np.floor)
 
+# These phase years come from Rachel Cortes with direct contact with each jurisdiction, and overwrite other assumptions.
 sched_dev_df.loc[(sched_dev_df.site_id.isin([10009])),'phase_yr'] = 2018
 sched_dev_df.loc[(sched_dev_df.site_id.isin([4014])),'phase_yr'] = 2019
 sched_dev_df.loc[(sched_dev_df.site_id.isin([7022,9008])),'phase_yr'] = 2020
-sched_dev_df.loc[(sched_dev_df.site_id.isin([1730,1731,7001,9007,14002,14088,15005])),'phase_yr'] = 2025
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1730,1731,14088,15005])),'phase_yr'] = 2025
 sched_dev_df.loc[(sched_dev_df.site_id.isin([14084,14085,14086])),'phase_yr'] = 2030
-sched_dev_df.loc[(sched_dev_df.site_id.isin([2019,3063,2003,2015,2011,2013,2014,2001])),'phase_yr'] = 2031
-sched_dev_df.loc[(sched_dev_df.site_id.isin([15035,15019,15028,15029,15004,15007,15015,15016])),'phase_yr'] = 2033
+sched_dev_df.loc[(sched_dev_df.site_id.isin([2019,3063,2003,2015,2011,2013,2014,2001])),'phase_yr'] = 2033
+sched_dev_df.loc[(sched_dev_df.site_id.isin([15035,15019,15028,15029,15004,15007,15015,15016])),'phase_yr'] = 2034
 
 sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','capacity_type']]
 sched_dev_df[['phase_yr','phase_yr_version_id']] = sched_dev_df[['phase_yr','phase_yr_version_id']].astype('int')

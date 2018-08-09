@@ -22,9 +22,9 @@ write_results_to_db = input("\nChoose y or n: ")
 if write_results_to_db == 'y':
       run_id = utils.add_run_to_db()
 
-#print("\n\nCreate a new set of subregional controls?")
-#write_controls = input("\nChoose y or n: ")
-write_controls = "n"
+print("\n\nCreate a new set of subregional controls?")
+write_controls = input("\nChoose y or n: ")
+#write_controls = "n"
 
 # Run the urbansim model iterations (see subsections for details)
 orca.run([

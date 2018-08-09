@@ -420,9 +420,9 @@ def run_subregional_share(year,households):
     # slim_df = parcels[['cap_jurisdiction_id', 'capacity', 'capacity_type', 'jur_or_cpa_id']].copy()
     # capacity = pd.DataFrame({'capacity': parcels.groupby(['jur_or_cpa_id']).capacity.sum()}).reset_index()
     capacity = pd.DataFrame({'capacity': parcels.groupby(['cap_jurisdiction_id']).capacity.sum()}).reset_index()
-    capacity.loc[(capacity.cap_jurisdiction_id == 6), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 6)].capacity.values[0] + 85
-    capacity.loc[(capacity.cap_jurisdiction_id == 8), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 8)].capacity.values[0] + 260 # 275 running out of units
-    capacity.loc[(capacity.cap_jurisdiction_id == 19), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 19)].capacity.values[0] + 6000
+    # capacity.loc[(capacity.cap_jurisdiction_id == 6), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 6)].capacity.values[0] + 85
+    # capacity.loc[(capacity.cap_jurisdiction_id == 8), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 8)].capacity.values[0] + 260 # 275 running out of units
+    # capacity.loc[(capacity.cap_jurisdiction_id == 19), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 19)].capacity.values[0] + 6000
 
     # set capacity to zero for 1432 and 1467
     #capacity.loc[(capacity.jur_or_cpa_id == 1432), 'capacity'] = 0
@@ -557,7 +557,7 @@ def adu_picker(year, current_hh, feasible_parcels_df,subregional_targets):
 
     for jur in jcpas_w_overage:
         # int(grp.iloc[0]['rem'])
-        extra_units = int(abs(targets_w_adus.loc[targets_w_adus.jur_or_cpa_id == jur].rem.iloc[0]))
+        extra_units = int(abs(targets_w_adus.loc[targets_w_adus.geo_id == jur].rem.iloc[0]))
         parcels_to_drop = (
             picked_adu_parcels.loc[picked_adu_parcels['jurisdiction_id'] == jur].head(extra_units)).parcel_id.tolist()
         picked_adu_parcels = picked_adu_parcels[~picked_adu_parcels.parcel_id.isin(parcels_to_drop)].copy()
@@ -638,7 +638,6 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
 
             # Subset ADU parcels
             adu_parcels = shuffled_parcels.loc[shuffled_parcels.capacity_type == 'adu']
-
             # This places parcels that are partially built before jurisdiction-provided parcels
             # changed order - sched dev first. otherwise previously picked sgoa was getting
             # chosen ahead of sched dev for chula vista
@@ -1035,6 +1034,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         # Limit available parcels to those with a positive remaining_capacity.
         feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0].copy()
         feasible_parcels_df['partial_build'] = feasible_parcels_df.units_added
+        feasible_parcels_df = feasible_parcels_df.drop(['units_added'], 1)
 
         # Run the parcel_picker function to select parcels and build units for the regional_overflow. After this runs,
         # the iteration year target_units should be completely built.
