@@ -1,6 +1,7 @@
 ## Create column of parcels to decide when a parcel can be developed
 
 import pandas as pd
+import numpy as np
 from sqlalchemy import create_engine
 from database import get_connection_string
 import utils
@@ -119,40 +120,99 @@ assigned_df = assigned_df[['phase_yr','phase_yr_version_id','capacity_type']]
 assigned_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
 
 
-sched_dev_parcel_sql = '''SELECT  [site_id]
+sched_dev_parcel_sql = '''
+SELECT [site_id]
       ,[parcel_id]
-      ,[capacity_3]
-      ,[sfu_effective_adj]
-      ,[mfu_effective_adj]
-      ,[mhu_effective_adj]
-      ,[notes]
-      ,[editor]
+      ,MAX([capacity_3]) AS capacity_3
+      ,YEAR([startdate]) AS startdate
+      ,YEAR(MAX(DATEADD(DAY,-1,[compdate]))) AS compdate
   FROM [urbansim].[urbansim].[scheduled_development_parcel]
-  where capacity_3 > 0
+  INNER JOIN [urbansim].[ref].[scheduled_development_site]
+  ON site_id = siteid
+  WHERE (sfu > 0 OR mfu > 0 OR mhu > 0) AND status != 'completed' AND capacity_3 > 0
+  GROUP BY parcel_id, site_id, startdate
+  ORDER BY site_id, parcel_id
 '''
 
 sched_dev_df = pd.read_sql(sched_dev_parcel_sql, mssql_engine)
 
+# # Selected sites are given manual overrides based on information from Mike Calandra
+# Override startdate
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1746, 1921, 3395, 3396, 12075])), 'startdate'] = 2017
+sched_dev_df.loc[(sched_dev_df.site_id.isin([9009, 10009])), 'startdate'] = 2018
+sched_dev_df.loc[(sched_dev_df.site_id.isin([3404, 4014, 14075])), 'startdate'] = 2019
+sched_dev_df.loc[(sched_dev_df.site_id.isin([899, 1820, 3389, 3390, 7022, 9008])),'startdate'] = 2020
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1750, 7001, 9007, 14000, 14001, 14002, 15005, 15007, 15014, 15015,
+                                             15016])), 'startdate'] = 2025
+sched_dev_df.loc[(sched_dev_df.site_id.isin([14084, 14085, 14086])), 'startdate'] = 2029
+sched_dev_df.loc[(sched_dev_df.site_id.isin([16001])), 'startdate'] = 2030
+sched_dev_df.loc[(sched_dev_df.site_id.isin([250])), 'startdate'] = 2035
 
+# Override compdate
+sched_dev_df.loc[(sched_dev_df.site_id.isin([9009, 10009])), 'compdate'] = 2018
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1820])), 'compdate'] = 2020
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1746, 3389, 3390, 3395, 3396, 3404, 14075])), 'compdate'] = 2022
+sched_dev_df.loc[(sched_dev_df.site_id.isin([7022, 9008, 12075])), 'compdate'] = 2025
+sched_dev_df.loc[(sched_dev_df.site_id.isin([899, 15005])), 'compdate'] = 2025
+sched_dev_df.loc[(sched_dev_df.site_id.isin([7001, 9007])), 'compdate'] = 2030
+sched_dev_df.loc[(sched_dev_df.site_id.isin([14084, 14085, 14086])), 'compdate'] = 2031
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1750, 14000, 14001, 14002, 15007, 15014, 15015, 15016])),
+                 'compdate'] = 2035
+sched_dev_df.loc[(sched_dev_df.site_id.isin([250, 16001])), 'compdate'] = 2040
+
+# Set parcel_id as index
 sched_dev_df.reset_index(inplace=True, drop=False)
-
 sched_dev_df.parcel_id = sched_dev_df.parcel_id.astype(int)
-#
 sched_dev_df.set_index('parcel_id',inplace=True)
-#
-sched_dev_df['phase_yr'] = 2017
 
-sched_dev_df.loc[(sched_dev_df.site_id==15005),'phase_yr'] = 2025
-sched_dev_df.loc[(sched_dev_df.site_id.isin([1730,1731,14088])),'phase_yr'] = 2025
+# Set version_id and label parcels as scheduled developments
+sched_dev_df['phase_yr_version_id'] = version_id
+sched_dev_df['capacity_type'] = 'sch'
+
+# # Set Priority Rules:
+# If site_id has start and complete date, Priority = 1
+# If site_id has start date only, Priority = 2
+# If site_id has complete date only, Priority = 3
+# If Project has no associated dates, Priority = 4
+sched_dev_df['priority'] = 4
+sched_dev_df.loc[sched_dev_df['compdate'].notnull() & sched_dev_df['startdate'].isnull(), 'priority'] = 3
+sched_dev_df.loc[sched_dev_df['compdate'].isnull() & sched_dev_df['startdate'].notnull(), 'priority'] = 2
+sched_dev_df.loc[sched_dev_df['compdate'].notnull() & sched_dev_df['startdate'].notnull(), 'priority'] = 1
+
+# Write out new priority version to SQL
+sched_dev_priority = sched_dev_df[['phase_yr_version_id', 'site_id', 'capacity_3', 'priority']].astype('int')
+sched_dev_priority.rename(columns={"phase_yr_version_id": "sched_version_id"}, inplace=True)
+sched_dev_priority.to_sql(name='scheduled_development_priority', con=mssql_engine, schema='urbansim', index=True,
+                          if_exists='append')
+
+# # Set phase year rules
+# Phase year minimum is 2017
+# If project has a start date only, set that year as the phase year
+# If project has a complete date only, phase year will be complete date minus 2 minus (number units on site / 250)
+# Note: the 250 is the current per-year cap for units per site, as of 8/8/2018, but could change. 2 is added to allow
+# for flexibility in how fast the project builds out.
+sched_dev_site_cap = sched_dev_df.groupby(['site_id'])[['capacity_3']].sum()
+sched_dev_site_cap.rename(columns={"capacity_3": "site_cap"}, inplace=True)
+sched_dev_df = pd.merge(sched_dev_df, sched_dev_site_cap, how='left', left_on='site_id', right_index=True)
+
+sched_dev_df['phase_yr'] = 2017
+sched_dev_df['phase_yr'].where((sched_dev_df['compdate'].isnull()),
+                               other=(sched_dev_df['compdate'] - (sched_dev_df['site_cap']/250) - 2), inplace=True)
+sched_dev_df['phase_yr'].where(sched_dev_df['startdate'].isnull(), other=sched_dev_df['startdate'], inplace=True)
+sched_dev_df.loc[sched_dev_df['startdate'] > 2049, 'phase_yr'] = (2048-(sched_dev_df['site_cap']/250))
+sched_dev_df['phase_yr'].where((sched_dev_df['phase_yr'] > 2017), other=2017, inplace=True)
+sched_dev_df['phase_yr'] = sched_dev_df['phase_yr'].apply(np.floor)
+
+sched_dev_df.loc[(sched_dev_df.site_id.isin([10009])),'phase_yr'] = 2018
+sched_dev_df.loc[(sched_dev_df.site_id.isin([4014])),'phase_yr'] = 2019
+sched_dev_df.loc[(sched_dev_df.site_id.isin([7022,9008])),'phase_yr'] = 2020
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1730,1731,7001,9007,14002,14088,15005])),'phase_yr'] = 2025
 sched_dev_df.loc[(sched_dev_df.site_id.isin([14084,14085,14086])),'phase_yr'] = 2030
 sched_dev_df.loc[(sched_dev_df.site_id.isin([2019,3063,2003,2015,2011,2013,2014,2001])),'phase_yr'] = 2031
 sched_dev_df.loc[(sched_dev_df.site_id.isin([15035,15019,15028,15029,15004,15007,15015,15016])),'phase_yr'] = 2033
 
-
-sched_dev_df['phase_yr_version_id'] = version_id
-sched_dev_df['capacity_type'] = 'sch'
 sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','capacity_type']]
-
+sched_dev_df[['phase_yr','phase_yr_version_id']] = sched_dev_df[['phase_yr','phase_yr_version_id']].astype('int')
 
 # WRITE TO DB
 sched_dev_df.to_sql(name='urbansim_lite_parcel_control', con=mssql_engine, schema='urbansim', index=True,if_exists='append')
