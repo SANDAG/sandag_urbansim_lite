@@ -410,7 +410,7 @@ def run_subregional_share(year,households):
     phase_yr = orca.get_table('devyear').to_frame()
     phase_yr.reset_index(inplace=True,drop=False)
     # use phase year only for adus
-    phase_yr = phase_yr.loc[phase_yr.capacity_type=='adu']
+    # phase_yr = phase_yr.loc[phase_yr.capacity_type=='adu']
     parcels = pd.merge(parcels, phase_yr, how='left', left_on=['parcel_id', 'capacity_type'],
                        right_on=['parcel_id', 'capacity_type'])
     parcels.phase_yr = parcels.phase_yr.fillna(2017)
