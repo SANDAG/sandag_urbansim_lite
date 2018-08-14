@@ -415,13 +415,13 @@ def run_subregional_share(year,households):
                        right_on=['parcel_id', 'capacity_type'])
     parcels.phase_yr = parcels.phase_yr.fillna(2017)
     parcels = parcels.loc[parcels['phase_yr'] <= year].copy()
-    parcels.loc[(parcels.jur_or_cpa_id == 1432), 'capacity'] = 0
-    parcels.loc[(parcels.jur_or_cpa_id == 1467), 'capacity'] = 0
+    #parcels.loc[(parcels.jur_or_cpa_id == 1432), 'capacity'] = 0
+    # parcels.loc[(parcels.jur_or_cpa_id == 1467), 'capacity'] = 0
     # slim_df = parcels[['cap_jurisdiction_id', 'capacity', 'capacity_type', 'jur_or_cpa_id']].copy()
     # capacity = pd.DataFrame({'capacity': parcels.groupby(['jur_or_cpa_id']).capacity.sum()}).reset_index()
-    capacity = pd.DataFrame({'capacity': parcels.groupby(['cap_jurisdiction_id']).capacity.sum()}).reset_index()
-    # capacity.loc[(capacity.cap_jurisdiction_id == 6), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 6)].capacity.values[0] + 85
-    # capacity.loc[(capacity.cap_jurisdiction_id == 8), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 8)].capacity.values[0] + 260 # 275 running out of units
+    # capacity = pd.DataFrame({'capacity': parcels.groupby(['cap_jurisdiction_id']).capacity.sum()}).reset_index()
+    #capacity.loc[(capacity.cap_jurisdiction_id == 6), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 6)].capacity.values[0] + 85
+    #capacity.loc[(capacity.cap_jurisdiction_id == 8), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 8)].capacity.values[0] + 260 # 275 running out of units
     # capacity.loc[(capacity.cap_jurisdiction_id == 19), 'capacity'] = capacity.loc[(capacity.cap_jurisdiction_id == 19)].capacity.values[0] + 6000
 
     # set capacity to zero for 1432 and 1467
@@ -432,22 +432,59 @@ def run_subregional_share(year,households):
 
     # subtract capacity used based on controls from previous year
     controls_yr = controls.loc[controls.yr == year - 1]
+    hh_df = households.to_frame()
+    hh_df.reset_index(inplace=True)
+    hh_yr = hh_df.loc[hh_df.yr==year].housing_units_add.values[0]
+    capacity = pd.DataFrame({'capacity': parcels.groupby(['cap_jurisdiction_id']).capacity.sum()}).reset_index()
+
     capacity = pd.merge(capacity, controls_yr[['cap_jurisdiction_id', 'capacity_used']], left_on=['cap_jurisdiction_id'],
                          right_on=['cap_jurisdiction_id'], how='left')
     capacity['capacity_used'].fillna(0, inplace=True)
     capacity['rem'] = capacity['capacity'] - capacity['capacity_used']
+
+    # set percent
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 19, 'rem'] = .169 * capacity['tot'].values[0] # Unincorporated
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 7, 'rem'] = 0.04 * capacity['tot'].values[0] #Escondido
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 9, 'rem'] = 0.0286 * capacity['tot'].values[0] #La Mesa
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 12, 'rem'] = 0.022 * capacity['tot'].values[0]  # Oceanside
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 11, 'rem'] = 0.018 * capacity['tot'].values[0]  # National City
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 18, 'rem'] =  0.0203 * capacity['tot'].values[0]  # Vista
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 1, 'rem'] = .0175 * capacity['tot'].values[0] #Carlsbad
+    capacity['tot'] = capacity.rem.sum()
+    #capacity.loc[capacity.cap_jurisdiction_id == 16, 'rem'] = 0.0125 * capacity['tot'].values[0]  # Santee - change in sched dev
+    #capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 8, 'rem'] = .00865 * capacity['tot'].values[0] #Imperial Beach
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 6, 'rem'] = .0072 * capacity['tot'].values[0] #Encinitas
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 13, 'rem'] = 0.0052 * capacity['tot'].values[0]  # Poway  0.0055
+    capacity['tot'] = capacity.rem.sum()
+    capacity.loc[capacity.cap_jurisdiction_id == 10, 'rem'] = 0.0038 * capacity['tot'].values[0]  # Lemon Grove 0.0040
+    capacity['tot'] = capacity.rem.sum()
+
+
+
+    #if year > 2035:
+    #    capacity.loc[capacity.cap_jurisdiction_id == 19, 'rem'] = 1.5 * capacity.loc[capacity.cap_jurisdiction_id == 19].rem
+    #else:
+    #    capacity.loc[capacity.cap_jurisdiction_id==19, 'rem'] = .75 * capacity.loc[capacity.cap_jurisdiction_id==19].rem
     capacity['tot'] = capacity.rem.sum()
 
     # calculate subregional share. remaining capacity divided by total capacity
     capacity['share'] = capacity.rem / capacity.tot
     capacity['yr'] = year
-   # if year < 2024:
    #     capacity.loc[(capacity.jur_or_cpa_id == 1407), 'share'] = capacity.loc[(capacity.jur_or_cpa_id == 1407)].share * 2
    #     capacity.loc[(capacity.jur_or_cpa_id == 1433), 'share'] = capacity.loc[(capacity.jur_or_cpa_id == 1433)].share.values[0] - \
    #                                                               capacity.loc[(capacity.jur_or_cpa_id == 1407)].share.values[0] * 1
     # calculate capacity used by multiplying w/ households
-    hh_df = households.to_frame()
-    hh_df.reset_index(inplace=True)
+
     capacity = pd.merge(capacity, hh_df[['yr','housing_units_add']], left_on='yr', right_on='yr', how='left')
     capacity['new_capacity_used'] = capacity['share'] * capacity['housing_units_add']
     capacity['capacity_used'] = capacity['new_capacity_used'] + capacity['capacity_used']
