@@ -444,7 +444,7 @@ def run_subregional_share(year,households):
 
     # set percent
     capacity['tot'] = capacity.rem.sum()
-    capacity.loc[capacity.cap_jurisdiction_id == 19, 'rem'] = .169 * capacity['tot'].values[0] # Unincorporated
+    capacity.loc[capacity.cap_jurisdiction_id == 19, 'rem'] = .175 * capacity['tot'].values[0] # .171 too low Unincorporated
     capacity['tot'] = capacity.rem.sum()
     capacity.loc[capacity.cap_jurisdiction_id == 7, 'rem'] = 0.04 * capacity['tot'].values[0] #Escondido
     capacity['tot'] = capacity.rem.sum()
@@ -460,29 +460,36 @@ def run_subregional_share(year,households):
     capacity['tot'] = capacity.rem.sum()
     #capacity.loc[capacity.cap_jurisdiction_id == 16, 'rem'] = 0.0125 * capacity['tot'].values[0]  # Santee - change in sched dev
     #capacity['tot'] = capacity.rem.sum()
-    capacity.loc[capacity.cap_jurisdiction_id == 8, 'rem'] = .00865 * capacity['tot'].values[0] #Imperial Beach
+    capacity.loc[capacity.cap_jurisdiction_id == 8, 'rem'] = .0087 * capacity['tot'].values[0] #Imperial Beach
     capacity['tot'] = capacity.rem.sum()
-    capacity.loc[capacity.cap_jurisdiction_id == 6, 'rem'] = .0072 * capacity['tot'].values[0] #Encinitas
+    capacity.loc[capacity.cap_jurisdiction_id == 6, 'rem'] = .0074 * capacity['tot'].values[0] #Encinitas
     capacity['tot'] = capacity.rem.sum()
     capacity.loc[capacity.cap_jurisdiction_id == 13, 'rem'] = 0.0052 * capacity['tot'].values[0]  # Poway  0.0055
     capacity['tot'] = capacity.rem.sum()
     capacity.loc[capacity.cap_jurisdiction_id == 10, 'rem'] = 0.0038 * capacity['tot'].values[0]  # Lemon Grove 0.0040
     capacity['tot'] = capacity.rem.sum()
     if year > 2039:
-        capacity.loc[capacity.cap_jurisdiction_id == 2, 'rem'] = 0.24  * capacity['tot'].values[0] # Chula Vista
+        capacity.loc[capacity.cap_jurisdiction_id == 2, 'rem'] = 0.20  * capacity['tot'].values[0] # 0.23 too high Chula Vista
         capacity['tot'] = capacity.rem.sum()
     elif year > 2035:
-        capacity.loc[capacity.cap_jurisdiction_id==2, 'rem'] = 0.12 * capacity['tot'].values[0] # Chula Vista
+        capacity.loc[capacity.cap_jurisdiction_id==2, 'rem'] = 0.13 * capacity['tot'].values[0] # Chula Vista
         capacity['tot'] = capacity.rem.sum()
     else:
         capacity.loc[capacity.cap_jurisdiction_id==2, 'rem'] = 0.039 * capacity['tot'].values[0] # Chula Vista
         capacity['tot'] = capacity.rem.sum()
+    if year > 2035:
+            capacity.loc[capacity.cap_jurisdiction_id == 3, 'rem'] = 0.0015 * capacity['tot'].values[0]  # 0.002 too high Coronado
+            capacity['tot'] = capacity.rem.sum()
+    else:
+            capacity.loc[capacity.cap_jurisdiction_id == 3, 'rem'] = 0.0008  * capacity['tot'].values[0]  #0.00085 too high Coronado
+            capacity['tot'] = capacity.rem.sum()
+    if year > 2035:
+        capacity.loc[capacity.cap_jurisdiction_id == 4, 'rem'] = 0.0005 * capacity['tot'].values[0]  # Del Mar
+        capacity['tot'] = capacity.rem.sum()
+    else:
+        capacity.loc[capacity.cap_jurisdiction_id == 4, 'rem'] = 0.0002 * capacity['tot'].values[0]  # Del Mar
+        capacity['tot'] = capacity.rem.sum()
 
-
-    #if year > 2035:
-    #    capacity.loc[capacity.cap_jurisdiction_id == 19, 'rem'] = 1.5 * capacity.loc[capacity.cap_jurisdiction_id == 19].rem
-    #else:
-    #    capacity.loc[capacity.cap_jurisdiction_id==19, 'rem'] = .75 * capacity.loc[capacity.cap_jurisdiction_id==19].rem
     capacity['tot'] = capacity.rem.sum()
 
     # calculate subregional share. remaining capacity divided by total capacity
