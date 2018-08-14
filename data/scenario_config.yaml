@@ -2,7 +2,7 @@ scenario:
 
     # database scenario to use in simulation
     # was 17
-    subregional_ctrl_id: 59 #17
+    subregional_ctrl_id: 60 #17
     subregional_targets_id: 110
 
     # target housing units for simulation
@@ -12,7 +12,7 @@ scenario:
     # parcel sgoa at 2030 version 111
     # parcel sgoa at 2025 version 110
     # version 125 removed del mar resort
-    parcel_phase_yr: 125 #118 #112
+    parcel_phase_yr: 126 #118 #112
 
     # additional capacity units for simulation
     additional_capacity_version: 107
