@@ -468,8 +468,11 @@ def run_subregional_share(year,households):
     capacity['tot'] = capacity.rem.sum()
     capacity.loc[capacity.cap_jurisdiction_id == 10, 'rem'] = 0.0038 * capacity['tot'].values[0]  # Lemon Grove 0.0040
     capacity['tot'] = capacity.rem.sum()
-    if year > 2035:
-        capacity.loc[capacity.cap_jurisdiction_id == 2, 'rem'] = 0.155  * capacity['tot'].values[0] # Chula Vista
+    if year > 2039:
+        capacity.loc[capacity.cap_jurisdiction_id == 2, 'rem'] = 0.24  * capacity['tot'].values[0] # Chula Vista
+        capacity['tot'] = capacity.rem.sum()
+    elif year > 2035:
+        capacity.loc[capacity.cap_jurisdiction_id==2, 'rem'] = 0.12 * capacity['tot'].values[0] # Chula Vista
         capacity['tot'] = capacity.rem.sum()
     else:
         capacity.loc[capacity.cap_jurisdiction_id==2, 'rem'] = 0.039 * capacity['tot'].values[0] # Chula Vista
