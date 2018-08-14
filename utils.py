@@ -460,7 +460,7 @@ def run_subregional_share(year,households):
     capacity['tot'] = capacity.rem.sum()
     #capacity.loc[capacity.cap_jurisdiction_id == 16, 'rem'] = 0.0125 * capacity['tot'].values[0]  # Santee - change in sched dev
     #capacity['tot'] = capacity.rem.sum()
-    capacity.loc[capacity.cap_jurisdiction_id == 8, 'rem'] = .0087 * capacity['tot'].values[0] #Imperial Beach
+    capacity.loc[capacity.cap_jurisdiction_id == 8, 'rem'] = .0088 * capacity['tot'].values[0] #Imperial Beach .0087 too low
     capacity['tot'] = capacity.rem.sum()
     capacity.loc[capacity.cap_jurisdiction_id == 6, 'rem'] = .0074 * capacity['tot'].values[0] #Encinitas
     capacity['tot'] = capacity.rem.sum()
@@ -469,7 +469,7 @@ def run_subregional_share(year,households):
     capacity.loc[capacity.cap_jurisdiction_id == 10, 'rem'] = 0.0038 * capacity['tot'].values[0]  # Lemon Grove 0.0040
     capacity['tot'] = capacity.rem.sum()
     if year > 2039:
-        capacity.loc[capacity.cap_jurisdiction_id == 2, 'rem'] = 0.20  * capacity['tot'].values[0] # 0.23 too high Chula Vista
+        capacity.loc[capacity.cap_jurisdiction_id == 2, 'rem'] = 0.21  * capacity['tot'].values[0] # 0.23 too high Chula Vista & .20 too low
         capacity['tot'] = capacity.rem.sum()
     elif year > 2035:
         capacity.loc[capacity.cap_jurisdiction_id==2, 'rem'] = 0.13 * capacity['tot'].values[0] # Chula Vista
@@ -488,6 +488,12 @@ def run_subregional_share(year,households):
         capacity['tot'] = capacity.rem.sum()
     else:
         capacity.loc[capacity.cap_jurisdiction_id == 4, 'rem'] = 0.0002 * capacity['tot'].values[0]  # Del Mar
+        capacity['tot'] = capacity.rem.sum()
+    if year > 2035:
+        capacity.loc[capacity.cap_jurisdiction_id == 5, 'rem'] = 0.028 * capacity['tot'].values[0]  # El Cajon
+        capacity['tot'] = capacity.rem.sum()
+    else:
+        capacity.loc[capacity.cap_jurisdiction_id == 5, 'rem'] = 0.0115 * capacity['tot'].values[0]  # El Cajon
         capacity['tot'] = capacity.rem.sum()
 
     capacity['tot'] = capacity.rem.sum()
