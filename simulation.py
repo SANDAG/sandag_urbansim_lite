@@ -22,25 +22,16 @@ write_results_to_db = input("\nChoose y or n: ")
 if write_results_to_db == 'y':
       run_id = utils.add_run_to_db()
 
-# print("\n\nCreate a new set of subregional controls?")
-# write_controls = input("\nChoose y or n: ")
-write_controls = "n"
 
 # Run the urbansim model iterations (see subsections for details)
 orca.run([
     #"scheduled_development_events",
-    #"negative_parcel_reducer",
-      "subregional_share",
       "feasibility",
       "residential_developer",
       "summary",
-      "write_to_sql"
       ], iter_vars=range(2017, 2051))
 
 # for adding control percents
-
-if write_controls == "y":
-    utils.create_control_percents()
 
 if write_results_to_db == 'y':
       utils.write_results(run_id)

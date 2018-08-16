@@ -82,6 +82,3 @@ def adu_allocation(store):
 def adu_allocation(store):
     df = store['adu_allocation2']
     return df
-
-
-orca.add_injectable("parcel_tables", bulk_insert.table_setup())

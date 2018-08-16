@@ -104,48 +104,6 @@ def write_results(run_id):
                                                       'run_id': sqlalchemy.types.INTEGER()})
 
 
-def create_control_percents():
-    """
-    Generates new control percentages and saves input information to SQL.
-
-    :return:
-        int: the numerical run_id.
-    """
-
-    # Link to SQL Server.
-    db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
-    mssql_engine = create_engine(db_connection_string)
-
-    # Retrieves maximum existing run_id from the table. If none exists, creates run_id = 1.
-    sub_reg_control_id_sql = '''
-      SELECT max(subregional_crtl_id)
-      FROM [urbansim].[urbansim].[urbansim_lite_subregional_control]
-    '''
-    sub_reg_control_id_df = pd.read_sql(sub_reg_control_id_sql, mssql_engine)
-    if sub_reg_control_id_df.values:
-        sub_reg_control_id = int(sub_reg_control_id_df.values) + 1
-    else:
-        sub_reg_control_id = 1
-    print('\n\nNew subregional control id: %d' %  sub_reg_control_id)
-    matchregion = orca.get_table('controls').to_frame()
-    matchregion['subregional_crtl_id'] = sub_reg_control_id
-    matchregion['geo'] = 'jur'
-    matchregion['geo_id'] = matchregion['cap_jurisdiction_id']
-    matchregion['control'] = matchregion['share']
-    matchregion['control_type'] = 'proportion'
-    matchregion['max_units'] = None
-    matchregion['scenario_desc'] = 'match_to_region'
-
-    controls = matchregion[
-        ['subregional_crtl_id', 'yr', 'geo', 'geo_id', 'control', 'control_type', 'max_units', 'scenario_desc']].copy()
-    print('controls to db')
-    # controls.to_csv('test2.csv')
-    # write to db
-    controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,
-                   if_exists='append')
-
-
-
 def largest_remainder_allocation(regional_targets, target_units):
     """
     Ensures that yearly targets are whole numbers, and that the sum of all targets is the correct total.
