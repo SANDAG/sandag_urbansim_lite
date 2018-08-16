@@ -762,10 +762,10 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         print("Jurisdiction %s target units: %d" % (geo_name, target_units_for_geo))
 
         # Only use feasible parcels in the current sub-region when selecting parcels for the sub-region.
-        parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jurisdiction_id'] == jur].copy()
+        parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
 
         # Run the parcel_picker function to select parcels and build units for the sub-region.
-        target_units_for_geo = target_units_for_geo - len(adu_builds.loc[adu_builds.jurisdiction_id == jur]) # commented out 7/15/19
+        target_units_for_geo = target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur]) # commented out 7/15/19
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
 
         # Activates if subregion_max has a numeric value (non-Null). If the subregion_max was built, remove parcels in
