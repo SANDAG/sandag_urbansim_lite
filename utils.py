@@ -435,19 +435,19 @@ def adu_picker(year, current_hh, feasible_parcels_df,subregional_targets):
     #    if len(targets_w_adus.loc[targets_w_adus.rem < 0]):
     #        print(len(targets_w_adus.loc[targets_w_adus.rem < 0]))
     adu_jcpa = pd.DataFrame({'adu_sum':  picked_adu_parcels.
-                             groupby(["jurisdiction_id"]).capacity.sum()}).reset_index()
+                             groupby(['jur_or_cpa_id']).capacity.sum()}).reset_index()
 
-    targets_w_adus = pd.merge(subregional_targets,adu_jcpa,how='left',left_on='geo_id',right_on = 'jurisdiction_id')
+    targets_w_adus = pd.merge(subregional_targets,adu_jcpa,how='left',left_on='geo_id',right_on = 'jur_or_cpa_id')
 
     targets_w_adus['rem'] = targets_w_adus['targets'] - targets_w_adus['adu_sum']
 
-    jcpas_w_overage = targets_w_adus.loc[targets_w_adus.rem < 0].jurisdiction_id.tolist()
+    jcpas_w_overage = targets_w_adus.loc[targets_w_adus.rem < 0].jur_or_cpa_id.tolist()
 
     for jur in jcpas_w_overage:
         # int(grp.iloc[0]['rem'])
         extra_units = int(abs(targets_w_adus.loc[targets_w_adus.geo_id == jur].rem.iloc[0]))
         parcels_to_drop = (
-            picked_adu_parcels.loc[picked_adu_parcels['jurisdiction_id'] == jur].head(extra_units)).parcel_id.tolist()
+            picked_adu_parcels.loc[picked_adu_parcels['jur_or_cpa_id'] == jur].head(extra_units)).parcel_id.tolist()
         picked_adu_parcels = picked_adu_parcels[~picked_adu_parcels.parcel_id.isin(parcels_to_drop)].copy()
 
     # Assigns build information to the parcels built. Source 5 is ADU.
