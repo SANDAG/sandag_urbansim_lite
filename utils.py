@@ -667,8 +667,6 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
 
     # Creates empty dataframe to track added parcels
     sr14cap = pd.DataFrame()
-    if year==2019:
-        print(year)
 
     # Pull out the control totals for only the current iteration year
     control_totals_by_year = control_totals.loc[control_totals.yr == year].copy()
@@ -689,15 +687,6 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())  # + adu_build_count)
     target_units = int(max(net_hh - num_units, 0))
 
-    # recalculate control percentages based on what is feasible
-    #units_available = feasible_parcels_df.groupby(['jur_or_cpa_id'], as_index=False)['remaining_capacity'].sum()
-    #units_available['control'] = units_available.remaining_capacity / units_available.remaining_capacity.sum()
-    #control_totals_by_year = control_totals_by_year.drop(['control'], 1)
-    #control_totals_by_year = pd.merge(control_totals_by_year, units_available[['jur_or_cpa_id', 'control']],
-    #                                  how='left', left_on='geo_id', right_on='jur_or_cpa_id')
-    # control_totals_by_year.control = control_totals_by_year.control.fillna(0)
-    #
-
     subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
 
     # Run the adu_picker before determining other builds for the year. Doing this first allows for better control of
@@ -714,9 +703,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         print('ADU units added: {}'.format(adu_builds.units_added.sum()))
         feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(adu_builds.parcel_id.tolist())]
 
-
-
-        # Print statements to see the current values of the above numbers.
+    # Print statements to see the current values of the above numbers.
     print("Number of households: {:,}".format(net_hh))
     print("Number of units: {:,}".format(num_units))
     print("Target of new units = {:,} total".format(current_hh))
@@ -746,12 +733,8 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     for jur in control_totals.geo_id.unique().tolist():
         # Pull the appropriate sub-regional target unit value, and the max_units for the sub-region. These values are
         # already iteration year specific (see above).
-        if jur==14:
-            print(jur)
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id'] == jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id'] == jur].max_units.values[0]
-        if jur==1404:
-            print(jur)
         # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
         # because the minimum of a number and NaN would be NaN. (Usually subregion_max will be a null value).
         if pd.isnull(subregional_targets.loc[subregional_targets['geo_id'] == jur].target_units.values[0]):
@@ -833,7 +816,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         slim_df.replace(['cc', 'mc', 'tc', 'tco', 'uc'], 'sgoa', inplace=True)
         adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur', 'sch'])]
         if adjust_df.cap.sum() < remaining_units:
-            adjust_df = slim_df.copy()
+            adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur', 'sch', 'sgoa'])]
         units_available = adjust_df.groupby(['jcpa'], as_index=False)['cap'].sum()
         remaining_cap = units_available.cap.sum()
         units_available['remaining_control'] = units_available.cap / remaining_cap

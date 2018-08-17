@@ -207,8 +207,7 @@ subregional_targets_df = pd.read_sql(subregional_targets_sql, mssql_engine)
 regional_controls_df = pd.merge(regional_controls_df, subregional_targets_df, how='left', on=['yr', 'jurisdiction_id'])
 regional_controls_df.jurisdiction_id = regional_controls_df.jurisdiction_id.astype(int)
 
-
-
+# Break out first year estimates across CPAs in San Diego City and the Unincorporated areas
 for year in regional_controls_df.yr.unique().tolist():
     for jur in [14, 19]:
         control_adjustments = regional_controls_df.loc[(regional_controls_df.jurisdiction_id == jur) &
