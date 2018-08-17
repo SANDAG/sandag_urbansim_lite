@@ -758,7 +758,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
             target_units_for_geo = np.nanmin(np.array([subregion_targets, subregion_max]))
             target_units_for_geo = int(target_units_for_geo)
         else:
-            target_units_for_geo = int(subregional_targets.loc[subregional_targets['geo_id'] == jur].targets.values[0])
+            target_units_for_geo = int(subregional_targets.loc[subregional_targets['geo_id'] == jur].target_units.values[0])
         geo_name = str(jur)
         print("Jurisdiction %s target units: %d" % (geo_name, target_units_for_geo))
 
