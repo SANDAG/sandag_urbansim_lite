@@ -509,8 +509,9 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
                 parcels_picked['units_added'] = parcels_picked['remaining_capacity']
                 parcels_picked.drop(['site_id', 'remaining_capacity'], axis=1, inplace=True)
         else:
+            years_left = 2051 - year_simulation
             # Randomize the order of available parcels
-            shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
+            shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)  # type: pd.DataFrame
 
             capacity_sch = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'sch')].copy()
             capacity_site = capacity_sch.groupby(['site_id', 'phase_yr', 'priority', 'jur_or_cpa_id']).\
@@ -533,10 +534,11 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             if len(capacity_site):
                 capacity_site.sort_values(by=['partial_build', 'priority', 'site_id'], ascending=[False, True, True],
                                           inplace=True)
-                capacity_site['units_for_year'] = capacity_site.remaining_capacity
-                if year_simulation < 2048:
-                    large_build_checker = capacity_site.remaining_capacity >= 250
-                    capacity_site.loc[large_build_checker, 'units_for_year'] = 250
+                capacity_site['units_for_year'] = np.ceil(capacity_site.remaining_capacity / years_left).astype(int)
+                capacity_site.loc[capacity_site['units_for_year'] < 250, 'units_for_year'] = 250
+                capacity_site.loc[capacity_site['units_for_year'].notnull(), 'units_for_year'] = \
+                    capacity_site.loc[:, ['units_for_year', 'remaining_capacity']].min(axis=1)
+
                 # if capacity_site.units_for_year.sum() < target_number_of_units:
                 #     capacity_site['units_for_year'] = capacity_site.remaining_capacity
                 one_row_per_unit = capacity_site.reindex(capacity_site.index.repeat(
@@ -586,20 +588,18 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             # This places the SGOA parcels and ADU parcels after the prioritized parcels.
             if year_simulation < 2048:
                 priority_then_random = pd.concat([priority_parcels, selected_sites_parcels, shuffled_parcels,
-                                                  adu_parcels])
+                                                  adu_parcels])  # type: pd.DataFrame
             else:
                 priority_then_random = pd.concat([selected_sites_parcels, priority_parcels, shuffled_parcels,
-                                                  adu_parcels])
+                                                  adu_parcels])  # type: pd.DataFrame
 
             # This section prohibits building very large projects in one year. If a parcel has over 250 or 500
             # available capacity, is capped at 250 or 500, respectively, units when selected. This generally assumes
             # that larger projects can build faster than smaller ones, but prevents them from building instantaneously.
-            priority_then_random['units_for_year'] = priority_then_random.remaining_capacity
-            if year_simulation < 2048:
-                large_build_checker = priority_then_random.remaining_capacity >= 250
-                priority_then_random.loc[large_build_checker, 'units_for_year'] = 250
-            #max_build_checker = priority_then_random.remaining_capacity >= 500
-            #priority_then_random.loc[max_build_checker, 'units_for_year'] = 500
+            priority_then_random['units_for_year'] = np.ceil(priority_then_random.remaining_capacity / years_left).astype(int)
+            priority_then_random.loc[priority_then_random['units_for_year'] < 250, 'units_for_year'] = 250
+            priority_then_random.loc[priority_then_random['units_for_year'].notnull(), 'units_for_year'] = \
+                priority_then_random.loc[:, ['units_for_year', 'remaining_capacity']].min(axis=1)
 
             # This statement allows a sub-region to fully complete large projects immediately if there is not enough
             # other capacity to reach the target_number_of_units. This also allows a large parcel picked late in the
@@ -784,9 +784,10 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         # expected stochastic development for a sub-region.
         if len(chosen):
             chosen['source'] = np.where(chosen['capacity_type'] == 'sch', 1, 2)
-
-        # Add the selected parcels and units to the sr14cap dataframe.
-        sr14cap = sr14cap.append(chosen)
+            # Add the selected parcels and units to the sr14cap dataframe.
+            sr14cap = sr14cap.append(chosen[['capacity_type', 'units_added', 'source']])
+            if year < 2040:
+                feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(chosen.index.tolist())]
 
     # After all sub-regions have been run through the parcel picker, determine if enough units have been built for the
     # year to reach the target. If a region had less capacity than it's sub-regional target, or if a sub-region was
@@ -826,13 +827,85 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
 
         # Run the parcel_picker function to select parcels and build units for the regional_overflow. After this runs,
         # the iteration year target_units should be completely built.
-        chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
+        slim_df = feasible_parcels_df[['cap_jurisdiction_id', 'capacity', 'capacity_type', 'jur_or_cpa_id']].copy()
+        slim_df.rename(columns={"cap_jurisdiction_id": "jur_id", "capacity": "cap", "jur_or_cpa_id": "jcpa"},
+                       inplace=True)
+        slim_df.replace(['cc', 'mc', 'tc', 'tco', 'uc'], 'sgoa', inplace=True)
+        adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur', 'sch'])]
+        if adjust_df.cap.sum() < remaining_units:
+            adjust_df = slim_df.copy()
+        units_available = adjust_df.groupby(['jcpa'], as_index=False)['cap'].sum()
+        remaining_cap = units_available.cap.sum()
+        units_available['remaining_control'] = units_available.cap / remaining_cap
+        control_adjustments = pd.merge(control_totals_by_year, units_available, how='left', left_on=['geo_id'], right_on=['jcpa'])
+        control_adjustments['control'].where(control_adjustments.jcpa.notnull(), other=0, inplace=True)
+        control_adjustments['control'].where(control_adjustments.jcpa.isnull(), other=control_adjustments['remaining_control'], inplace=True)
+        control_adjustments.drop(['targets', 'jcpa', 'cap', 'remaining_control'], axis=1, inplace=True)
+        remaining_targets = largest_remainder_allocation(control_adjustments, remaining_units)
+        for jur in control_totals.geo_id.unique().tolist():
+            # Pull the appropriate sub-regional target unit value, and the max_units for the sub-region. These values are
+            # already iteration year specific (see above).
+            subregion_targets = remaining_targets.loc[remaining_targets['geo_id'] == jur].targets.values[0]
+            subregion_max = remaining_targets.loc[remaining_targets['geo_id'] == jur].max_units.values[0]
+            # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
+            # because the minimum of a number and NaN would be NaN. (Usually subregion_max will be a null value).
+            if pd.isnull(remaining_targets.loc[remaining_targets['geo_id'] == jur].target_units.values[0]):
+                target_units_for_geo = np.nanmin(np.array([subregion_targets, subregion_max]))
+                target_units_for_geo = int(target_units_for_geo)
+            else:
+                target_units_for_geo = int(
+                    remaining_targets.loc[remaining_targets['geo_id'] == jur].targets.values[0])
+            geo_name = str(jur)
+            print("Jurisdiction %s target units: %d" % (geo_name, target_units_for_geo))
 
-        # If parcels were chosen for the regional_overflow, assign build information to the parcels built. Source 3 is
-        # regional_overflow.
-        if len(chosen):
-            chosen['source'] = 3
-        sr14cap = sr14cap.append(chosen)
+            # Only use feasible parcels in the current sub-region when selecting parcels for the sub-region.
+            parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
+
+            # Run the parcel_picker function to select parcels and build units for the sub-region.
+            chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
+
+            # Activates if subregion_max has a numeric value (non-Null). If the subregion_max was built, remove parcels in
+            # the subregion from feasibility so they won't be picked at the end during 'regional overflow' (when additional
+            # units are selected randomly from the entire region to meet the target_units for the year).
+            if not np.isnan(subregion_max):
+                # Should find a way to track this in 'regional overflow' if non-0
+                subregion_max = subregion_max - len(chosen)
+                if subregion_targets >= subregion_max:
+                    # This removes the jurisdiction if it had a subregional max from feasibility so it won't be picked in
+                    # the remaining capacity run later.
+                    feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.jur_or_cpa_id != jur].copy()
+
+            # If parcels were chosen for the sub-region, assign build information to the parcels built. Source 2 is
+            # expected stochastic development for a sub-region.
+            if len(chosen):
+                remaining_units = int(remaining_units - chosen.units_added.sum())
+                chosen['source'] = 3
+                # Add the selected parcels and units to the sr14cap dataframe.
+                sr14cap = sr14cap.append(chosen[['capacity_type', 'units_added', 'source']])
+                feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(chosen.index.tolist())]
+
+        if remaining_units > 0:
+            feasible_parcels_df.reset_index(inplace=True)
+            sr14cap.reset_index(inplace=True)
+            feasible_parcels_df = pd.merge(feasible_parcels_df, sr14cap[['parcel_id', 'units_added', 'capacity_type']],
+                                           how='left', on=['parcel_id', 'capacity_type'])
+            feasible_parcels_df.set_index('parcel_id', inplace=True)
+            sr14cap.set_index('parcel_id', inplace=True)
+            feasible_parcels_df.units_added = feasible_parcels_df.units_added.fillna(0)
+            feasible_parcels_df['remaining_capacity'] = (
+                        feasible_parcels_df.capacity - feasible_parcels_df.capacity_used
+                        - feasible_parcels_df.units_added)
+            feasible_parcels_df['remaining_capacity'] = feasible_parcels_df['remaining_capacity'].astype(int)
+            feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0].copy()
+            feasible_parcels_df['partial_build'] = feasible_parcels_df.units_added
+            feasible_parcels_df = feasible_parcels_df.drop(['units_added'], 1)
+            feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(sr14cap.index.tolist())]
+            chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
+            if len(chosen):
+                # remaining_units = int(remaining_units - chosen.units_added.sum())
+                chosen['source'] = 3
+                # Add the selected parcels and units to the sr14cap dataframe.
+                sr14cap = sr14cap.append(chosen[['capacity_type', 'units_added', 'source']])
 
     # If non-scheduled development units were built, update the hu_forecast.
     if len(sr14cap) > 0:
