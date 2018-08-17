@@ -711,6 +711,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     if adu_build_count > 0: # commented out 7/15/19
         sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']])
         sr14cap.set_index('parcel_id', inplace=True)
+        print('ADU units added: {}'.format(adu_builds.units_added.sum()))
         feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(adu_builds.parcel_id.tolist())]
 
 
@@ -765,7 +766,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
 
         # Run the parcel_picker function to select parcels and build units for the sub-region.
-        target_units_for_geo = target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur]) # commented out 7/15/19
+        target_units_for_geo = int(target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur]))
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
 
         # Activates if subregion_max has a numeric value (non-Null). If the subregion_max was built, remove parcels in
@@ -791,7 +792,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # year to reach the target. If a region had less capacity than it's sub-regional target, or if a sub-region was
     # limited by a sub-region max_units, then there will be remaining units needed to reach the target.
     if len(sr14cap):
-        remaining_units = target_units - int(sr14cap.units_added.sum()) #+ adu_build_count
+        remaining_units = target_units - int(sr14cap.units_added.sum())
     else:
         # If no units were built above, the remaining target will be equal to the original target. This should be 0,
         # but might not be if the entire region has run out of capacity.
@@ -862,6 +863,8 @@ def summary(year):
 
     parcels = orca.get_table('parcels').to_frame()
     hu_forecast = orca.get_table('hu_forecast').to_frame()
+    target_units_df = orca.get_table('households').to_frame()
+    target_for_year = int(target_units_df.at[year, 'housing_units_add'])
 
     # Selects only parcels that were selected in the current year.
     hu_forecast_year = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
@@ -887,6 +890,10 @@ def summary(year):
     print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
     print(' %d total housing units in %d' % (all_built, year))
+    print(' {0} was the target number of units for {1}.'.format(target_for_year, year))
+    if all_built != target_for_year:
+        print('WARNING! TARGET {0} =/= ACTUAL {1} IN {2}!.'.format(target_for_year, all_built, year))
+        # exit()
 
     # Combine parcels by capacity type. This is relevant primarily if a parcel was selected both for stochastic
     # development and for regional_overflow needs.
