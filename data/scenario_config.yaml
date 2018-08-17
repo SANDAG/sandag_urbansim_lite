@@ -2,7 +2,7 @@ scenario:
 
     # database scenario to use in simulation
     # was 17
-    subregional_ctrl_id: 6 #17
+    subregional_ctrl_id: 94 #17
     subregional_targets_id: 110
 
     # target housing units for simulation
