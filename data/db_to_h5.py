@@ -261,12 +261,15 @@ dev_lu_df = pd.read_sql(dev_lu_sql, mssql_engine)
 # SQL statement for cpa and taz information by parcel. This is used to add additional geography information.
 geography_view_sql = '''
 SELECT [parcel_id]
-    ,[taz_13] AS taz
-    ,[jcpa] AS jur_or_cpa_id
-FROM [urbansim].[ref].[vi_parcel_xref]
+    ,[jur_id]
+    ,[cpa_id] AS jur_or_cpa_id
+  FROM [isam].[xpef04].[parcel2015_mgra_jur_cpa] 
+  WHERE i = 1
 ORDER BY [parcel_id]
 '''
 geography_view_df = pd.read_sql(geography_view_sql, mssql_engine)
+geography_view_df.loc[geography_view_df.jur_or_cpa_id==0,'jur_or_cpa_id'] = geography_view_df['jur_id']
+geography_view_df.drop(['jur_id'], axis=1,inplace=True)
 
 # SQL statement for the target ADU units per year table.
 adu_allocation_sql = '''
