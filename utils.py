@@ -662,7 +662,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # Unwraps the dataframes
     control_totals = reg_controls.to_frame()
     hh_df = households.to_frame()
-    feasible_parcels_df = feasibility.to_frame()
+    feasible_parcels_df = feasibility.to_frame().copy()
     hu_forecast_df = hu_forecast.to_frame()
 
     # Creates empty dataframe to track added parcels
