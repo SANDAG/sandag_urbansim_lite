@@ -19,15 +19,15 @@ mssql_engine = create_engine(db_connection_string)
 # Generate run_id and record information about run_id details
 print("\n\nWrite results to db?")
 write_results_to_db = input("\nChoose y or n: ")
-#write_results_to_db = "n"
+# write_results_to_db = "n"
 if write_results_to_db == 'y':
       run_id = utils.add_run_to_db()
 
 
 # Run the urbansim model iterations (see subsections for details)
 orca.run([
-    #"scheduled_development_events",
       "feasibility",
+      "scheduled_development_events",
       "residential_developer",
       "summary",
       ], iter_vars=range(2017, 2051))
