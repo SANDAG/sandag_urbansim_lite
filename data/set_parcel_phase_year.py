@@ -195,12 +195,12 @@ sched_dev_site_cap = sched_dev_df.groupby(['site_id'])[['capacity_3']].sum()
 sched_dev_site_cap.rename(columns={"capacity_3": "site_cap"}, inplace=True)
 sched_dev_df = pd.merge(sched_dev_df, sched_dev_site_cap, how='left', left_on='site_id', right_index=True)
 
-sched_dev_df['phase_yr'] = 2017
+sched_dev_df['phase_yr'] = 2019
 sched_dev_df['phase_yr'].where((sched_dev_df['compdate'].isnull()),
                                other=(sched_dev_df['compdate'] - (sched_dev_df['site_cap']/250) - 2), inplace=True)
 sched_dev_df['phase_yr'].where(sched_dev_df['startdate'].isnull(), other=sched_dev_df['startdate'], inplace=True)
 sched_dev_df.loc[sched_dev_df['startdate'] > 2049, 'phase_yr'] = (2048-(sched_dev_df['site_cap']/250))
-sched_dev_df['phase_yr'].where((sched_dev_df['phase_yr'] > 2017), other=2017, inplace=True)
+sched_dev_df['phase_yr'].where((sched_dev_df['phase_yr'] > 2017), other=2019, inplace=True)
 sched_dev_df['phase_yr'] = sched_dev_df['phase_yr'].apply(np.floor)
 
 
