@@ -1008,13 +1008,22 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type!='sch'].copy()
         # Run the parcel_picker function to select parcels and build units for the regional_overflow. After this runs,
         # the iteration year target_units should be completely built.
-        slim_df = feasible_parcels_df[['cap_jurisdiction_id', 'capacity', 'capacity_type', 'jur_or_cpa_id']].copy()
-        slim_df.rename(columns={"cap_jurisdiction_id": "jur_id", "capacity": "cap", "jur_or_cpa_id": "jcpa"},
+        slim_df = feasible_parcels_df[['cap_jurisdiction_id', 'remaining_capacity', 'capacity_type', 'jur_or_cpa_id']].copy()
+        slim_df.rename(columns={"cap_jurisdiction_id": "jur_id", "remaining_capacity": "cap", "jur_or_cpa_id": "jcpa"},
                        inplace=True)
         slim_df.replace(['cc', 'mc', 'tc', 'tco', 'uc'], 'sgoa', inplace=True)
         adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur'])]
         if adjust_df.cap.sum() < remaining_units:
-            adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur', 'sgoa'])]
+            sgoa_df = slim_df.loc[slim_df.capacity_type.isin(['sgoa'])].copy()
+            sgoa_df_shuffled = sgoa_df.sample(frac=1, random_state=50).reset_index(drop=False)
+            sgoa_df_shuffled['cap_cusum'] = sgoa_df_shuffled.cap.cumsum()
+            # sgoa_df.reset_index(inplace=True)
+            cap_needed = remaining_units - adjust_df.cap.sum()
+            sgoa_df_shuffled['cap_needed'] = sgoa_df_shuffled.cap_cusum>cap_needed
+            rownum = sgoa_df_shuffled[sgoa_df_shuffled.cap_needed].index[0]
+            extracap = sgoa_df_shuffled.head(rownum + 1)
+            adjust_df = pd.concat([adjust_df,extracap])
+            # adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur', 'sgoa'])]
         units_available = adjust_df.groupby(['jcpa'], as_index=False)['cap'].sum()
         remaining_cap = units_available.cap.sum()
         units_available['remaining_control'] = units_available.cap / remaining_cap
