@@ -211,7 +211,16 @@ sched_dev_df.loc[(sched_dev_df.site_id.isin([2012,2017,2018,2020,2021,3060])),'p
 # from MC (Civita)
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1746,1921])),'phase_yr'] = 2017
 
+# per discussion W Rachel Cortez 8/31/2019
+# based on complete date in [urbansim].[ref].[scheduled_development_site]
+# phasing sched dev
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1094,1038])),'phase_yr'] = 2017
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1594,1001,1040,1043,1034,1059])),'phase_yr'] = 2018
+# Carlsbad sched dev w/ no date info  moved to 2021
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1012,1010,1018,1015,1002,1024,1035,1069,1073,1026,\
+                                            1039,1016,1072,1086,1017,1011,1014,1061,1077])),'phase_yr'] = 2021
 
+sched_dev_df.loc[(sched_dev_df.site_id.isin([6007,6008,6009,6010,6011,6013,6015,6036,6035])),'phase_yr'] = 2021
 
 # These phase years come from Rachel Cortes with direct contact with each jurisdiction, and overwrite other assumptions.
 sched_dev_df.loc[(sched_dev_df.site_id.isin([10009])),'phase_yr'] = 2018

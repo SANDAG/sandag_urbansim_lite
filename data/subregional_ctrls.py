@@ -384,9 +384,13 @@ sr13aa.loc[((sr13aa.jcid==13) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.7
 sr13aa.loc[((sr13aa.jcid==13) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.6
 sr13aa.loc[((sr13aa.jcid==15) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.5
 sr13aa.loc[((sr13aa.jcid==16) & (sr13aa.yr<2030)),'adj_jcid_cap'] = 0.6
+sr13aa.loc[((sr13aa.jcid==16) & (sr13aa.yr.isin([2030,2031,2032,2033,2034]))),'adj_jcid_cap'] = 0 # sched dev 100 units
 sr13aa.loc[((sr13aa.jcid==1402)),'adj_jcid_cap'] = 0.6
+sr13aa.loc[((sr13aa.jcid==1404) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.8 # 14023
+sr13aa.loc[((sr13aa.jcid==1406) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.6
 sr13aa.loc[((sr13aa.jcid==1408)),'adj_jcid_cap'] = 0.55
 sr13aa.loc[((sr13aa.jcid==1410)),'adj_jcid_cap'] = 0.65
+sr13aa.loc[((sr13aa.jcid==1412) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.2
 sr13aa.loc[((sr13aa.jcid==1414) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.7
 sr13aa.loc[((sr13aa.jcid==1418)),'adj_jcid_cap'] = 0.8
 sr13aa.loc[((sr13aa.jcid==1420) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.96
@@ -394,9 +398,12 @@ sr13aa.loc[((sr13aa.jcid==1423)),'adj_jcid_cap'] = 0.68
 sr13aa.loc[((sr13aa.jcid==1425) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
 sr13aa.loc[((sr13aa.jcid==1426)),'adj_jcid_cap'] = 0.60
 sr13aa.loc[((sr13aa.jcid==1427)),'adj_jcid_cap'] = 0.7
+sr13aa.loc[((sr13aa.jcid==1428) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 2.5
 sr13aa.loc[((sr13aa.jcid==1438) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
 sr13aa.loc[((sr13aa.jcid==1441) & (sr13aa.yr<=2035)),'adj_jcid_cap'] = 0.3
 sr13aa.loc[((sr13aa.jcid==1441) & (sr13aa.yr>2035)),'adj_jcid_cap'] = 0.8
+sr13aa.loc[((sr13aa.jcid==1456) & (sr13aa.yr>2035)),'adj_jcid_cap'] = 1.8
+sr13aa.loc[((sr13aa.jcid==1457) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 2
 sr13aa.loc[((sr13aa.jcid==1458) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
 sr13aa.loc[((sr13aa.jcid==1459)),'adj_jcid_cap'] = 0.55
 sr13aa.loc[((sr13aa.jcid==1902)),'adj_jcid_cap'] = 0.9
@@ -406,16 +413,17 @@ sr13aa.loc[((sr13aa.jcid==1915) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.75
 sr13aa.loc[((sr13aa.jcid==1919) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.65 #0.6
 sr13aa.loc[((sr13aa.jcid==1951)),'adj_jcid_cap'] = 2.5
 sr13aa.loc[((sr13aa.jcid==1952)),'adj_jcid_cap'] = 1.1
+sr13aa.loc[((sr13aa.jcid==1953) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.2
 
 
 # adjustments
-# j = 16
-# y = 2030
-# sr13aa.loc[((sr13aa.jcid==j))].head()
-# sr13aa.loc[((sr13aa.jcid==j) & (sr13aa.yr<y)),'adj_jcid_cap'] = 0.6 # 0.562250499001996
-# sr13aa.loc[((sr13aa.jcid==j))].adj_jcid_cap.values[0]
-
+j = 1
+y = 2036
+sr13aa.loc[((sr13aa.jcid==j))].head()
+# sr13aa.loc[((sr13aa.jcid==j) & (sr13aa.yr<y)),'adj_jcid_cap'] =  #2163
 sr13aa['units_adj1'] = sr13aa['units'] * sr13aa['adj_jcid_cap']
+sr13aa.loc[((sr13aa.jcid==j) & (sr13aa.yr<y))].units_adj1.sum()
+
 sr13b = pd.DataFrame({'unitsum': sr13aa.groupby(['yr']).
                                units_adj1.sum()}).reset_index()
 sr13b = pd.merge(sr13b,hu_df,left_on='yr',right_on='yr',how = 'outer')
@@ -423,6 +431,13 @@ sr13b['adj_forecast_hs'] = sr13b['sr14hu']/sr13b['unitsum']
 sr13ab = pd.merge(sr13aa,sr13b[['yr','adj_forecast_hs']],left_on='yr',right_on='yr',how = 'outer')
 sr13ab['units_adj2'] = (sr13ab['units_adj1'] * sr13ab['adj_forecast_hs'])
 
+sr13ab.loc[((sr13ab.jcid==j) & (sr13ab.yr<y))].units_adj1.sum()
+
+summary = pd.DataFrame({'units': sr13ab.loc[sr13ab.yr<2036].groupby(["jcid","sr14c"])
+                                          .units_adj2.sum()}).reset_index()
+
+summary['remaining'] = summary['sr14c'] - summary['units']
+summary.sort_values(by='remaining')
 # sr13ab.loc[((sr13ab.jcid==j) & (sr13ab.yr<y))].units_adj2.sum()
 
 

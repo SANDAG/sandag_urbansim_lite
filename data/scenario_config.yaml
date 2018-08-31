@@ -12,13 +12,13 @@ scenario:
     # parcel sgoa at 2030 version 111
     # parcel sgoa at 2025 version 110
     # version 125 removed del mar resort
-    parcel_phase_yr: 132 #112
+    parcel_phase_yr: 135 #112
 
     # additional capacity units for simulation
     additional_capacity_version: 107
 
     # [urbansim].[scheduled_development_priority]
-    sched_dev_version: 124 #102
+    sched_dev_version: 133 #102
 
     adu_control: 1 #2
 
