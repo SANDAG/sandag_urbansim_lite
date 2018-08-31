@@ -208,6 +208,10 @@ sched_dev_df['phase_yr'] = sched_dev_df['phase_yr'].apply(np.floor)
 # and Rachael Rider looked at imagery on 8/27/2019 (email conversation)
 sched_dev_df.loc[(sched_dev_df.site_id.isin([2012,2017,2018,2020,2021,3060])),'phase_yr'] = 2019
 
+# from MC (Civita)
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1746,1921])),'phase_yr'] = 2017
+
+
 
 # These phase years come from Rachel Cortes with direct contact with each jurisdiction, and overwrite other assumptions.
 sched_dev_df.loc[(sched_dev_df.site_id.isin([10009])),'phase_yr'] = 2018
