@@ -213,6 +213,7 @@ sched_dev_df.loc[(sched_dev_df.site_id.isin([1746,1921])),'phase_yr'] = 2017
 
 # per discussion W Rachel Cortez 8/31/2019
 # based on complete date in [urbansim].[ref].[scheduled_development_site]
+# and based on source column notes about sites under construction
 # phasing sched dev
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1094,1038])),'phase_yr'] = 2017
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1594,1001,1040,1043,1034,1059])),'phase_yr'] = 2018
@@ -221,6 +222,21 @@ sched_dev_df.loc[(sched_dev_df.site_id.isin([1012,1010,1018,1015,1002,1024,1035,
                                             1039,1016,1072,1086,1017,1011,1014,1061,1077])),'phase_yr'] = 2021
 
 sched_dev_df.loc[(sched_dev_df.site_id.isin([6007,6008,6009,6010,6011,6013,6015,6036,6035])),'phase_yr'] = 2021
+
+sched_dev_df.loc[(sched_dev_df.site_id.isin([
+18019,17002,16017,15027,
+14006,3401,1482,1847,1819,1762,15023,15024,150025,1530,15010,15043,17004,16013,
+15032,1040,1043,1039,1034,1059,2012,3060,2017,3003,3018,14054,
+1805,17005,3022,3016,5005,5018,5017,519,6012,6032,2024,14050,1592,17014,16037,16018,1540,6030,
+6033,6003,6034,7043,7033,7005,14051,14055,182,
+17019,16028,16034,7045,8002,11002,12050,12046,12006,12041,12042,12043,
+14052,14071,1858,1891,16005,16029,12045,12060,12073,13005,1189,
+14007,1838,4003,
+4007,14072,899,18004,10882,17009,16035,
+1653,194,14015,14019,14021,14023,14038,14047,1856,3404])),'phase_yr']=2017
+
+
+
 
 # These phase years come from Rachel Cortes with direct contact with each jurisdiction, and overwrite other assumptions.
 sched_dev_df.loc[(sched_dev_df.site_id.isin([10009])),'phase_yr'] = 2018
