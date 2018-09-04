@@ -892,7 +892,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         sr14cap.set_index('parcel_id', inplace=True)
         print('ADU units added: {}'.format(adu_builds.units_added.sum()))
         feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(adu_builds.parcel_id.tolist())]
-
+    feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu'] # remove adu parcels
     # Print statements to see the current values of the above numbers.
     print("Number of households: {:,}".format(net_hh))
     print("Number of units: {:,}".format(num_units))
