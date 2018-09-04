@@ -1013,16 +1013,26 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
                        inplace=True)
         slim_df.replace(['cc', 'mc', 'tc', 'tco', 'uc'], 'sgoa', inplace=True)
         adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur'])]
-        if adjust_df.cap.sum() < remaining_units:
-            sgoa_df = slim_df.loc[slim_df.capacity_type.isin(['sgoa'])].copy()
-            sgoa_df_shuffled = sgoa_df.sample(frac=1, random_state=50).reset_index(drop=False)
-            sgoa_df_shuffled['cap_cusum'] = sgoa_df_shuffled.cap.cumsum()
-            # sgoa_df.reset_index(inplace=True)
-            cap_needed = remaining_units - adjust_df.cap.sum()
-            sgoa_df_shuffled['cap_needed'] = sgoa_df_shuffled.cap_cusum>cap_needed
-            rownum = sgoa_df_shuffled[sgoa_df_shuffled.cap_needed].index[0]
-            extracap = sgoa_df_shuffled.head(rownum + 1)
-            adjust_df = pd.concat([adjust_df,extracap])
+        if (adjust_df.cap.sum() < remaining_units):
+            chosen = feasible_parcels_df.loc[feasible_parcels_df.capacity_type.isin(['jur'])][['capacity_type','remaining_capacity']]
+            if len(chosen):
+                chosen.rename(columns={"remaining_capacity":"units_added"},inplace=True)
+                remaining_units = int(remaining_units - chosen.units_added.sum())
+                chosen['source'] = 3
+                # Add the selected parcels and units to the sr14cap dataframe.
+                sr14cap = sr14cap.append(chosen[['capacity_type', 'units_added', 'source']])
+                feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(chosen.index.tolist())]
+            adjust_df = slim_df.copy()
+        # if adjust_df.cap.sum() < remaining_units:
+        #     sgoa_df = slim_df.loc[slim_df.capacity_type.isin(['sgoa'])].copy()
+        #     sgoa_df_shuffled = sgoa_df.sample(frac=1, random_state=50).reset_index(drop=False)
+        #     sgoa_df_shuffled['cap_cusum'] = sgoa_df_shuffled.cap.cumsum()
+        #     # sgoa_df.reset_index(inplace=True)
+        #     cap_needed = remaining_units - adjust_df.cap.sum()
+        #     sgoa_df_shuffled['cap_needed'] = sgoa_df_shuffled.cap_cusum>cap_needed
+        #     rownum = sgoa_df_shuffled[sgoa_df_shuffled.cap_needed].index[0]
+        #     extracap = sgoa_df_shuffled.head(rownum + 1)
+        #     adjust_df = pd.concat([adjust_df,extracap])
             # adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur', 'sgoa'])]
         units_available = adjust_df.groupby(['jcpa'], as_index=False)['cap'].sum()
         remaining_cap = units_available.cap.sum()
