@@ -318,54 +318,49 @@ def run_reducer(hu_forecast, year):
     # As of 06/06/2018, there are no negative capacity parcels. This function may need to be updated if they are
     # reintroduced, as significant changes have been made since they were last included.
 
-    # Try to load the negative parcel dataframe. If it fails (due to the dataframe being empty) it passes.
-    try:
-        reducible_parcels = orca.get_table('negative_parcels').to_frame()
-    except KeyError:
+    hh_df = orca.get_table('households').to_frame()
+    feasible_parcels_df = orca.get_table('feasibility').to_frame()
+    neg_cap_parcels = feasible_parcels_df.loc[feasible_parcels_df.capacity < 0].copy()
+    if len(neg_cap_parcels) == 0:
         pass
     else:
-        # Double check that only parcels with negative capacity are included.
-        neg_cap_parcels = reducible_parcels[reducible_parcels['capacity_2'] < 0].copy()
+        try:
+            num_to_reduce = int(np.ceil(neg_cap_parcels.residential_units.sum() / (2020-year)))
+        except ValueError:
+            print('There are negative capacity parcels after 2019!')
+            num_to_reduce = int(neg_cap_parcels.residential_units.sum())
 
-        # If a parcel has a specific year to be demolished, it will be selected in that year and won't be available to
-        # reduce in other years. All other negative capacity parcels (year is null) will be included.
-        reduce_first_parcels = neg_cap_parcels[(neg_cap_parcels.yr == year)].copy()
-        neg_cap_parcels = neg_cap_parcels[neg_cap_parcels['yr'].isnull()]
+        random_neg_parcels = neg_cap_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
 
-        # Execute the below statement only if there are parcels with negative capacity.
-        if (len(neg_cap_parcels) + len(reduce_first_parcels)) > 0:
-            # This is designed to evenly space out demolition of parcels yearly through 2024.
-            # num_to_reduce is an integer number of parcels to demolish in the simulation year.
-            try:
-                num_to_reduce = (len(neg_cap_parcels) / (2025 - year)) + len(reduce_first_parcels)
-            except ValueError:
-                print('There are negative null-year parcels in 2025!')
-                num_to_reduce = len(neg_cap_parcels) + len(reduce_first_parcels)
-            num_to_reduce = min((len(neg_cap_parcels) + len(reduce_first_parcels)), int(np.ceil(num_to_reduce)))
+        one_row_per_unit = random_neg_parcels.reindex(random_neg_parcels.index.repeat(
+            random_neg_parcels.residential_units)).reset_index(drop=True)
 
-            # Randomly reorder the null-year parcels, then append them below the list of year-specific parcels.
-            random_neg_parcels = neg_cap_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
-            parcels_to_reduce = pd.concat([reduce_first_parcels, random_neg_parcels])  # type: pd.DataFrame
+        one_row_per_unit_picked = one_row_per_unit.head(num_to_reduce)
+        parcels_reduced = pd.DataFrame({'units_added': one_row_per_unit_picked.groupby(
+            ["parcel_id", 'capacity_type']).size()}).reset_index()
 
-            # Selects the parcels to reduce.
-            parcels_reduced = parcels_to_reduce.head(num_to_reduce)
-            parcels_reduced = parcels_reduced.set_index('index')
+        parcels_reduced.set_index('parcel_id', inplace=True)
 
-            # Assigns build information to the parcels chosen. Source 4 is demolition / reduction.
-            # This section may need updating if new negative parcels are introduced.
-            parcels_reduced['year_built'] = year
-            parcels_reduced['hu_forecast_type_id'] = ''
-            parcels_reduced['residential_units'] = parcels_reduced['capacity_2']
+        # Assigns build information to the parcels chosen. Source 4 is demolition / reduction.
+        # This section may need updating if new negative parcels are introduced.
+        if len(parcels_reduced) > 0:
+            # If units were built apply the current iteration year as the year_built for those units.
+            if year is not None:
+                parcels_reduced["year_built"] = year
+
+            parcels_reduced['units_added'] = -1*parcels_reduced['units_added']
             parcels_reduced['source'] = 4
-            for parcel in parcels_reduced['parcel_id'].tolist():
-                reducible_parcels.loc[reducible_parcels.parcel_id == parcel, 'capacity_2'] = 0
+            # Display how many parcels were selected and how many units were added on them (not including sched dev)
+            print("Adding {:,} parcels with {:,} units removed".format(len(parcels_reduced),
+                                                                       int(parcels_reduced['units_added'].sum())))
 
-            # Updates the negative_parcel and hu_forecast tables.
-            orca.add_table("negative_parcels", reducible_parcels)
+            # Merge the existing hu_forecast with current-year units built (sr14cap).
+            parcels_reduced.reset_index(inplace=True, drop=False)
             all_hu_forecast = pd.concat([hu_forecast.to_frame(hu_forecast.local_columns),
                                          parcels_reduced[hu_forecast.local_columns]])  # type: pd.DataFrame
             all_hu_forecast.reset_index(drop=True, inplace=True)
             orca.add_table("hu_forecast", all_hu_forecast)
+
 
 def run_feasibility(year):
     """
@@ -390,14 +385,15 @@ def run_feasibility(year):
 
     # Select parcels that have more capacity than is used.
     # Note: 'capacity' is not subtracted from the built parcels, so 'capacity' should always be >= 'capacity_used'.
-    feasible_parcels = parcels.loc[parcels['capacity'] > parcels['capacity_used']].copy()
+    feasible_parcels = parcels.loc[parcels['capacity'] != parcels['capacity_used']].copy()
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
+    feasible_parcels['phase_yr'].where(~feasible_parcels.index.isin([5123923, 8283, 14432]), other=2018, inplace=True)
     # Restrict feasible parcels based on assigned phase years (not feasible before phase year occurs).
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
     orca.add_table("feasibility", feasible_parcels)
 
 
-def adu_picker(year, current_hh, feasible_parcels_df,subregional_targets):
+def adu_picker(year, current_hh, feasible_parcels_df, subregional_targets):
     """
     Selects additional dwelling unit parcels to build each year (1 additional unit on an existing residential parcel).
 
@@ -853,6 +849,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     hh_df = households.to_frame()
     feasible_parcels_df = feasibility.to_frame().copy()
     hu_forecast_df = hu_forecast.to_frame()
+    hu_forecast_df = hu_forecast_df.loc[~hu_forecast_df.capacity_type.isin(['neg_cap'])]
 
     # Creates empty dataframe to track added parcels
     sr14cap = pd.DataFrame()
@@ -1152,6 +1149,8 @@ def summary(year):
 
     # Subset parcels selected in the regional_overflow.
     entire_region_built = (hu_forecast_year.loc[(hu_forecast_year.source == 3)]).units_added.sum()
+    # Subset reduced parcels.
+    reduced_built = -1*int((hu_forecast_year.loc[(hu_forecast_year.source == 4)]).units_added.sum())
 
     # Subset ADU parcels.
     adus_built = (hu_forecast_year.loc[(hu_forecast_year.source == 5)]).units_added.sum()
@@ -1164,11 +1163,17 @@ def summary(year):
     print(' %d units built as ADU in %d' % (adus_built, year))
     print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
     print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
-    print(' %d total housing units in %d' % (all_built, year))
+    print(' %d units removed in %d' % (reduced_built, year))
+    print(' %d net housing units in %d' % (all_built, year))
     print(' {0} was the target number of units for {1}.'.format(target_for_year, year))
     if all_built != target_for_year:
-        print('WARNING! TARGET {0} =/= ACTUAL {1} IN {2}!.'.format(target_for_year, all_built, year))
-        # exit()
+        if all_built + reduced_built == target_for_year:
+            print(' Values do not match due to reduced parcels: Target {0} = Added {1} - Reduced {2}.'.
+                  format(target_for_year, all_built, reduced_built))
+        else:
+            print('WARNING! TARGET {0} =/= ACTUAL {1} AFTER ACCOUNTING FOR REDUCED {2} IN {3}!'.
+                  format(target_for_year, all_built, reduced_built, year))
+            # exit()
 
     # Combine parcels by capacity type. This is relevant primarily if a parcel was selected both for stochastic
     # development and for regional_overflow needs.

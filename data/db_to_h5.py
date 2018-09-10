@@ -158,18 +158,43 @@ controls = pd.DataFrame(columns=['jur_or_cpa_id','cap_jurisdiction_id', 'capacit
                                  'housing_units_add', 'capacity_used', 'rem'])
 # SQL statement for parcels with negative capacity (excludes scheduled development).
 # As of 06/06/2018, there are no parcels with a negative capacity.
+# negative_capacity_parcels = '''
+# SELECT [parcel_id]
+#     ,[site_id]
+#     ,[capacity_2]
+#     ,NULL AS yr
+#     ,'neg_cap' AS capacity_type
+# FROM [urbansim].[urbansim].[parcel]
+# WHERE [capacity_2] < 0 AND [site_id] IS NULL
+# ORDER BY [parcel_id]
+# '''
 negative_capacity_parcels = '''
 SELECT [parcel_id]
+    ,[mgra_id]
+    ,[cap_jurisdiction_id]
+    ,[jurisdiction_id]
+    ,[luz_id]
     ,[site_id]
-    ,[capacity_2]
-    ,NULL AS yr
+    ,(-1*[du_2017]) AS capacity
+    ,[du_2017] AS residential_units
+    ,[development_type_id_2017] AS dev_type_2017
+    ,[development_type_id_2015] AS dev_type_2015
+    ,[lu_2015]
+    ,[lu_2017]
+    ,[lu_2017] AS lu_sim
     ,'neg_cap' AS capacity_type
+    ,0 AS capacity_used
+    ,0 AS partial_build
+    ,0 AS priority
 FROM [urbansim].[urbansim].[parcel]
-WHERE [capacity_2] < 0 AND [site_id] IS NULL
-ORDER BY [parcel_id]
+WHERE [parcel_id] in (5123923, 8283, 14432)
+ORDER BY parcel_id
 '''
 negative_parcels_df = pd.read_sql(negative_capacity_parcels, mssql_engine)
 negative_parcels_df.capacity_type = negative_parcels_df.capacity_type.astype(str)
+# negative_parcels_df['capacity'] = -1 * negative_parcels_df['capacity']
+negative_parcels_df['site_id'] = negative_parcels_df.site_id.astype(float)
+parcels_df = pd.concat([parcels_df, negative_parcels_df])
 
 
 # SQL statement for sub-regional allocations.
@@ -330,7 +355,7 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('regional_controls', regional_controls_df, format='table')
     store.put('jurisdictions', jurisdictions_df, format='table')
     store.put('devyear', devyear_df, format='table')
-    store.put('negative_parcels', negative_parcels_df, format='table')
+    # store.put('negative_parcels', negative_parcels_df, format='table')
     store.put('all_parcels', all_parcels, format='table')
     store.put('dev_lu_table', dev_lu_df, format='table')
     store.put('adu_allocation', adu_allocation_df, format='table')

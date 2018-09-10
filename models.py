@@ -23,6 +23,7 @@ def negative_parcel_reducer(hu_forecast, year):
 def feasibility(year):
     utils.run_feasibility(year)
 
+
 @orca.step('subregional_share')
 def subregional_share(year,households):
     utils.run_subregional_share(year,households)
