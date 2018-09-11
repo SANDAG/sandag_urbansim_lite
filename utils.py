@@ -299,8 +299,8 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
         sim_units = pd.concat([sim_builds, sch_picked[sim_builds.columns]])  # type: pd.DataFrame
         sim_units.reset_index(drop=True, inplace=True)
         sim_units.source = sim_units.source.astype(int)
+        sim_units.units_added = sim_units.units_added.astype(int)
         orca.add_table("hu_forecast", sim_units)
-
 
 
 def run_reducer(hu_forecast, year):
@@ -1142,21 +1142,22 @@ def summary(year):
     hu_forecast_year = hu_forecast.loc[(hu_forecast.year_built == year)].copy()
 
     # Subset scheduled development parcels.
-    sched_dev_built = (hu_forecast_year.loc[(hu_forecast_year.source == 1)]).units_added.sum()
+    sched_dev_built = int((hu_forecast_year.loc[(hu_forecast_year.source == 1)]).units_added.sum())
 
     # Subset parcels selected for stochastic development.
-    subregional_control_built = (hu_forecast_year.loc[(hu_forecast_year.source == 2)]).units_added.sum()
+    subregional_control_built = int((hu_forecast_year.loc[(hu_forecast_year.source == 2)]).units_added.sum())
 
     # Subset parcels selected in the regional_overflow.
-    entire_region_built = (hu_forecast_year.loc[(hu_forecast_year.source == 3)]).units_added.sum()
+    entire_region_built = int((hu_forecast_year.loc[(hu_forecast_year.source == 3)]).units_added.sum())
+
     # Subset reduced parcels.
     reduced_built = -1*int((hu_forecast_year.loc[(hu_forecast_year.source == 4)]).units_added.sum())
 
     # Subset ADU parcels.
-    adus_built = (hu_forecast_year.loc[(hu_forecast_year.source == 5)]).units_added.sum()
+    adus_built = int((hu_forecast_year.loc[(hu_forecast_year.source == 5)]).units_added.sum())
 
     # Calculate total units built in the current year.
-    all_built = hu_forecast_year.units_added.sum()
+    all_built = int(hu_forecast_year.units_added.sum())
 
     # Print statements to see the current values of the above numbers.
     print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
