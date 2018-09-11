@@ -1169,7 +1169,7 @@ def summary(year):
     print(' {0} was the target number of units for {1}.'.format(target_for_year, year))
     if all_built != target_for_year:
         if all_built + reduced_built == target_for_year:
-            print(' Values do not match due to reduced parcels: Target {0} = Added {1} - Reduced {2}.'.
+            print(' Values do not match due to reduced parcels: Target {0} - Reduced {2} = Net Added {1}.'.
                   format(target_for_year, all_built, reduced_built))
         else:
             print('WARNING! TARGET {0} =/= ACTUAL {1} AFTER ACCOUNTING FOR REDUCED {2} IN {3}!'.
