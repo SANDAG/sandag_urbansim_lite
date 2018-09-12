@@ -27,7 +27,6 @@ if write_results_to_db == 'y':
 # Run the urbansim model iterations (see subsections for details)
 orca.run([
       "feasibility",
-      'negative_parcel_reducer',
       "scheduled_development_events",
       "residential_developer",
       "summary",
