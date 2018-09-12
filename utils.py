@@ -1094,7 +1094,9 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
                         - feasible_parcels_df.units_added)
             feasible_parcels_df['remaining_capacity'] = feasible_parcels_df['remaining_capacity'].astype(int)
             feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0].copy()
-            feasible_parcels_df['partial_build'] = feasible_parcels_df.units_added
+            feasible_parcels_df['partial_build'].where(feasible_parcels_df['units_added'] == 0,
+                                                 other=feasible_parcels_df['units_added'],
+                                                 inplace=True)
             feasible_parcels_df = feasible_parcels_df.drop(['units_added'], 1)
             feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(sr14cap.index.tolist())]
             chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
