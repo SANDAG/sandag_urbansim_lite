@@ -250,11 +250,12 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
     if ((len(parcels_sch)>0) & (year!=2017)):
         shuffled_parcels = parcels_sch.sample(frac=1, random_state=50).reset_index(drop=False)
         capacity_sch = shuffled_parcels.copy() # keep for consistency# type: pd.DataFrame
-        capacity_site =  capacity_sch.groupby(['site_id', 'phase_yr', 'priority', 'jur_or_cpa_id']). \
+        capacity_site =  capacity_sch.groupby(['site_id', 'phase_yr', 'jur_or_cpa_id']). \
         agg({'remaining_capacity': 'sum', 'partial_build': 'sum'}).reset_index()
         # Unwraps the dataframes
         years_left = 2051 - year
-        capacity_site.sort_values(by=['partial_build', 'priority', 'site_id'], ascending=[False, True, True],
+        capacity_site = capacity_site.sample(frac=1, random_state=50).reset_index(drop=False)
+        capacity_site.sort_values(by=['partial_build'], ascending=[False],
                                   inplace=True)
         capacity_site['units_for_year'] = np.ceil(capacity_site.remaining_capacity / years_left).astype(int)
         capacity_site.loc[capacity_site['units_for_year'] < 250, 'units_for_year'] = 250
