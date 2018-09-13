@@ -9,6 +9,13 @@ mssql_engine = create_engine(db_connection_string)
 versions = utils.yaml_to_dict('../data/scenario_config.yaml', 'scenario')
 
 
+# note: including sr13 sched dev in sr13 capacities in order to match development pattern
+# regardless of whether development pattern from sched dev or not.
+
+# note: exclude sr14 sched dev bc control percentages are for jur provided capacity
+# sr14 sched dev occurs regardless of control percentages. sched dev happens in first increment or
+# based on dates provided.
+
 # Units needed
 units_needed_sql = '''
 SELECT [yr], [version_id], [housing_units_add] as sr14hu
@@ -18,6 +25,7 @@ SELECT [yr], [version_id], [housing_units_add] as sr14hu
 units_needed_sql = units_needed_sql % versions['target_housing_units_version']
 hu_df =  pd.read_sql(units_needed_sql, mssql_engine)
 total_units_needed = int(hu_df['sr14hu'].sum())
+print(total_units_needed)
 # 468866 total units needed (was 396,354)
 
 sr13_sql = '''	
@@ -48,7 +56,7 @@ sr13summary = pd.DataFrame({'hs_sum': sr13_df.groupby(['increment']).hs.sum()}).
 sr13summary['chg'] = sr13summary.hs_sum.diff().fillna(0).astype(int)
 sr13summary['chg%'] = (sr13summary.hs_sum.pct_change().fillna(0) * 100).round(2)
 sr13summary.set_index('increment',inplace=True)
-# print(sr13summary)
+print(sr13summary)
 
 #             hs_sum    chg  chg%
 # increment
@@ -168,17 +176,17 @@ hs = pd.read_sql(parcel_sql,mssql_engine)
 #
 
 
-assigned_parcel_sql = '''
-SELECT  a.parcel_id, a.du as capacity, a.type
-   FROM [urbansim].[urbansim].[additional_capacity] a
-   JOIN urbansim.parcel p on p.parcel_id = a.parcel_id
-  WHERE version_id = %s'''
-assigned_parcel_sql = assigned_parcel_sql % versions['additional_capacity_version']
-assigned_df = pd.read_sql(assigned_parcel_sql, mssql_engine)
-sgoa_assigned = assigned_df.loc[assigned_df.type.isin(['mc', 'tco', 'uc', 'tc','cc'])].copy()
-sgoa_assigned.drop(columns=['type'],inplace=True)
-
-sgoa_and_jur = pd.concat([sgoa_assigned,hs])
+# assigned_parcel_sql = '''
+# SELECT  a.parcel_id, a.du as capacity, a.type
+#    FROM [urbansim].[urbansim].[additional_capacity] a
+#    JOIN urbansim.parcel p on p.parcel_id = a.parcel_id
+#   WHERE version_id = %s'''
+# assigned_parcel_sql = assigned_parcel_sql % versions['additional_capacity_version']
+# assigned_df = pd.read_sql(assigned_parcel_sql, mssql_engine)
+# sgoa_assigned = assigned_df.loc[assigned_df.type.isin(['mc', 'tco', 'uc', 'tc','cc'])].copy()
+# sgoa_assigned.drop(columns=['type'],inplace=True)
+#
+# sgoa_and_jur = pd.concat([sgoa_assigned,hs])
 
 lookup_sql = '''
 SELECT parcel_id,jur_id,cpa_id
@@ -208,11 +216,11 @@ lookup_df.loc[lookup_df.jur_id==14,'jcpa_name'] = lookup_df['cicpa']
 lookup_df.loc[lookup_df.jur_id==19,'jcpa_name'] = lookup_df['cocpa']
 lookup_df.drop(columns=['cocpa', 'cicpa','jur_name','jur_id','cpa_id'],inplace=True)
 
-units = pd.merge(hs,lookup_df,on='parcel_id')
-units.rename(columns={"jcpa": "jcid"}, inplace=True)
-units.fillna(0, inplace=True)
+sr14units = pd.merge(hs,lookup_df,on='parcel_id')
+sr14units.rename(columns={"jcpa": "jcid"}, inplace=True)
+sr14units.fillna(0, inplace=True)
 
-# units.loc[units.parcel_id==0].head()
+# sr14units.loc[sr14units.parcel_id==0].head()
 #        parcel_id  site_id name  cap_jurisdiction_id  jurisdiction_id  mgra_id  \
 # 50369        0.0      0.0    0                  0.0              0.0      0.0
 # 50370        0.0      0.0    0                  0.0              0.0      0.0
@@ -228,7 +236,7 @@ units.fillna(0, inplace=True)
 
 ######################################################################################
 # check for missing jcid (where jcid = 0)
-# units.loc[units.jcid==0]
+# sr14units.loc[sr14units.jcid==0]
 #            site_id            name  cap_jurisdiction_id  jurisdiction_id  \
 # parcel_id
 # 5038426.0      0.0  Unincorporated                 19.0             19.0
@@ -240,15 +248,15 @@ units.fillna(0, inplace=True)
 # 5038426.0   0.0
 
 
-units['jcid'] = units['jcid'].astype(int)
+sr14units['jcid'] = sr14units['jcid'].astype(int)
 
-sr14x = pd.DataFrame({'sr14c': units.groupby(['jcid']).
+sr14capacity = pd.DataFrame({'sr14c': sr14units.groupby(['jcid']).
                                capacity.sum()}).reset_index()
-sr14x['jcid'] = sr14x['jcid'].astype(int)
+sr14capacity['jcid'] = sr14capacity['jcid'].astype(int)
 
 
-# sr14x.set_index('jcid',inplace=True)
-# print(sr14x.loc[1901:1910])
+# sr14capacity.set_index('jcid',inplace=True)
+# print(sr14capacity.loc[1901:1910])
 #        sr14c
 # jcid
 # 1901  3732.0
@@ -261,10 +269,10 @@ sr14x['jcid'] = sr14x['jcid'].astype(int)
 # 1909  9626.0
 
 
-sr13x = pd.DataFrame({'sr13c': sr13_chgst.groupby(['jcid']).
+sr13capacity = pd.DataFrame({'sr13c': sr13_chgst.groupby(['jcid']).
                                hu_change.sum()}).reset_index()
-# sr13x.set_index('jcid',inplace=True)
-# print(sr13x.loc[1901:1910])
+# sr13capacity.set_index('jcid',inplace=True)
+# print(sr13capacity.loc[1901:1910])
 #         sr13c
 # jcid
 # 1901   2930.0
@@ -276,8 +284,8 @@ sr13x = pd.DataFrame({'sr13c': sr13_chgst.groupby(['jcid']).
 # 1908   1291.0
 # 1909   7166.0
 
-sx = pd.merge(sr13x,sr14x,left_on='jcid',right_on='jcid',how = 'outer')
-
+sx = pd.merge(sr13capacity,sr14capacity,left_on='jcid',right_on='jcid',how = 'outer')
+print(sx.sr13c.sum() - sx.sr14c.sum())
 # sx.set_index('jcid',inplace=True)
 # print(sx.loc[1901:1910])
 #         sr13c   sr14c
@@ -374,71 +382,72 @@ sr13aa = pd.merge(sr13a[['jcid','yr','units']],sx,left_on='jcid',right_on='jcid'
 # 1901  2025  103.0  2930.0  3732.0       1.27372
 # 1901  2026   84.2  2930.0  3732.0       1.27372#
 
-sr13aa.loc[((sr13aa.jcid==2)),'adj_jcid_cap'] = 0.28
-sr13aa.loc[((sr13aa.jcid==2) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.4
-sr13aa.loc[((sr13aa.jcid==5) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.75
-sr13aa.loc[((sr13aa.jcid==8)),'adj_jcid_cap'] = 1
-sr13aa.loc[((sr13aa.jcid==11) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.65
-sr13aa.loc[((sr13aa.jcid==12) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.9
-sr13aa.loc[((sr13aa.jcid==13) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.7
-sr13aa.loc[((sr13aa.jcid==13) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.6
-sr13aa.loc[((sr13aa.jcid==15) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.5
-sr13aa.loc[((sr13aa.jcid==16) & (sr13aa.yr<2030)),'adj_jcid_cap'] = 0.6
-sr13aa.loc[((sr13aa.jcid==16) & (sr13aa.yr.isin([2030,2031,2032,2033,2034]))),'adj_jcid_cap'] = 0 # sched dev 100 units
-sr13aa.loc[((sr13aa.jcid==1402)),'adj_jcid_cap'] = 0.6
-sr13aa.loc[((sr13aa.jcid==1404) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.8 # 14023
-sr13aa.loc[((sr13aa.jcid==1406) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.6
-sr13aa.loc[((sr13aa.jcid==1408)),'adj_jcid_cap'] = 0.55
-sr13aa.loc[((sr13aa.jcid==1410)),'adj_jcid_cap'] = 0.65
-sr13aa.loc[((sr13aa.jcid==1412) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.2
-sr13aa.loc[((sr13aa.jcid==1414) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.7
-sr13aa.loc[((sr13aa.jcid==1418)),'adj_jcid_cap'] = 0.8
-sr13aa.loc[((sr13aa.jcid==1420) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.96
-sr13aa.loc[((sr13aa.jcid==1423)),'adj_jcid_cap'] = 0.68
-sr13aa.loc[((sr13aa.jcid==1425) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
-sr13aa.loc[((sr13aa.jcid==1426)),'adj_jcid_cap'] = 0.60
-sr13aa.loc[((sr13aa.jcid==1427)),'adj_jcid_cap'] = 0.7
-sr13aa.loc[((sr13aa.jcid==1428) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 2.5
-sr13aa.loc[((sr13aa.jcid==1438) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
-sr13aa.loc[((sr13aa.jcid==1441) & (sr13aa.yr<=2035)),'adj_jcid_cap'] = 0.3
-sr13aa.loc[((sr13aa.jcid==1441) & (sr13aa.yr>2035)),'adj_jcid_cap'] = 0.8
-sr13aa.loc[((sr13aa.jcid==1456) & (sr13aa.yr>2035)),'adj_jcid_cap'] = 1.8
-sr13aa.loc[((sr13aa.jcid==1457) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 2
-sr13aa.loc[((sr13aa.jcid==1458) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
-sr13aa.loc[((sr13aa.jcid==1459)),'adj_jcid_cap'] = 0.55
-sr13aa.loc[((sr13aa.jcid==1902)),'adj_jcid_cap'] = 0.9
-sr13aa.loc[((sr13aa.jcid==1909)),'adj_jcid_cap'] = 0.96
-sr13aa.loc[((sr13aa.jcid==1911)),'adj_jcid_cap'] = 2.7
-sr13aa.loc[((sr13aa.jcid==1915) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.75
-sr13aa.loc[((sr13aa.jcid==1919) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.65 #0.6
-sr13aa.loc[((sr13aa.jcid==1951)),'adj_jcid_cap'] = 2.5
-sr13aa.loc[((sr13aa.jcid==1952)),'adj_jcid_cap'] = 1.1
-sr13aa.loc[((sr13aa.jcid==1953) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.2
+# sr13aa.loc[((sr13aa.jcid==2)),'adj_jcid_cap'] = 0.28
+# sr13aa.loc[((sr13aa.jcid==2) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.4
+# sr13aa.loc[((sr13aa.jcid==5) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.75
+# sr13aa.loc[((sr13aa.jcid==8)),'adj_jcid_cap'] = 1
+# sr13aa.loc[((sr13aa.jcid==11) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.65
+# sr13aa.loc[((sr13aa.jcid==12) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.9
+# sr13aa.loc[((sr13aa.jcid==13) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.7
+# sr13aa.loc[((sr13aa.jcid==13) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.6
+# sr13aa.loc[((sr13aa.jcid==15) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.5
+# sr13aa.loc[((sr13aa.jcid==16) & (sr13aa.yr<2030)),'adj_jcid_cap'] = 0.6
+# sr13aa.loc[((sr13aa.jcid==16) & (sr13aa.yr.isin([2030,2031,2032,2033,2034]))),'adj_jcid_cap'] = 0 # sched dev 100 units
+# sr13aa.loc[((sr13aa.jcid==1402)),'adj_jcid_cap'] = 0.6
+# sr13aa.loc[((sr13aa.jcid==1404) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.8 # 14023
+# sr13aa.loc[((sr13aa.jcid==1406) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.6
+# sr13aa.loc[((sr13aa.jcid==1408)),'adj_jcid_cap'] = 0.55
+# sr13aa.loc[((sr13aa.jcid==1410)),'adj_jcid_cap'] = 0.65
+# sr13aa.loc[((sr13aa.jcid==1412) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.2
+# sr13aa.loc[((sr13aa.jcid==1414) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.7
+# sr13aa.loc[((sr13aa.jcid==1418)),'adj_jcid_cap'] = 0.8
+# sr13aa.loc[((sr13aa.jcid==1420) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.96
+# sr13aa.loc[((sr13aa.jcid==1423)),'adj_jcid_cap'] = 0.68
+# sr13aa.loc[((sr13aa.jcid==1425) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
+# sr13aa.loc[((sr13aa.jcid==1426)),'adj_jcid_cap'] = 0.60
+# sr13aa.loc[((sr13aa.jcid==1427)),'adj_jcid_cap'] = 0.7
+# sr13aa.loc[((sr13aa.jcid==1428) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 2.5
+# sr13aa.loc[((sr13aa.jcid==1438) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
+# sr13aa.loc[((sr13aa.jcid==1441) & (sr13aa.yr<=2035)),'adj_jcid_cap'] = 0.3
+# sr13aa.loc[((sr13aa.jcid==1441) & (sr13aa.yr>2035)),'adj_jcid_cap'] = 0.8
+# sr13aa.loc[((sr13aa.jcid==1456) & (sr13aa.yr>2035)),'adj_jcid_cap'] = 1.8
+# sr13aa.loc[((sr13aa.jcid==1457) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 2
+# sr13aa.loc[((sr13aa.jcid==1458) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
+# sr13aa.loc[((sr13aa.jcid==1459)),'adj_jcid_cap'] = 0.55
+# sr13aa.loc[((sr13aa.jcid==1902)),'adj_jcid_cap'] = 0.9
+# sr13aa.loc[((sr13aa.jcid==1909)),'adj_jcid_cap'] = 0.96
+# sr13aa.loc[((sr13aa.jcid==1911)),'adj_jcid_cap'] = 2.7
+# sr13aa.loc[((sr13aa.jcid==1915) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.75
+# sr13aa.loc[((sr13aa.jcid==1919) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.65 #0.6
+# sr13aa.loc[((sr13aa.jcid==1951)),'adj_jcid_cap'] = 2.5
+# sr13aa.loc[((sr13aa.jcid==1952)),'adj_jcid_cap'] = 1.1
+# sr13aa.loc[((sr13aa.jcid==1953) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.2
 
 
 # adjustments
-j = 1
-y = 2036
-sr13aa.loc[((sr13aa.jcid==j))].head()
+# j = 1
+# y = 2036
+# sr13aa.loc[((sr13aa.jcid==j))].head()
 # sr13aa.loc[((sr13aa.jcid==j) & (sr13aa.yr<y)),'adj_jcid_cap'] =  #2163
 sr13aa['units_adj1'] = sr13aa['units'] * sr13aa['adj_jcid_cap']
-sr13aa.loc[((sr13aa.jcid==j) & (sr13aa.yr<y))].units_adj1.sum()
+# sr13aa.loc[((sr13aa.jcid==j) & (sr13aa.yr<y))].units_adj1.sum()
 
-sr13b = pd.DataFrame({'unitsum': sr13aa.groupby(['yr']).
+sr13tosr14cap = pd.DataFrame({'unitsum1': sr13aa.groupby(['yr']).
                                units_adj1.sum()}).reset_index()
-sr13b = pd.merge(sr13b,hu_df,left_on='yr',right_on='yr',how = 'outer')
-sr13b['adj_forecast_hs'] = sr13b['sr14hu']/sr13b['unitsum']
-sr13ab = pd.merge(sr13aa,sr13b[['yr','adj_forecast_hs']],left_on='yr',right_on='yr',how = 'outer')
-sr13ab['units_adj2'] = (sr13ab['units_adj1'] * sr13ab['adj_forecast_hs'])
+sr14hu_sr13hu = pd.merge(sr13tosr14cap,hu_df,left_on='yr',right_on='yr',how = 'outer')
+sr14hu_sr13hu['adj_forecast_hs'] = sr14hu_sr13hu['sr14hu']/sr14hu_sr13hu['unitsum1']
+sr13tosr14 = pd.merge(sr13aa,sr14hu_sr13hu[['yr','unitsum1','adj_forecast_hs']],left_on='yr',right_on='yr',how = 'outer')
+sr13tosr14['units_adj2'] = (sr13tosr14['units_adj1'] * sr13tosr14['adj_forecast_hs'])
 
-sr13ab.loc[((sr13ab.jcid==j) & (sr13ab.yr<y))].units_adj1.sum()
+#sr13tosr14.loc[((sr13tosr14.jcid==j) & (sr13tosr14.yr<y))].units_adj1.sum()
 
-summary = pd.DataFrame({'units': sr13ab.loc[sr13ab.yr<2036].groupby(["jcid","sr14c"])
-                                          .units_adj2.sum()}).reset_index()
-
-summary['remaining'] = summary['sr14c'] - summary['units']
-summary.sort_values(by='remaining')
-# sr13ab.loc[((sr13ab.jcid==j) & (sr13ab.yr<y))].units_adj2.sum()
+# remaining units
+# summary = pd.DataFrame({'units': sr13tosr14.loc[sr13tosr14.yr<2036].groupby(["jcid","sr14c"])
+#                                           .units_adj2.sum()}).reset_index()
+#
+# summary['remaining'] = summary['sr14c'] - summary['units']
+# summary.sort_values(by='remaining')
+# sr13tosr14.loc[((sr13tosr14.jcid==j) & (sr13tosr14.yr<y))].units_adj2.sum()
 
 
 # sr13b.set_index('yr',inplace=True)
@@ -508,12 +517,12 @@ summary.sort_values(by='remaining')
 # 1901  2025  103.0  131.193174         1.790226  234.865476
 # 1901  2026   84.2  107.247235         2.370482  254.22769
 
-sr13check = pd.DataFrame({'units_for_sr14': sr13ab.groupby(['yr']).
+sr14checkunits = pd.DataFrame({'units_for_sr14': sr13tosr14.groupby(['yr']).
                      units_adj2.sum()}).reset_index()
 
-sr13check = pd.merge(sr13check,hu_df,left_on='yr',right_on='yr',how = 'outer')
+sr14checkunits = pd.merge(sr14checkunits,hu_df,left_on='yr',right_on='yr',how = 'outer')
 
-# sr13check.head()
+# sr14checkunits.head()
 #       units_for_sr14   sr14hu
 # yr
 # 2017         10947.0  10947.0
@@ -527,21 +536,21 @@ sr13check = pd.merge(sr13check,hu_df,left_on='yr',right_on='yr',how = 'outer')
 # 2025         19862.0  19862.0
 # 2026         24597.0  24597.0
 
-sr13check['diff'] = sr13check.units_for_sr14 - sr13check.sr14hu
-# print(sr13check.loc[sr13check['diff'] > 0.1])
+sr14checkunits['diff'] = sr14checkunits.units_for_sr14 - sr14checkunits.sr14hu
+# print(sr14checkunits.loc[sr14checkunits['diff'] > 0.1])
 # Empty DataFrame
 # Columns: [yr, units_for_sr14, sr14hu, diff]
 # Index: []
 
-sr13 = pd.merge(sr13ab,sr13check[['yr','units_for_sr14']],left_on='yr',right_on='yr',how = 'outer')
+ctrls = pd.merge(sr13tosr14,sr14checkunits[['yr','units_for_sr14']],left_on='yr',right_on='yr',how = 'outer')
 
-sr13['control'] = sr13['units_adj2']/sr13['units_for_sr14']
-controlsummary = pd.DataFrame({'totunits':sr13.groupby(['jcid','sr14c']).units_adj2.sum()}).reset_index()
+ctrls['control'] = ctrls['units_adj2']/ctrls['units_for_sr14']
+controlsummary = pd.DataFrame({'totunits':ctrls.groupby(['jcid','sr14c']).units_adj2.sum()}).reset_index()
 # sr13summary = pd.DataFrame({'hs_sum': sr13_df.groupby(['increment']).hs.sum()}).reset_index()
-sr13.drop(['units', 'units_adj1','adj_forecast_hs'], axis=1,inplace=True)
+ctrls.drop(['units','unitsum1', 'units_adj1','adj_forecast_hs'], axis=1,inplace=True)
 
-# sr13.set_index('jcid',inplace=True)
-# print(sr13.loc[sr13.jcid==1901])
+# ctrls.set_index('jcid',inplace=True)
+# print(ctrls.loc[ctrls.jcid==1901])
 #         yr  units_adj2  units_for_sr14   control
 # jcid
 # 1901  2017  207.130273         10947.0  0.018921
@@ -555,7 +564,7 @@ sr13.drop(['units', 'units_adj1','adj_forecast_hs'], axis=1,inplace=True)
 # 1901  2025  234.865476         19862.0  0.011825
 # 1901  2026  254.227693         24597.0  0.010336
 
-sr13.fillna(0,inplace=True)
+ctrls.fillna(0,inplace=True)
 
 
 # Retrieves maximum existing run_id from the table. If none exists, creates run_id = 1.
@@ -567,16 +576,22 @@ version_id_sql = '''
 version_id_df = pd.read_sql(version_id_sql, mssql_engine)
 v= int(version_id_df.values) + 1
 
-sr13['subregional_crtl_id'] = v
-sr13['geo_id'] = sr13['jcid']
-sr13['max_units'] = None
-sr13['geo'] = 'jur_and_cpa'
-sr13['scenario_desc'] = 'capacity_2'
-sr13['control_type'] = 'percentage'
+ctrls['subregional_crtl_id'] = v
+print('version_id:')
+print(v)
+ctrls['geo_id'] = ctrls['jcid']
+ctrls['max_units'] = None
+ctrls['geo'] = 'jur_and_cpa'
+ctrls['scenario_desc'] = 'capacity_2'
+ctrls['control_type'] = 'percentage'
 
-sr13.loc[sr13.control < 0, 'control'] = 0
-sr13 = sr13.loc[sr13.yr!=0].copy()
-controls  = sr13[['subregional_crtl_id','yr','geo','geo_id','control','control_type','max_units','scenario_desc']].copy()
+ctrls.loc[ctrls.control < 0, 'control'] = 0
+ctrls = ctrls.loc[ctrls.yr!=0].copy()
+
+controlto1 = pd.DataFrame({'ctrlsum1':ctrls.groupby(['yr']).control.sum()}).reset_index()
+
+controls  = ctrls[['subregional_crtl_id','yr','geo','geo_id','control','control_type','max_units','scenario_desc']].copy()
+
 
 # print(controls.loc[controls.geo_id==1901].head())
 #      scenario    yr          geo  geo_id   control control_type max_units  \
