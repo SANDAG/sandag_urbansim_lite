@@ -259,6 +259,9 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
                                   inplace=True)
         capacity_site['units_for_year'] = np.ceil(capacity_site.remaining_capacity / years_left).astype(int)
         capacity_site.loc[capacity_site['units_for_year'] < 250, 'units_for_year'] = 250
+        capacity_site.loc[capacity_site['site_id'] == 19002, 'units_for_year'] = 200
+        capacity_site.loc[capacity_site['site_id'] == 19017, 'units_for_year'] = 65
+        capacity_site.loc[capacity_site['site_id'] == 19018, 'units_for_year'] = 90
         capacity_site.loc[capacity_site['units_for_year'].notnull(), 'units_for_year'] = \
             capacity_site.loc[:, ['units_for_year', 'remaining_capacity']].min(axis=1)
 
