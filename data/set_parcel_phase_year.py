@@ -129,7 +129,7 @@ SELECT [site_id]
   FROM [urbansim].[urbansim].[scheduled_development_parcel]
   INNER JOIN [urbansim].[ref].[scheduled_development_site]
   ON site_id = siteid
-  WHERE (sfu > 0 OR mfu > 0 OR mhu > 0) AND status != 'completed' AND capacity_3 > 0
+  WHERE  capacity_3 > 0
   GROUP BY parcel_id, site_id, startdate
   ORDER BY site_id, parcel_id
 '''
