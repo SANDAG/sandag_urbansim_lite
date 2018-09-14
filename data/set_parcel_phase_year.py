@@ -140,7 +140,7 @@ sched_dev_df = pd.read_sql(sched_dev_parcel_sql, mssql_engine)
 # Override startdate
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1746, 1921, 3395, 3396, 12075])), 'startdate'] = 2017
 sched_dev_df.loc[(sched_dev_df.site_id.isin([9009, 10009])), 'startdate'] = 2018
-sched_dev_df.loc[(sched_dev_df.site_id.isin([3404, 4014, 14075])), 'startdate'] = 2019
+sched_dev_df.loc[(sched_dev_df.site_id.isin([3404, 14075])), 'startdate'] = 2019
 sched_dev_df.loc[(sched_dev_df.site_id.isin([899, 1820, 3389, 3390, 7022, 9008])),'startdate'] = 2020
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1750, 7001, 9007, 14000, 14001, 14002, 15005, 15007, 15014, 15015,
                                              15016])), 'startdate'] = 2025
@@ -240,7 +240,6 @@ sched_dev_df.loc[(sched_dev_df.site_id.isin([
 
 # These phase years come from Rachel Cortes with direct contact with each jurisdiction, and overwrite other assumptions.
 sched_dev_df.loc[(sched_dev_df.site_id.isin([10009])),'phase_yr'] = 2018
-sched_dev_df.loc[(sched_dev_df.site_id.isin([4014])),'phase_yr'] = 2019
 sched_dev_df.loc[(sched_dev_df.site_id.isin([7022,9008])),'phase_yr'] = 2020
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1730,1731,14088,15005])),'phase_yr'] = 2025
 sched_dev_df.loc[(sched_dev_df.site_id.isin([14084,14085,14086])),'phase_yr'] = 2030
@@ -248,10 +247,6 @@ sched_dev_df.loc[(sched_dev_df.site_id.isin([2019,3063,2003,2015,2011,2013,2014,
 sched_dev_df.loc[(sched_dev_df.site_id.isin([15035,15019,15028,15029,15004,15007,15015,15016])),'phase_yr'] = 2036
 
 
-############################################################################
-# DEL MAR RESORT - no residential units - need to update in db
-sched_dev_df.loc[(sched_dev_df.site_id==4014),'phase_yr'] = 2051
-###########################################################################
 
 
 sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','capacity_type']]
