@@ -452,7 +452,8 @@ def adu_picker(year, current_hh, feasible_parcels_df, subregional_targets):
         extra_units = int(abs(targets_w_adus.loc[targets_w_adus.geo_id == jur].rem.iloc[0]))
         parcels_to_drop = (
             picked_adu_parcels.loc[picked_adu_parcels['jur_or_cpa_id'] == jur].head(extra_units)).parcel_id.tolist()
-        picked_adu_parcels = picked_adu_parcels[~picked_adu_parcels.parcel_id.isin(parcels_to_drop)].copy()
+        picked_adu_parcels.loc[picked_adu_parcels.parcel_id.isin(parcels_to_drop), 'extra'] = 1
+        # picked_adu_parcels = picked_adu_parcels[~picked_adu_parcels.parcel_id.isin(parcels_to_drop)].copy()
 
     # Assigns build information to the parcels built. Source 5 is ADU.
     picked_adu_parcels['source'] = 5
@@ -829,6 +830,10 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']])
         sr14cap.set_index('parcel_id', inplace=True)
         print('ADU units added: {}'.format(adu_builds.units_added.sum()))
+        adu_builds.extra.fillna(0, inplace=True)
+        extra_units = int(adu_builds.extra.sum())
+        subregional_targets.loc[subregional_targets.geo_id == 1404, 'targets'] =subregional_targets.loc[subregional_targets.geo_id == 1404].targets.iloc[0] - extra_units
+
         feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(adu_builds.parcel_id.tolist())]
 
     if year < 2047:
