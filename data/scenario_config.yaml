@@ -3,24 +3,24 @@ scenario:
     # database scenario to use in simulation
     # was 17
     subregional_ctrl_id: 209 #6 #207 #6 # 174 #17
-    subregional_targets_id: 110 # For the 1st year estimates, should not need to change
+    subregional_targets_id: 111 # For the 1st year estimates, should not need to change
 
     # target housing units for simulation
-    target_housing_units_version: 110 #109
+    target_housing_units_version: 111 #109
 
     #Specifies phase year version in urbansim.urbansim_lite_parcel_control, used in set_parcel_phase_year.py
     # parcel sgoa at 2030 version 111
     # parcel sgoa at 2025 version 110
     # version 125 removed del mar resort
-    parcel_phase_yr: 139 #112
+    parcel_phase_yr: 140 #112
 
     # additional capacity units for simulation
-    additional_capacity_version: 107
+    additional_capacity_version: 108
 
     # [urbansim].[scheduled_development_priority]
-    sched_dev_version: 139 #102
+    sched_dev_version: 140 #102
 
-    adu_control: 1 #2
+    adu_control: 4 #2
 
     # 102 is used for models running with the 509k housing units number
     # 106 is used for models running with the 534k housing units number
