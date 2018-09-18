@@ -836,7 +836,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
 
         feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(adu_builds.parcel_id.tolist())]
 
-    if year < 2047:
+    if year < 2050:
         feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu']  # remove adu parcels
 
     # Print statements to see the current values of the above numbers.
