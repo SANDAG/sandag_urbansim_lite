@@ -193,10 +193,11 @@ sched_dev_priority.to_sql(name='scheduled_development_priority', con=mssql_engin
 # for flexibility in how fast the project builds out.
 sched_dev_site_cap = sched_dev_df.groupby(['site_id'])[['capacity_3']].sum()
 sched_dev_site_cap.rename(columns={"capacity_3": "site_cap"}, inplace=True)
+np.random.seed(50)
+sched_dev_site_cap['phase_yr'] = np.random.randint(2019, 2022, size=len(sched_dev_site_cap))
 sched_dev_df = pd.merge(sched_dev_df, sched_dev_site_cap, how='left', left_on='site_id', right_index=True)
 
-np.random.seed(50)
-sched_dev_df['phase_yr'] = np.random.randint(2019, 2022, size=len(sched_dev_df))
+
 sched_dev_df['phase_yr'].where((sched_dev_df['compdate'].isnull()),
                                other=(sched_dev_df['compdate'] - (sched_dev_df['site_cap']/250) - 2), inplace=True)
 sched_dev_df['phase_yr'].where(sched_dev_df['startdate'].isnull(), other=sched_dev_df['startdate'], inplace=True)
