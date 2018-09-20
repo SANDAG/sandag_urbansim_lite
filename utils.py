@@ -236,14 +236,14 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
     parcels_sch = feasible_parcels_df.loc[feasible_parcels_df.capacity_type == 'sch'].copy()
 
     if (len(parcels_sch) > 0) & (year != 2017):
-        shuffled_parcels = parcels_sch.sample(frac=1, random_state=50).reset_index(drop=False)
+        shuffled_parcels = parcels_sch.sample(frac=1, random_state=1).reset_index(drop=False)
         capacity_sch = shuffled_parcels.copy()  # keep for consistency# type: pd.DataFrame
         capacity_site = capacity_sch.groupby(['site_id', 'phase_yr', 'jur_or_cpa_id']).\
             agg({'remaining_capacity': 'sum', 'partial_build': 'sum'}).reset_index()
 
         # Unwraps the dataframes
         years_left = 2051 - year
-        capacity_site = capacity_site.sample(frac=1, random_state=50).reset_index(drop=False)
+        capacity_site = capacity_site.sample(frac=1, random_state=1).reset_index(drop=False)
         capacity_site.sort_values(by=['partial_build'], ascending=[False],
                                   inplace=True)
         capacity_site['units_for_year'] = np.ceil(capacity_site.remaining_capacity / years_left).astype(int)
@@ -259,7 +259,7 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
         one_row_per_unit_picked = one_row_per_unit.head(target_units)
         sites_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.groupby(['site_id']).
                                     size()}).reset_index()
-        new_sch = capacity_sch[['parcel_id', 'site_id', 'remaining_capacity']].sample(frac=1, random_state=50). \
+        new_sch = capacity_sch[['parcel_id', 'site_id', 'remaining_capacity']].sample(frac=1, random_state=1). \
             sort_values(by='site_id')
         merge_sch = pd.merge(new_sch, sites_picked, how='left', on=['site_id'])
         merge_sch['cum_remaining'] = merge_sch.groupby('site_id')['remaining_capacity'].cumsum()
