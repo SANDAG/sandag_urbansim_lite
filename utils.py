@@ -388,7 +388,7 @@ def run_feasibility(year):
     orca.add_table("feasibility", feasible_parcels)
 
 
-def adu_picker(year, current_hh, feasible_parcels_df, subregional_targets):
+def adu_picker(year, current_hh, feasible_parcels_df, adu_share):
     """
     Selects additional dwelling unit parcels to build each year (1 additional unit on an existing residential parcel).
 
@@ -413,8 +413,8 @@ def adu_picker(year, current_hh, feasible_parcels_df, subregional_targets):
     # Bring in the ADU allocation table and determine the share of units for the year.
     # Note: Due to the priority system used in scheduled development, both sections should be double checked that they
     # match here or the model can over/under produce.
-    adu_share_df = orca.get_table('adu_allocation').to_frame()
-    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
+    # adu_share_df = orca.get_table('adu_allocation').to_frame()
+    # adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
 
     # Only choose from feasible parcels with ADU capacity_type.
     adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
@@ -439,21 +439,21 @@ def adu_picker(year, current_hh, feasible_parcels_df, subregional_targets):
         shuffled_adu = adu_parcels
     picked_adu_parcels = shuffled_adu.head(adu_share).copy()
 
-    adu_jcpa = pd.DataFrame({'adu_sum':  picked_adu_parcels.
-                             groupby(['jur_or_cpa_id']).capacity.sum()}).reset_index()
-
-    targets_w_adus = pd.merge(subregional_targets, adu_jcpa, how='left', left_on='geo_id', right_on='jur_or_cpa_id')
-
-    targets_w_adus['rem'] = targets_w_adus['targets'] - targets_w_adus['adu_sum']
-
-    jcpas_w_overage = targets_w_adus.loc[targets_w_adus.rem < 0].jur_or_cpa_id.tolist()
-
-    for jur in jcpas_w_overage:
-        extra_units = int(abs(targets_w_adus.loc[targets_w_adus.geo_id == jur].rem.iloc[0]))
-        parcels_to_drop = (
-            picked_adu_parcels.loc[picked_adu_parcels['jur_or_cpa_id'] == jur].head(extra_units)).parcel_id.tolist()
-        picked_adu_parcels.loc[picked_adu_parcels.parcel_id.isin(parcels_to_drop), 'extra'] = 1
-        # picked_adu_parcels = picked_adu_parcels[~picked_adu_parcels.parcel_id.isin(parcels_to_drop)].copy()
+    # adu_jcpa = pd.DataFrame({'adu_sum':  picked_adu_parcels.
+    #                          groupby(['jur_or_cpa_id']).capacity.sum()}).reset_index()
+    #
+    # targets_w_adus = pd.merge(subregional_targets, adu_jcpa, how='left', left_on='geo_id', right_on='jur_or_cpa_id')
+    #
+    # targets_w_adus['rem'] = targets_w_adus['targets'] - targets_w_adus['adu_sum']
+    #
+    # jcpas_w_overage = targets_w_adus.loc[targets_w_adus.rem < 0].jur_or_cpa_id.tolist()
+    #
+    # for jur in jcpas_w_overage:
+    #     extra_units = int(abs(targets_w_adus.loc[targets_w_adus.geo_id == jur].rem.iloc[0]))
+    #     parcels_to_drop = (
+    #         picked_adu_parcels.loc[picked_adu_parcels['jur_or_cpa_id'] == jur].head(extra_units)).parcel_id.tolist()
+    #     picked_adu_parcels.loc[picked_adu_parcels.parcel_id.isin(parcels_to_drop), 'extra'] = 1
+    #     # picked_adu_parcels = picked_adu_parcels[~picked_adu_parcels.parcel_id.isin(parcels_to_drop)].copy()
 
     # Assigns build information to the parcels built. Source 5 is ADU.
     picked_adu_parcels['source'] = 5
@@ -809,32 +809,39 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # Pull the current year housing targets (current_hh) and the cumulative target for the end of the year (net_hh).
     net_hh = int(hh_df.at[year, 'total_housing_units'])
     current_hh = int(hh_df.at[year, 'housing_units_add'])
+
+    adu_share_df = orca.get_table('adu_allocation').to_frame()
+    adu_target = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
+    # Run the adu_picker before determining other builds for the year. Doing this first allows for better control of
+    # how many ADUs are chosen in each year rather than allowing them to be randomly selected from the pool of
+    # feasible parcels.
+    adu_builds = adu_picker(year, current_hh, feasible_parcels_df, adu_target)
+    # If ADU parcels were chosen, add them to the dataframe of parcel changes. If there are no parcels selected (such
+    # as in 2017-2018) simply return the original empty dataframe.
+    try:
+        adu_unit_count = adu_builds.units_added.sum()
+    except ValueError:
+        adu_unit_count = 0
+    if adu_unit_count > 0:
+        if adu_unit_count != adu_target:
+            print('Wrong number of ADUs built!')
+        sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']])
+        sr14cap.set_index('parcel_id', inplace=True)
+        print('ADU units added: {}'.format(adu_unit_count))
+        # adu_builds.extra.fillna(0, inplace=True)
+        # extra_units = int(adu_builds.extra.sum())
+        # subregional_targets.loc[subregional_targets.geo_id == 1404, 'targets'] =subregional_targets.loc[subregional_targets.geo_id == 1404].targets.iloc[0] - extra_units
+        feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(adu_builds.parcel_id.tolist())]
+
     # num_units will have the sum of all units built since the start of the simulation, including the ADU units for the
     # current iteration year. target_units will be the target taking into account the cumulative totals. In essence,
     # this is a check that the year-by-year values match the cumulative totals. target_units should be equal to
     # current_hh less ADU and scheduled development units for the current year.
     num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())
     target_units = int(max(net_hh - num_units, 0))
+    target_without_adu = int(max(net_hh - num_units - adu_unit_count, 0))
 
-    subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
-
-    # Run the adu_picker before determining other builds for the year. Doing this first allows for better control of
-    # how many ADUs are chosen in each year rather than allowing them to be randomly selected from the pool of
-    # feasible parcels.
-    adu_builds = adu_picker(year, current_hh, feasible_parcels_df, subregional_targets)
-
-    # If ADU parcels were chosen, add them to the dataframe of parcel changes. If there are no parcels selected (such
-    # as in 2017-2018) simply return the original empty dataframe.
-    adu_build_count = len(adu_builds)
-    if adu_build_count > 0:
-        sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']])
-        sr14cap.set_index('parcel_id', inplace=True)
-        print('ADU units added: {}'.format(adu_builds.units_added.sum()))
-        adu_builds.extra.fillna(0, inplace=True)
-        extra_units = int(adu_builds.extra.sum())
-        subregional_targets.loc[subregional_targets.geo_id == 1404, 'targets'] =subregional_targets.loc[subregional_targets.geo_id == 1404].targets.iloc[0] - extra_units
-
-        feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(adu_builds.parcel_id.tolist())]
+    subregional_targets = largest_remainder_allocation(control_totals_by_year, target_without_adu)
 
     if year < 2050:
         feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu']  # remove adu parcels
@@ -883,7 +890,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
 
         # Run the parcel_picker function to select parcels and build units for the sub-region.
-        target_units_for_geo = int(target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur]))
+        #target_units_for_geo = int(target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur]))
 
         if year == 2017:
             chosen = parcel_picker2017(parcels_in_geo, target_units_for_geo, geo_name, year)
