@@ -1107,7 +1107,7 @@ def summary(year):
     print(' {0} was the target number of units for {1}.'.format(target_for_year, year))
     if all_built != target_for_year:
         print('WARNING! TARGET {0} =/= ACTUAL {1} IN {2}!.'.format(target_for_year, all_built, year))
-        # exit()
+        exit()
 
     # Combine parcels by capacity type. This is relevant primarily if a parcel was selected both for stochastic
     # development and for regional_overflow needs.
