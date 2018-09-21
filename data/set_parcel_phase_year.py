@@ -210,6 +210,9 @@ sched_dev_df['phase_yr'] = sched_dev_df['phase_yr'].apply(np.floor)
 # Chula Vista - notes from [urbansim].[ref].[scheduled_development_site]
 # and Rachael Rider looked at imagery on 8/27/2019 (email conversation)
 sched_dev_df.loc[(sched_dev_df.site_id.isin([2012,2017,2018,2020,2021,3060])),'phase_yr'] = 2019
+# union tribune article 3/20/2018
+# Town & Country Mixed Use housing
+sched_dev_df.loc[(sched_dev_df.site_id.isin([14081])),'phase_yr'] = 2022 #ck
 
 # from MC (Civita)
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1746,1921])),'phase_yr'] = 2017
