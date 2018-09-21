@@ -200,10 +200,10 @@ sched_dev_df = pd.merge(sched_dev_df, sched_dev_site_cap, how='left', left_on='s
 #sched_dev_df['phase_yr'] = np.random.randint(2019, 2021, size=len(sched_dev_df))
 sched_dev_df['phase_yr'] = 2019 # unless specified elsewhere
 sched_dev_df['phase_yr'].where((sched_dev_df['compdate'].isnull()),
-                               other=(sched_dev_df['compdate'] - (sched_dev_df['site_cap']/250) - 2), inplace=True)
+                               other=round((sched_dev_df['compdate'] - (sched_dev_df['site_cap']/250)),0), inplace=True)
 sched_dev_df['phase_yr'].where(sched_dev_df['startdate'].isnull(), other=sched_dev_df['startdate'], inplace=True)
-sched_dev_df.loc[sched_dev_df['startdate'] > 2049, 'phase_yr'] = (2048-(sched_dev_df['site_cap']/250))
-sched_dev_df['phase_yr'].where((sched_dev_df['phase_yr'] > 2017), other=2019, inplace=True)
+sched_dev_df.loc[sched_dev_df['startdate'] > 2049, 'phase_yr'] = round((2051-(sched_dev_df['site_cap']/250)),0)
+sched_dev_df['phase_yr'].where((sched_dev_df['phase_yr'] > 2016), other=2017, inplace=True)
 sched_dev_df['phase_yr'] = sched_dev_df['phase_yr'].apply(np.floor)
 
 
