@@ -43,7 +43,7 @@ parcel_sql = '''
              du_2017 AS residential_units, 
              0 as partial_build
       FROM urbansim.urbansim.parcel p
-      WHERE capacity_2 > 0 and site_id is NULL
+      WHERE capacity_2 > 0 and (site_id IS NULL or site_id = 15008)
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 

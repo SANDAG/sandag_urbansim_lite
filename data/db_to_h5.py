@@ -33,7 +33,7 @@ SELECT [parcel_id]
     ,0 AS partial_build
     ,0 AS priority
 FROM [urbansim].[urbansim].[parcel]
-WHERE [capacity_2] > 0 and [site_id] IS NULL
+WHERE [capacity_2] > 0 and ([site_id] IS NULL or site_id = 15008)
 ORDER BY parcel_id
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
