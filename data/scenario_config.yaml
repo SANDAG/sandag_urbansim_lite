@@ -12,7 +12,7 @@ scenario:
     # parcel sgoa at 2030 version 111
     # parcel sgoa at 2025 version 110
     # version 125 removed del mar resort
-    parcel_phase_yr: 149 #112
+    parcel_phase_yr: 150 #112
 
     # additional capacity units for simulation
     additional_capacity_version: 109
