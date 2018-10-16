@@ -3,8 +3,9 @@ import pandas as pd
 import bulk_insert
 
 
-# The .h5 file to match run_id=109 is saved at M:\RES\estimates & forecast\SR14 Forecast\UrbanSim\urbansim_v109.h5
-orca.add_injectable("store", pd.HDFStore('.\\data\\urbansim.h5', mode="r"))
+# The .h5 file to match run_id=400 is saved at M:\RES\estimates & forecast\SR14 Forecast\UrbanSim\DS_ID_18\urbansim_v400.h5
+# This is the .h5 used to create datasource 18, see [urbansim].[urbansim].[urbansim_lite_output_runs] for run details.
+orca.add_injectable("store", pd.HDFStore('M:\\RES\\estimates & forecast\\SR14 Forecast\\UrbanSim\\DS_ID_18\\urbansim_v400.h5', mode="r"))
 
 
 @orca.table('parcels', cache=True)
