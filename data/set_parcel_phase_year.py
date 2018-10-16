@@ -138,6 +138,7 @@ sched_dev_df = pd.read_sql(sched_dev_parcel_sql, mssql_engine)
 
 # # Selected sites are given manual overrides based on information from Mike Calandra
 # Override startdate
+# site 3396 in progress
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1746, 1921, 3395, 3396, 12075])), 'startdate'] = 2017
 sched_dev_df.loc[(sched_dev_df.site_id.isin([9009, 10009])), 'startdate'] = 2018
 sched_dev_df.loc[(sched_dev_df.site_id.isin([3404, 14075])), 'startdate'] = 2019
@@ -151,7 +152,7 @@ sched_dev_df.loc[(sched_dev_df.site_id.isin([250])), 'startdate'] = 2035
 # Override compdate
 sched_dev_df.loc[(sched_dev_df.site_id.isin([9009, 10009])), 'compdate'] = 2018
 sched_dev_df.loc[(sched_dev_df.site_id.isin([1820])), 'compdate'] = 2020
-sched_dev_df.loc[(sched_dev_df.site_id.isin([1746, 3389, 3390, 3395, 3396, 3404, 14075])), 'compdate'] = 2022
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1746, 3389, 3390, 3395, 3404, 14075])), 'compdate'] = 2022
 sched_dev_df.loc[(sched_dev_df.site_id.isin([7022, 9008, 12075])), 'compdate'] = 2025
 sched_dev_df.loc[(sched_dev_df.site_id.isin([899, 15005])), 'compdate'] = 2025
 sched_dev_df.loc[(sched_dev_df.site_id.isin([7001, 9007])), 'compdate'] = 2030
@@ -253,7 +254,9 @@ sched_dev_df.loc[(sched_dev_df.site_id.isin([2019,3063,2003,2015,2011,2013,2014,
 sched_dev_df.loc[(sched_dev_df.site_id.isin([15035,15019,15028,15029,15004,15007,15015,15016])),'phase_yr'] = 2036
 
 
-
+# based on source column in [urbansim].[ref].[scheduled_development_site]
+# "not developed in 2017"
+sched_dev_df.loc[(sched_dev_df.site_id.isin([1094,1746,1741,1816,1847,1921,18003,18005,13003,183,7046,6002])),'phase_yr'] = 2018
 
 sched_dev_df = sched_dev_df[['phase_yr','phase_yr_version_id','capacity_type']]
 sched_dev_df[['phase_yr','phase_yr_version_id']] = sched_dev_df[['phase_yr','phase_yr_version_id']].astype('int')
