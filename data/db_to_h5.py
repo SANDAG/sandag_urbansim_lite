@@ -181,7 +181,7 @@ SELECT [subregional_crtl_id]
     ,[control]
     ,[control_type]
     ,[max_units]
-FROM [urbansim].[urbansim].[urbansim_lite_subregional_control]
+FROM [urbansim].[urbansim].[urbansim_lite_subreg_control]
 WHERE [subregional_crtl_id] = %s
 ORDER BY [yr], [geo_id]
 '''
