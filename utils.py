@@ -962,12 +962,16 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         slim_df.rename(columns={"cap_jurisdiction_id": "jur_id", "remaining_capacity": "cap", "jur_or_cpa_id": "jcpa"},
                        inplace=True)
         slim_df.replace(['cc', 'mc', 'tc', 'tco', 'uc'], 'sgoa', inplace=True)
-        adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur'])]
+        slim_df2 = slim_df.loc[slim_df['jur_id'] != 14]
+        adjust_df = slim_df2.loc[slim_df2.capacity_type.isin(['jur'])]
         if adjust_df.cap.sum() < remaining_units:
-            chosen = feasible_parcels_df.loc[feasible_parcels_df.capacity_type.isin(['jur'])][['capacity_type',
-                                                                                               'remaining_capacity']]
+            if slim_df2.cap.sum() < remaining_units:
+                chosen = slim_df2.loc[slim_df2.capacity_type.isin(['jur'])][['capacity_type', 'cap']]
+            else:
+                chosen = adjust_df.loc[adjust_df.capacity_type.isin(['jur'])][['capacity_type', 'cap']]
+
             if len(chosen):
-                chosen.rename(columns={"remaining_capacity": "units_added"}, inplace=True)
+                chosen.rename(columns={"cap": "units_added"}, inplace=True)
                 remaining_units = int(remaining_units - chosen.units_added.sum())
                 chosen['source'] = 3
 
@@ -975,7 +979,13 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
                 sr14cap = sr14cap.append(chosen[['capacity_type', 'units_added', 'source']])
                 feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(chosen.index.tolist())]
 
-            adjust_df = slim_df.copy()
+            if remaining_units > 0:
+                adjust_df = feasible_parcels_df[['cap_jurisdiction_id', 'remaining_capacity', 'capacity_type',
+                                                 'jur_or_cpa_id']].copy()
+                adjust_df.rename(columns={"cap_jurisdiction_id": "jur_id", "remaining_capacity": "cap",
+                                          "jur_or_cpa_id": "jcpa"}, inplace=True)
+                adjust_df.replace(['cc', 'mc', 'tc', 'tco', 'uc'], 'sgoa', inplace=True)
+                adjust_df = adjust_df.loc[adjust_df.capacity_type.isin(['jur'])]
 
         units_available = adjust_df.groupby(['jcpa'], as_index=False)['cap'].sum()
         remaining_cap = units_available.cap.sum()
@@ -1033,23 +1043,25 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
                 feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(chosen.index.tolist())]
 
         if remaining_units > 0:
-            feasible_parcels_df.reset_index(inplace=True)
+            feasible_parcels_full_df = feasibility.to_frame().copy()
+            feasible_parcels_full_df.reset_index(inplace=True)
             sr14cap.reset_index(inplace=True)
-            feasible_parcels_df = pd.merge(feasible_parcels_df, sr14cap[['parcel_id', 'units_added', 'capacity_type']],
+            feasible_parcels_full_df = pd.merge(feasible_parcels_full_df, sr14cap[['parcel_id', 'units_added', 'capacity_type']],
                                            how='left', on=['parcel_id', 'capacity_type'])
-            feasible_parcels_df.set_index('parcel_id', inplace=True)
+            feasible_parcels_full_df.set_index('parcel_id', inplace=True)
             sr14cap.set_index('parcel_id', inplace=True)
-            feasible_parcels_df.units_added = feasible_parcels_df.units_added.fillna(0)
-            feasible_parcels_df['remaining_capacity'] = (
-                        feasible_parcels_df.capacity - feasible_parcels_df.capacity_used
-                        - feasible_parcels_df.units_added)
-            feasible_parcels_df['remaining_capacity'] = feasible_parcels_df['remaining_capacity'].astype(int)
-            feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.remaining_capacity > 0].copy()
-            feasible_parcels_df['partial_build'].where(feasible_parcels_df['units_added'] == 0,
-                                                       other=feasible_parcels_df['units_added'], inplace=True)
-            feasible_parcels_df = feasible_parcels_df.drop(['units_added'], 1)
-            feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(sr14cap.index.tolist())]
-            chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
+            feasible_parcels_full_df.units_added = feasible_parcels_full_df.units_added.fillna(0)
+            feasible_parcels_full_df['remaining_capacity'] = (
+                        feasible_parcels_full_df.capacity - feasible_parcels_full_df.capacity_used
+                        - feasible_parcels_full_df.units_added)
+            feasible_parcels_full_df['remaining_capacity'] = feasible_parcels_full_df['remaining_capacity'].astype(int)
+            feasible_parcels_full_df = feasible_parcels_full_df.loc[feasible_parcels_full_df.remaining_capacity > 0].copy()
+            feasible_parcels_full_df['partial_build'].where(feasible_parcels_full_df['units_added'] == 0,
+                                                       other=feasible_parcels_full_df['units_added'], inplace=True)
+            feasible_parcels_full_df = feasible_parcels_full_df.drop(['units_added'], 1)
+            feasible_parcels_full_df = feasible_parcels_full_df.loc[~feasible_parcels_full_df.index.isin(sr14cap.index.tolist())]
+
+            chosen = parcel_picker(feasible_parcels_full_df, remaining_units, "all", year)
             if len(chosen):
                 chosen['source'] = 3
                 # Add the selected parcels and units to the sr14cap dataframe.
