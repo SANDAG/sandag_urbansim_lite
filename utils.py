@@ -837,14 +837,16 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # current iteration year. target_units will be the target taking into account the cumulative totals. In essence,
     # this is a check that the year-by-year values match the cumulative totals. target_units should be equal to
     # current_hh less ADU and scheduled development units for the current year.
+
     num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())
     target_units = int(max(net_hh - num_units, 0))
-    target_without_adu = int(max(net_hh - num_units - adu_unit_count, 0))
+    # target_without_adu = int(max(net_hh - num_units - adu_unit_count, 0))
     parcels = orca.get_table('parcels').to_frame()
     built_this_yr = hu_forecast_df.loc[hu_forecast.year_built==year]
-    built_this_yr = pd.merge( built_this_yr ,parcels[['parcel_id','jur_or_cpa_id']], how='left', left_on=['parcel_id'],
+    built_this_yr2 = pd.concat([built_this_yr,sr14cap])
+    built_this_yr2 = pd.merge( built_this_yr2 ,parcels[['parcel_id','jur_or_cpa_id']], how='left', left_on=['parcel_id'],
                        right_on=['parcel_id'])
-    units_built_sch_adu = built_this_yr.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
+    units_built_sch_adu = built_this_yr2.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
 
     #subregional_targets = largest_remainder_allocation(control_totals_by_year, target_without_adu)
     subregional_targets = largest_remainder_allocation(control_totals_by_year, current_hh)
