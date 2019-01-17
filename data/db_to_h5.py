@@ -38,6 +38,43 @@ ORDER BY parcel_id
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 parcels_df['site_id'] = parcels_df.site_id.astype(float)
+parcels_df.set_index('parcel_id',inplace=True)
+
+
+# SQL statement for parcels with additional (SGOA and ADU) capacity.
+city_update_sql = '''
+SELECT a.[parcel_id]
+    ,p.[mgra_id]
+    ,p.[cap_jurisdiction_id]
+    ,p.[jurisdiction_id]
+    ,p.[luz_id]
+    ,p.[site_id]
+    ,a.[du] AS capacity
+    ,p.[du_2017] AS residential_units
+    ,p.[development_type_id_2017] AS dev_type_2017
+    ,p.[development_type_id_2015] AS dev_type_2015
+    ,p.[lu_2015]
+    ,p.[lu_2017]
+    ,p.[lu_2017] AS lu_sim
+    ,'jur' AS capacity_type
+    ,0 as capacity_used
+    ,0 as partial_build
+    ,0 AS priority
+FROM [urbansim].[urbansim].[additional_capacity] AS a
+JOIN [urbansim].[parcel] AS p 
+ON p.[parcel_id] = a.[parcel_id]
+WHERE [version_id] = %s and type ='upd'
+ORDER BY a.[parcel_id]
+'''
+city_update_sql = city_update_sql % scenarios['additional_capacity_version']
+city_update_df = pd.read_sql(city_update_sql, mssql_engine)
+city_update_df['site_id'] = city_update_df.site_id.astype(float)
+city_update_df.set_index('parcel_id',inplace=True)
+
+parcels_df.update(city_update_df)
+parcels_df.reset_index(inplace=True)
+
+# parcels_df.loc[parcels_df.parcel_id==130255]
 
 # SQL statement for all parcels (excludes scheduled development).
 all_parcel_sql = '''
@@ -87,7 +124,7 @@ SELECT a.[parcel_id]
 FROM [urbansim].[urbansim].[additional_capacity] AS a
 JOIN [urbansim].[parcel] AS p 
 ON p.[parcel_id] = a.[parcel_id]
-WHERE [version_id] = %s
+WHERE [version_id] = %s and type !='upd'
 ORDER BY a.[parcel_id]
 '''
 assigned_parcel_sql = assigned_parcel_sql % scenarios['additional_capacity_version']
