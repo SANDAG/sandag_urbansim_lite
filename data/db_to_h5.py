@@ -130,7 +130,7 @@ SELECT a.[parcel_id]
 FROM [urbansim].[urbansim].[additional_capacity] AS a
 JOIN [urbansim].[parcel] AS p 
 ON p.[parcel_id] = a.[parcel_id]
-WHERE [version_id] = %s
+WHERE [version_id] = %s and type !='upd'
 ORDER BY a.[parcel_id]
 '''
 assigned_parcel_sql = assigned_parcel_sql % scenarios['additional_capacity_version']
@@ -361,6 +361,8 @@ sched_dev = pd.merge(sched_dev_df, geography_view_df, how='left', on='parcel_id'
 sched_dev.jur_or_cpa_id = sched_dev.jur_or_cpa_id.astype(int)
 sched_dev.parcel_id = sched_dev.parcel_id.astype(int)
 sched_dev.capacity_type = sched_dev.capacity_type.astype(str)
+
+parcels.loc[((parcels.capacity_type!='sch') & (~parcels.site_id.isnull()))]
 
 # Store all the above tables in a .h5 file for use with orca. These are called via datasources.py, or directly retrieved
 # in certain portions of utils.py and bulk_insert.py.
