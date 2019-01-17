@@ -846,12 +846,13 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     built_this_yr.set_index('parcel_id',inplace=True)
     built_this_yr2 = pd.concat([built_this_yr,sr14cap])
     built_this_yr2.reset_index(inplace=True)
-    built_this_yr2 = pd.merge( built_this_yr2 ,parcels[['parcel_id','jur_or_cpa_id']], how='left', left_on=['parcel_id'],
-                       right_on=['parcel_id'])
+    built_this_yr2 = pd.merge(built_this_yr2 ,parcels[['parcel_id','capacity_type','jur_or_cpa_id']], how='left', left_on=['parcel_id','capacity_type'],
+                       right_on=['parcel_id','capacity_type'])
     units_built_sch_adu = built_this_yr2.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
 
     #subregional_targets = largest_remainder_allocation(control_totals_by_year, target_without_adu)
     subregional_targets = largest_remainder_allocation(control_totals_by_year, current_hh)
+
 
     if year < 2050:
         feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu']  # remove adu parcels
