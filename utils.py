@@ -725,7 +725,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             # that larger projects can build faster than smaller ones, but prevents them from building instantaneously.
             priority_then_random['units_for_year'] = np.ceil(priority_then_random.remaining_capacity / years_left).\
                 astype(int)
-            priority_then_random.loc[priority_then_random['units_for_year'] < 250, 'units_for_year'] = 250
+            priority_then_random.loc[priority_then_random['units_for_year'] < 1000, 'units_for_year'] = 1000
             priority_then_random.loc[priority_then_random['units_for_year'].notnull(), 'units_for_year'] = \
                 priority_then_random.loc[:, ['units_for_year', 'remaining_capacity']].min(axis=1)
 
