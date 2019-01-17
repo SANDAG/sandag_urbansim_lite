@@ -35,18 +35,30 @@ else:
     version_id = 1
 print('\nNew version_id: {}'.format(version_id))
 
+
 parcel_sql = '''
-      SELECT parcel_id, p.mgra_id, 
-             cap_jurisdiction_id,
-             jurisdiction_id,
-             p.luz_id, p.site_id, capacity_2 AS capacity_base_yr, 
-             du_2017 AS residential_units, 
-             0 as partial_build
+      SELECT parcel_id, jurisdiction_id,
+            capacity_2 AS capacity_base_yr 
       FROM urbansim.urbansim.parcel p
       WHERE capacity_2 > 0 and (site_id IS NULL or site_id = 15008)
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 
+city_update_sql = '''
+    SELECT a.parcel_id, 
+             p.jurisdiction_id,
+              a.du AS capacity_base_yr
+    FROM [urbansim].[urbansim].[additional_capacity] AS a
+    JOIN [urbansim].[parcel] AS p 
+    ON p.[parcel_id] = a.[parcel_id]
+    WHERE [version_id] = %s and type ='upd'
+    ORDER BY a.[parcel_id]
+'''
+city_update_sql = city_update_sql % scenarios['additional_capacity_version']
+city_update_df = pd.read_sql(city_update_sql, mssql_engine)
+
+parcels_df = pd.concat([parcels_df,city_update_df],sort=False).drop_duplicates(['parcel_id'],keep='last').sort_values('parcel_id')
+parcels_df.loc[parcels_df.parcel_id.isin([3171,5637,16465,130255,130551,131043,302369,307671,736938,4100124,5282707,5300214])]
 # xref_geography_sql = '''
 #     SELECT mgra_13, cocpa_2016, cicpa_13,cocpa_13, jurisdiction_2016,
 #            COALESCE(cocpa_2016,cicpa_13,cocpa_13) as CPAs
