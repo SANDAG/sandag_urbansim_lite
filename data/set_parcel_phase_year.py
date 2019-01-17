@@ -99,7 +99,7 @@ SELECT [version_id]
       ,[name]
       ,[du]
   FROM [urbansim].[urbansim].[additional_capacity]
-  where version_id = %s
+  where version_id = %s and type !='upd'
 '''
 assigned_parcel_sql = assigned_parcel_sql % scenarios['additional_capacity_version']
 
@@ -111,7 +111,7 @@ assigned_df.parcel_id = assigned_df.parcel_id.astype(int)
 #
 assigned_df.set_index('parcel_id',inplace=True)
 #
-assigned_df['phase_yr'] = 2036
+assigned_df['phase_yr'] = 2051
 assigned_df['phase_yr_version_id'] = version_id
 
 # The following jurisdictions have agreed to make their ADUs available for "realization" beginning from 2019
@@ -123,10 +123,10 @@ assigned_df['phase_yr_version_id'] = version_id
 
 # assigned_df.loc[((assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
 
-assigned_df.loc[((assigned_df.jur_id==14) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
-assigned_df.loc[((assigned_df.jur_id==2) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
-assigned_df.loc[((assigned_df.jur_id==12) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
-assigned_df.loc[((assigned_df.jur_id==5) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
+# assigned_df.loc[((assigned_df.jur_id==14) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
+# assigned_df.loc[((assigned_df.jur_id==2) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
+# assigned_df.loc[((assigned_df.jur_id==12) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
+# assigned_df.loc[((assigned_df.jur_id==5) & (assigned_df.capacity_type=='adu')),'phase_yr'] = 2019
 
 
 assigned_df = assigned_df[['phase_yr','phase_yr_version_id','capacity_type']]
