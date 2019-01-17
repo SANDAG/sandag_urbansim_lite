@@ -840,8 +840,14 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())
     target_units = int(max(net_hh - num_units, 0))
     target_without_adu = int(max(net_hh - num_units - adu_unit_count, 0))
+    parcels = orca.get_table('parcels').to_frame()
+    built_this_yr = hu_forecast_df.loc[hu_forecast.year_built==year]
+    built_this_yr = pd.merge( built_this_yr ,parcels[['parcel_id','jur_or_cpa_id']], how='left', left_on=['parcel_id'],
+                       right_on=['parcel_id'])
+    units_built_sch_adu = built_this_yr.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
 
-    subregional_targets = largest_remainder_allocation(control_totals_by_year, target_without_adu)
+    #subregional_targets = largest_remainder_allocation(control_totals_by_year, target_without_adu)
+    subregional_targets = largest_remainder_allocation(control_totals_by_year, current_hh)
 
     if year < 2050:
         feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu']  # remove adu parcels
@@ -874,18 +880,26 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         # already iteration year specific (see above).
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id'] == jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id'] == jur].max_units.values[0]
-
+        if len(units_built_sch_adu) > 0:
+            if jur in units_built_sch_adu.jur_or_cpa_id.tolist():
+                units_built_already =  units_built_sch_adu.loc[units_built_sch_adu.jur_or_cpa_id==jur].units_added.values[0]
+            else: units_built_already = 0
+        else: units_built_already = 0
         # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
         # because the minimum of a number and NaN would be NaN. (Usually subregion_max will be a null value).
         if pd.isnull(subregional_targets.loc[subregional_targets['geo_id'] == jur].target_units.values[0]):
             target_units_for_geo = np.nanmin(np.array([subregion_targets, subregion_max]))
+            target_units_for_geo = target_units_for_geo - units_built_already
             target_units_for_geo = int(target_units_for_geo)
         else:
             target_units_for_geo = int(subregional_targets.loc[subregional_targets['geo_id'] == jur].
                                        target_units.values[0])
+            target_units_for_geo = target_units_for_geo - units_built_already
+            target_units_for_geo = int(target_units_for_geo)
+
         geo_name = str(jur)
         print("Jurisdiction %s target units: %d" % (geo_name, target_units_for_geo))
-
+        # num_units_already = int(hu_forecast_df.loc[((hu_forecast_df.year_built ==year) & ())][supply_fname].sum())
         # Only use feasible parcels in the current sub-region when selecting parcels for the sub-region.
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
 
