@@ -39,7 +39,7 @@ ORDER BY parcel_id
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
 parcels_df['site_id'] = parcels_df.site_id.astype(float)
 # parcels_df.set_index('parcel_id',inplace=True)
-
+parcels_df['parcel_id'] = parcels_df.parcel_id.astype('int64')
 
 # SQL statement for parcels with additional (SGOA and ADU) capacity.
 city_update_sql = '''
@@ -56,7 +56,7 @@ SELECT a.[parcel_id]
     ,p.[lu_2015]
     ,p.[lu_2017]
     ,p.[lu_2017] AS lu_sim
-    ,'jur' AS capacity_type
+    ,'upd' AS capacity_type
     ,0 as capacity_used
     ,0 as partial_build
     ,0 AS priority
@@ -69,12 +69,15 @@ ORDER BY a.[parcel_id]
 city_update_sql = city_update_sql % scenarios['additional_capacity_version']
 city_update_df = pd.read_sql(city_update_sql, mssql_engine)
 city_update_df['site_id'] = city_update_df.site_id.astype(float)
+city_update_df['parcel_id'] = city_update_df.parcel_id.astype('int64')
 # city_update_df.set_index('parcel_id',inplace=True)
 
 #parcels_df.update(city_update_df)
 #parcels_df.reset_index(inplace=True)
 
-parcels_df = pd.concat([parcels_df,city_update_df],sort=False).drop_duplicates(['parcel_id'],keep='last').sort_values('parcel_id')
+# parcels_df = pd.concat([parcels_df,city_update_df],sort=False).drop_duplicates(['parcel_id'],keep='last').sort_values('parcel_id')
+parcels_df = pd.concat([parcels_df,city_update_df],sort=False)
+
 
 # parcels_df.loc[parcels_df.parcel_id.isin([3171,5637,16465,130255,130551,131043,302369,307671,736938,4100124,5282707,5300214])]
 # parcels_df.loc[parcels_df.parcel_id==130255]
