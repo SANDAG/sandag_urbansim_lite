@@ -43,6 +43,7 @@ parcel_sql = '''
       WHERE capacity_2 > 0 and (site_id IS NULL or site_id = 15008)
 '''
 parcels_df = pd.read_sql(parcel_sql, mssql_engine)
+parcels_df['capacity_type'] = 'jur'
 
 city_update_sql = '''
     SELECT a.parcel_id, 
@@ -56,8 +57,10 @@ city_update_sql = '''
 '''
 city_update_sql = city_update_sql % scenarios['additional_capacity_version']
 city_update_df = pd.read_sql(city_update_sql, mssql_engine)
+city_update_df['capacity_type'] = 'upd'
+# parcels_df = pd.concat([parcels_df,city_update_df],sort=False).drop_duplicates(['parcel_id'],keep='last').sort_values('parcel_id')
+parcels_df = pd.concat([parcels_df,city_update_df],sort=False)
 
-parcels_df = pd.concat([parcels_df,city_update_df],sort=False).drop_duplicates(['parcel_id'],keep='last').sort_values('parcel_id')
 parcels_df.loc[parcels_df.parcel_id.isin([3171,5637,16465,130255,130551,131043,302369,307671,736938,4100124,5282707,5300214])]
 # xref_geography_sql = '''
 #     SELECT mgra_13, cocpa_2016, cicpa_13,cocpa_13, jurisdiction_2016,
@@ -80,7 +83,7 @@ parcels_df.set_index('parcel_id',inplace=True)
 #
 parcels_df['phase_yr'] = 2017
 parcels_df['phase_yr_version_id'] = version_id
-parcels_df['capacity_type'] = 'jur'
+
 # parcels_df.loc[parcels_df.cocpa_2016==1904,'phase_yr'] = 2034
 parcels_df = parcels_df[['phase_yr','phase_yr_version_id','capacity_type']]
 
@@ -96,7 +99,7 @@ SELECT [version_id]
       ,[name]
       ,[du]
   FROM [urbansim].[urbansim].[additional_capacity]
-  where version_id = %s
+  where version_id = %s and type !='upd'
 '''
 assigned_parcel_sql = assigned_parcel_sql % scenarios['additional_capacity_version']
 
