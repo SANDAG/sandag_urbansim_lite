@@ -222,72 +222,96 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
     # Find the target number of units to be built in the current simulation year.
     target_units = int(households.to_frame().at[year, 'housing_units_add'])
     print('\n Number of households in year: %d' % target_units)
+    # adu_share_df = orca.get_table('adu_allocation').to_frame()
+    # adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * target_units, 0))
+    # target_units = target_units - adu_share
+
+    control_totals = reg_controls.to_frame()
+    control_totals_by_year = control_totals.loc[control_totals.yr == year].copy()
+    subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
 
     # Determine if ADUs are expected in the given year, and 'under-produce' scheduled developments to allow for the
     # appropriate number of ADUs without exceeding the target number of units for the year.
-    adu_share_df = orca.get_table('adu_allocation').to_frame()
-    adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * target_units, 0))
-    target_units = target_units - adu_share
     feasible_parcels_df = feasibility.to_frame().copy()
 
     # Determine the available capacity for each parcel.
     feasible_parcels_df['remaining_capacity'] = feasible_parcels_df.capacity - feasible_parcels_df.capacity_used
     feasible_parcels_df.remaining_capacity = feasible_parcels_df.remaining_capacity.astype(int)
     parcels_sch = feasible_parcels_df.loc[feasible_parcels_df.capacity_type == 'sch'].copy()
+    sr14cap = pd.DataFrame()
 
-    if (len(parcels_sch) > 0) & (year != 2017):
-        shuffled_parcels = parcels_sch.sample(frac=1, random_state=1).reset_index(drop=False)
-        capacity_sch = shuffled_parcels.copy()  # keep for consistency# type: pd.DataFrame
-        capacity_site = capacity_sch.groupby(['site_id', 'phase_yr', 'jur_or_cpa_id']).\
-            agg({'remaining_capacity': 'sum', 'partial_build': 'sum'}).reset_index()
+    for jur in control_totals.geo_id.unique().tolist():
+        jur_parcels_sch = parcels_sch.loc[parcels_sch.jur_or_cpa_id == jur].copy()
+        # Pull the appropriate sub-regional target unit value, and the max_units for the sub-region. These values are
+        # already iteration year specific (see above).
+        subregion_targets = subregional_targets.loc[subregional_targets['geo_id'] == jur].targets.values[0]
+        subregion_max = subregional_targets.loc[subregional_targets['geo_id'] == jur].max_units.values[0]
 
-        # Unwraps the dataframes
-        years_left = 2051 - year
-        capacity_site = capacity_site.sample(frac=1, random_state=1).reset_index(drop=False)
-        capacity_site.sort_values(by=['partial_build'], ascending=[False],
-                                  inplace=True)
-        capacity_site['units_for_year'] = np.ceil(capacity_site.remaining_capacity / years_left).astype(int)
-        capacity_site.loc[capacity_site['units_for_year'] < 250, 'units_for_year'] = 250
-        capacity_site.loc[capacity_site['site_id'] == 19002, 'units_for_year'] = 200
-        capacity_site.loc[capacity_site['site_id'] == 19017, 'units_for_year'] = 65
-        capacity_site.loc[capacity_site['site_id'] == 19018, 'units_for_year'] = 90
-        capacity_site.loc[capacity_site['units_for_year'].notnull(), 'units_for_year'] = \
-            capacity_site.loc[:, ['units_for_year', 'remaining_capacity']].min(axis=1)
+        # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
+        # because the minimum of a number and NaN would be NaN. (Usually subregion_max will be a null value).
+        if pd.isnull(subregional_targets.loc[subregional_targets['geo_id'] == jur].target_units.values[0]):
+            target_units_for_geo = np.nanmin(np.array([subregion_targets, subregion_max]))
+            target_units_for_geo = int(target_units_for_geo)
+        else:
+            target_units_for_geo = int(subregional_targets.loc[subregional_targets['geo_id'] == jur].
+                                       target_units.values[0])
+            target_units_for_geo = int(target_units_for_geo)
 
-        one_row_per_unit = capacity_site.reindex(capacity_site.index.repeat(
-            capacity_site.units_for_year)).reset_index(drop=True)
-        one_row_per_unit_picked = one_row_per_unit.head(target_units)
-        sites_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.groupby(['site_id']).
-                                    size()}).reset_index()
-        new_sch = capacity_sch[['parcel_id', 'site_id', 'remaining_capacity']].sample(frac=1, random_state=1). \
-            sort_values(by='site_id')
-        merge_sch = pd.merge(new_sch, sites_picked, how='left', on=['site_id'])
-        merge_sch['cum_remaining'] = merge_sch.groupby('site_id')['remaining_capacity'].cumsum()
-        merge_sch['remaining_units'] = merge_sch['units_added'].subtract(merge_sch['cum_remaining'],
-                                                                         level=merge_sch['site_id'])
-        merge_sch['remaining_units'] = merge_sch.groupby(['site_id'])['remaining_units'].shift(1)
-        merge_sch.loc[merge_sch['units_added'].notnull(), 'remaining_units'] = \
-            merge_sch.loc[:, ['units_added', 'remaining_units']].min(axis=1)
-        merge_sch.loc[merge_sch['units_added'].notnull(), 'units_added'] = \
-            merge_sch.loc[:, ['remaining_capacity', 'remaining_units']].min(axis=1)
-        merge_sch.loc[merge_sch['units_added'] < 0, 'units_added'] = 0
-        merge_sch = merge_sch.loc[merge_sch['units_added'] > 0]
-        sch_picked = merge_sch[['parcel_id', 'units_added']].copy()
-        shuffled_parcels = pd.merge(shuffled_parcels, sch_picked, how='left', on=['parcel_id'])
-        shuffled_parcels['units_added'] = shuffled_parcels['units_added'].fillna(0).astype(int)
-        shuffled_parcels['remaining_capacity'] = shuffled_parcels['remaining_capacity'] - shuffled_parcels[
-            'units_added']
-        shuffled_parcels = shuffled_parcels.drop(['units_added'], axis=1)
-        sch_picked['capacity_type'] = 'sch'
-    else:
-        sch_picked = pd.DataFrame(columns=['parcel_id', 'capacity_type', 'units_added'])
+        if (len(jur_parcels_sch) > 0) & (year != 2017):
+            shuffled_parcels = jur_parcels_sch.sample(frac=1, random_state=1).reset_index(drop=False)
+            capacity_sch = shuffled_parcels.copy()  # keep for consistency# type: pd.DataFrame
+            capacity_site = capacity_sch.groupby(['site_id', 'phase_yr', 'jur_or_cpa_id']).\
+                agg({'remaining_capacity': 'sum', 'partial_build': 'sum'}).reset_index()
 
-    if len(sch_picked) > 0:
-        sch_picked['year_built'] = year
-        sch_picked['source'] = 1
+            # Unwraps the dataframes
+            years_left = 2051 - year
+            capacity_site = capacity_site.sample(frac=1, random_state=1).reset_index(drop=False)
+            capacity_site.sort_values(by=['partial_build'], ascending=[False],
+                                      inplace=True)
+            capacity_site['units_for_year'] = np.ceil(capacity_site.remaining_capacity / years_left).astype(int)
+            capacity_site.loc[capacity_site['units_for_year'] < 250, 'units_for_year'] = 250
+            capacity_site.loc[capacity_site['site_id'] == 19002, 'units_for_year'] = 200
+            capacity_site.loc[capacity_site['site_id'] == 19017, 'units_for_year'] = 65
+            capacity_site.loc[capacity_site['site_id'] == 19018, 'units_for_year'] = 90
+            capacity_site.loc[capacity_site['units_for_year'].notnull(), 'units_for_year'] = \
+                capacity_site.loc[:, ['units_for_year', 'remaining_capacity']].min(axis=1)
+
+            one_row_per_unit = capacity_site.reindex(capacity_site.index.repeat(
+                capacity_site.units_for_year)).reset_index(drop=True)
+            one_row_per_unit_picked = one_row_per_unit.head(target_units_for_geo)
+            sites_picked = pd.DataFrame({'units_added': one_row_per_unit_picked.groupby(['site_id']).
+                                        size()}).reset_index()
+            new_sch = capacity_sch[['parcel_id', 'site_id', 'remaining_capacity']].sample(frac=1, random_state=1). \
+                sort_values(by='site_id')
+            merge_sch = pd.merge(new_sch, sites_picked, how='left', on=['site_id'])
+            merge_sch['cum_remaining'] = merge_sch.groupby('site_id')['remaining_capacity'].cumsum()
+            merge_sch['remaining_units'] = merge_sch['units_added'].subtract(merge_sch['cum_remaining'],
+                                                                             level=merge_sch['site_id'])
+            merge_sch['remaining_units'] = merge_sch.groupby(['site_id'])['remaining_units'].shift(1)
+            merge_sch.loc[merge_sch['units_added'].notnull(), 'remaining_units'] = \
+                merge_sch.loc[:, ['units_added', 'remaining_units']].min(axis=1)
+            merge_sch.loc[merge_sch['units_added'].notnull(), 'units_added'] = \
+                merge_sch.loc[:, ['remaining_capacity', 'remaining_units']].min(axis=1)
+            merge_sch.loc[merge_sch['units_added'] < 0, 'units_added'] = 0
+            merge_sch = merge_sch.loc[merge_sch['units_added'] > 0]
+            sch_picked = merge_sch[['parcel_id', 'units_added']].copy()
+            shuffled_parcels = pd.merge(shuffled_parcels, sch_picked, how='left', on=['parcel_id'])
+            shuffled_parcels['units_added'] = shuffled_parcels['units_added'].fillna(0).astype(int)
+            shuffled_parcels['remaining_capacity'] = shuffled_parcels['remaining_capacity'] - shuffled_parcels[
+                'units_added']
+            shuffled_parcels = shuffled_parcels.drop(['units_added'], axis=1)
+            sch_picked['capacity_type'] = 'sch'
+        else:
+            sch_picked = pd.DataFrame(columns=['parcel_id', 'capacity_type', 'units_added'])
+
+        sr14cap = sr14cap.append(sch_picked[['parcel_id', 'capacity_type', 'units_added']])
+
+    if len(sr14cap) > 0:
+        sr14cap['year_built'] = year
+        sr14cap['source'] = 1
         # Adds the new scheduled_developments to the hu_forecast table.
         sim_builds = hu_forecast.to_frame(hu_forecast.local_columns)
-        sim_units = pd.concat([sim_builds, sch_picked[sim_builds.columns]])  # type: pd.DataFrame
+        sim_units = pd.concat([sim_builds, sr14cap[sim_builds.columns]])  # type: pd.DataFrame
         sim_units.reset_index(drop=True, inplace=True)
         sim_units.source = sim_units.source.astype(int)
         orca.add_table("hu_forecast", sim_units)
@@ -388,7 +412,7 @@ def run_feasibility(year):
     orca.add_table("feasibility", feasible_parcels)
 
 
-def adu_picker(year, current_hh, feasible_parcels_df, adu_share):
+def adu_picker(feasible_parcels_df, adu_share):
     """
     Selects additional dwelling unit parcels to build each year (1 additional unit on an existing residential parcel).
 
@@ -793,6 +817,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     hh_df = households.to_frame()
     feasible_parcels_df = feasibility.to_frame().copy()
     hu_forecast_df = hu_forecast.to_frame()
+    parcels = orca.get_table('parcels').to_frame()
 
     # Creates empty dataframe to track added parcels
     sr14cap = pd.DataFrame()
@@ -810,21 +835,58 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     net_hh = int(hh_df.at[year, 'total_housing_units'])
     current_hh = int(hh_df.at[year, 'housing_units_add'])
 
+    #subregional_targets = largest_remainder_allocation(control_totals_by_year, target_without_adu)
+    subregional_targets = largest_remainder_allocation(control_totals_by_year, current_hh)
+
     adu_share_df = orca.get_table('adu_allocation').to_frame()
+    feasible_adu = feasible_parcels_df.loc[feasible_parcels_df.capacity_type == 'adu'].copy()
+    feasible_totals = feasible_parcels_df.groupby(['jur_or_cpa_id'], as_index=False)['capacity'].sum()
+    adu_totals = feasible_parcels_df.loc[feasible_parcels_df.capacity_type == 'adu'].groupby(['jur_or_cpa_id'], as_index=False)['capacity'].sum()
+    adu_percent = pd.merge(feasible_totals, adu_totals, how='left', on=['jur_or_cpa_id'])
+    adu_percent['adu_portion'] = adu_percent.capacity_y / adu_percent.capacity_x
+
     adu_target = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
+    built_this_yr = hu_forecast_df.loc[hu_forecast.year_built == year]
+    built_this_yr2 = pd.merge(built_this_yr, parcels[['parcel_id', 'capacity_type', 'jur_or_cpa_id']], how='left',
+                              on=['parcel_id', 'capacity_type'])
+    units_built_sch = built_this_yr2.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
+    adu_jurs = pd.merge(subregional_targets[['geo_id', 'targets']], units_built_sch, how='left', left_on=['geo_id'],
+                        right_on=['jur_or_cpa_id'])
+    adu_jurs.units_added.fillna(0, inplace=True)
+    adu_jurs['leftover'] = adu_jurs.targets - adu_jurs.units_added
+    adu_jurs = adu_jurs.loc[adu_jurs.leftover > 0]
+    adu_jurs = pd.merge(adu_jurs, adu_percent[['jur_or_cpa_id', 'adu_portion']], how='left', left_on=['geo_id'],
+                        right_on=['jur_or_cpa_id'])
+    adu_jurs.sort_values(by=['adu_portion'], ascending=False, inplace=True)
+    adu_jur_list = adu_jurs.geo_id.tolist()
+    sch_units = built_this_yr.units_added.sum()
+    max_remaining = current_hh - sch_units
+    adu_target2 = min(max_remaining, adu_target)
+    adu_builds = pd.DataFrame(columns=['parcel_id', 'capacity_type', 'units_added', 'source'])
+    feasible_adu = feasible_adu.loc[feasible_adu.jur_or_cpa_id.isin(adu_jur_list)]
+    #adu_builds = adu_picker(feasible_adu, adu_target)
+    if adu_target2 > 0:
+        for geo in adu_jurs.geo_id.unique().tolist():
+            feasible_adu_geo = feasible_adu.loc[feasible_adu.jur_or_cpa_id == geo].copy()
+            geo_adu_target = int(min(adu_target2, adu_jurs.loc[adu_jurs.geo_id == geo].leftover.values[0]))
+            adu_prog = adu_picker(feasible_adu_geo, geo_adu_target)
+            if len(adu_prog) > 0:
+                adu_target2 = adu_target2 - adu_prog.units_added.sum()
+                adu_builds = adu_builds.append(adu_prog[['parcel_id', 'capacity_type', 'units_added', 'source']])
+
     # Run the adu_picker before determining other builds for the year. Doing this first allows for better control of
     # how many ADUs are chosen in each year rather than allowing them to be randomly selected from the pool of
     # feasible parcels.
-    adu_builds = adu_picker(year, current_hh, feasible_parcels_df, adu_target)
+    # adu_builds = adu_picker(feasible_adu, adu_target)
     # If ADU parcels were chosen, add them to the dataframe of parcel changes. If there are no parcels selected (such
     # as in 2017-2018) simply return the original empty dataframe.
     try:
         adu_unit_count = adu_builds.units_added.sum()
     except ValueError:
         adu_unit_count = 0
+    if adu_unit_count != adu_target:
+        print('Wrong number of ADUs built!')
     if adu_unit_count > 0:
-        if adu_unit_count != adu_target:
-            print('Wrong number of ADUs built!')
         sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']])
         sr14cap.set_index('parcel_id', inplace=True)
         print('ADU units added: {}'.format(adu_unit_count))
@@ -840,23 +902,16 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
 
     num_units = int(hu_forecast_df.loc[hu_forecast_df.year_built > 2016][supply_fname].sum())
     target_units = int(max(net_hh - num_units, 0))
-    # target_without_adu = int(max(net_hh - num_units - adu_unit_count, 0))
-    parcels = orca.get_table('parcels').to_frame()
-    built_this_yr = hu_forecast_df.loc[hu_forecast.year_built==year]
-    built_this_yr.set_index('parcel_id',inplace=True)
+    # # target_without_adu = int(max(net_hh - num_units - adu_unit_count, 0))
+    built_this_yr.set_index('parcel_id', inplace=True)
     built_this_yr2 = pd.concat([built_this_yr,sr14cap])
     built_this_yr2.reset_index(inplace=True)
     built_this_yr2 = pd.merge(built_this_yr2 ,parcels[['parcel_id','capacity_type','jur_or_cpa_id']], how='left', left_on=['parcel_id','capacity_type'],
                        right_on=['parcel_id','capacity_type'])
     units_built_sch_adu = built_this_yr2.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
-
-    #subregional_targets = largest_remainder_allocation(control_totals_by_year, target_without_adu)
-    subregional_targets = largest_remainder_allocation(control_totals_by_year, current_hh)
-
-
-    if year < 2050:
-        feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu']  # remove adu parcels
-
+    #
+    # if year < 2050:
+    #     feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu']  # remove adu parcels
     # Print statements to see the current values of the above numbers.
     print("Number of households: {:,}".format(net_hh))
     print("Number of units: {:,}".format(num_units))

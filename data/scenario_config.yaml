@@ -2,7 +2,7 @@ scenario:
 
     # database scenario to use in simulation
     # was 17
-    subregional_ctrl_id: 210 #209 (403) #6 #207 #6 # 174 #17
+    subregional_ctrl_id: 212 #209 (403) #6 #207 #6 # 174 #17
     subregional_targets_id: 112 #111 # For the 1st year estimates, should not need to change
 
     # target housing units for simulation
@@ -15,7 +15,7 @@ scenario:
     parcel_phase_yr: 155 # 150 (403) #112
 
     # additional capacity units for simulation
-    additional_capacity_version: 110 #109 (403)
+    additional_capacity_version: 111 #109 (403)
 
     # [urbansim].[scheduled_development_priority]
     sched_dev_version: 149 #102
