@@ -846,7 +846,8 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     adu_percent['adu_portion'] = adu_percent.capacity_y / adu_percent.capacity_x
 
     adu_target = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
-    built_this_yr = hu_forecast_df.loc[hu_forecast.year_built == year]
+    built_this_yr = hu_forecast_df.loc[hu_forecast.year_built == year].copy()
+    built_this_yr['parcel_id'] = built_this_yr.parcel_id.astype(int)
     built_this_yr2 = pd.merge(built_this_yr, parcels[['parcel_id', 'capacity_type', 'jur_or_cpa_id']], how='left',
                               on=['parcel_id', 'capacity_type'])
     units_built_sch = built_this_yr2.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
