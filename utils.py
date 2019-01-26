@@ -734,6 +734,10 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             previously_picked = shuffled_parcels.loc[(shuffled_parcels.partial_build > 0) &
                                                      (shuffled_parcels.capacity_type != 'sch')]
 
+            # Subset parcels that are updated capacity
+            capacity_upd = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'upd') &
+                                                (shuffled_parcels.partial_build == 0)]
+
             # Subset parcels with jurisdiction-provided capacity and that aren't partially built
             capacity_jur = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'jur') &
                                                 (shuffled_parcels.partial_build == 0)]
@@ -742,7 +746,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             adu_parcels = shuffled_parcels.loc[shuffled_parcels.capacity_type == 'adu']
 
             # Non-Scheduled Development Parcels
-            priority_parcels = pd.concat([previously_picked, capacity_jur])  # type: pd.DataFrame
+            priority_parcels = pd.concat([previously_picked, capacity_upd, capacity_jur])  # type: pd.DataFrame
 
             # Remove the subset parcels above from the rest of the shuffled parcels. In effect this should leave
             # only parcels with an SGOA capacity_type in the shuffled parcels dataframe.
