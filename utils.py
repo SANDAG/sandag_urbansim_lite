@@ -226,9 +226,17 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
     # adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * target_units, 0))
     # target_units = target_units - adu_share
 
+    parcels = parcels.to_frame()
+    hu_forecast_df = hu_forecast.to_frame()
     control_totals = reg_controls.to_frame()
     control_totals_by_year = control_totals.loc[control_totals.yr == year].copy()
     subregional_targets = largest_remainder_allocation(control_totals_by_year, target_units)
+
+    built_this_yr = hu_forecast_df.loc[hu_forecast.year_built == year].copy()
+    built_this_yr['parcel_id'] = built_this_yr.parcel_id.astype(int)
+    built_this_yr = pd.merge(built_this_yr, parcels[['parcel_id', 'capacity_type', 'jur_or_cpa_id']], how='left',
+                              left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
+    units_built_matching = built_this_yr.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
 
     # Determine if ADUs are expected in the given year, and 'under-produce' scheduled developments to allow for the
     # appropriate number of ADUs without exceeding the target number of units for the year.
@@ -247,14 +255,21 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
         subregion_targets = subregional_targets.loc[subregional_targets['geo_id'] == jur].targets.values[0]
         subregion_max = subregional_targets.loc[subregional_targets['geo_id'] == jur].max_units.values[0]
 
+        if len(units_built_matching) > 0:
+            if jur in units_built_matching.jur_or_cpa_id.tolist():
+                units_built_already = units_built_matching.loc[units_built_matching.jur_or_cpa_id==jur].units_added.values[0]
+            else: units_built_already = 0
+        else: units_built_already = 0
         # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
         # because the minimum of a number and NaN would be NaN. (Usually subregion_max will be a null value).
         if pd.isnull(subregional_targets.loc[subregional_targets['geo_id'] == jur].target_units.values[0]):
             target_units_for_geo = np.nanmin(np.array([subregion_targets, subregion_max]))
+            target_units_for_geo = target_units_for_geo - units_built_already
             target_units_for_geo = int(target_units_for_geo)
         else:
             target_units_for_geo = int(subregional_targets.loc[subregional_targets['geo_id'] == jur].
                                        target_units.values[0])
+            target_units_for_geo = target_units_for_geo - units_built_already
             target_units_for_geo = int(target_units_for_geo)
 
         if (len(jur_parcels_sch) > 0) & (year != 2017):
@@ -1202,3 +1217,69 @@ def summary(year):
     # next iteration year will pull accurate values for capacity_used on the parcels.
     parcels = parcel_table_update_units(parcels, current_builds)
     orca.add_table("parcels", parcels)
+
+
+def run_matching(run_match_output, target_match, regional_controls, households, hu_forecast):
+    # Unwraps the dataframes
+    target_to_match_df = target_match.to_frame()
+    control_totals_df = regional_controls.to_frame()
+    hh_df = households.to_frame()
+    run_match_df = run_match_output.to_frame()
+    parcels = orca.get_table('parcels').to_frame()
+
+    # Creates empty dataframe to track added parcels
+    sr14cap = pd.DataFrame()
+
+    target_comparison_df = pd.DataFrame()
+    for year in control_totals_df.yr.unique().tolist():
+        control_totals_by_year = control_totals_df.loc[control_totals_df.yr == year].copy()
+        current_hh = int(hh_df.at[year, 'housing_units_add'])
+        subregional_targets = largest_remainder_allocation(control_totals_by_year, current_hh)
+        target_comparison_df = target_comparison_df.append(subregional_targets[['geo_id', 'yr', 'targets']])
+
+    matched_geos = pd.merge(target_to_match_df, target_comparison_df, how='left', left_on=['jcpa', 'year_simulation'],
+                            right_on=['geo_id', 'yr'])
+    matched_geos['diffs'] = matched_geos.targets - matched_geos.unit_change
+
+    num_match = 0
+    num_low = 0
+    num_high = 0
+    num_total = 0
+    for yr, geo_id in zip(matched_geos.yr, matched_geos.geo_id):
+        num_total = num_total + 1
+        compatible_value = matched_geos.loc[(matched_geos.yr == yr) & (matched_geos.geo_id == geo_id)].diffs.values[0]
+        if (num_total % 600) == 0:
+            print('{0}% done...'.format(round(num_total/24.45, 3)))
+        if compatible_value >= 0:
+            full_match_geo = run_match_df.loc[(run_match_df.year_simulation == yr) &
+                                              (run_match_df.jcpa == geo_id)].copy()
+            sr14cap = sr14cap.append(full_match_geo[['parcel_id', 'unit_change', 'year_simulation', 'capacity_type']])
+        if compatible_value == 0:
+            num_match = num_match + 1
+        elif compatible_value > 0:
+            num_high = num_high + 1
+        else:
+            num_low = num_low + 1
+
+    if len(sr14cap) > 0:
+        # Adds the new scheduled_developments to the hu_forecast table.
+        sr14cap.reset_index(inplace=True, drop=True)
+        sr14cap.rename(columns={'year_simulation': 'year_built'}, inplace=True)
+        sr14cap.rename(columns={'unit_change': 'units_added'}, inplace=True)
+        condense_builds = pd.DataFrame({'units_added': sr14cap.groupby(["parcel_id", "year_built", "capacity_type"]).
+                                       units_added.sum()}).reset_index()
+        condense_builds['source'] = 6
+        all_hu_forecast = pd.concat([hu_forecast.to_frame(hu_forecast.local_columns),
+                                     condense_builds[hu_forecast.local_columns]])  # type: pd.DataFrame
+        all_hu_forecast.reset_index(drop=True, inplace=True)
+        orca.add_table("hu_forecast", all_hu_forecast)
+
+        matched_builds = pd.DataFrame({'units_added': all_hu_forecast.groupby(["parcel_id", "capacity_type"]).
+                                      units_added.sum()}).reset_index()
+        parcels = parcel_table_update_units(parcels, matched_builds)
+        orca.add_table("parcels", parcels)
+
+    print('The current scenario will match {0} geo/year combinations (of {1}) exactly.\n{2} geo/years match but will need additional units.\n{3} geo/years now have reduced targets below the run to match.'.format(num_match,num_total,num_high,num_low))
+    #exit()
+
+    #unmatched_geos = matched_geos.loc[~(matched_geos.diffs == 0)]
