@@ -365,7 +365,37 @@ sched_dev.jur_or_cpa_id = sched_dev.jur_or_cpa_id.astype(int)
 sched_dev.parcel_id = sched_dev.parcel_id.astype(int)
 sched_dev.capacity_type = sched_dev.capacity_type.astype(str)
 
-parcels.loc[((parcels.capacity_type!='sch') & (~parcels.site_id.isnull()))]
+# parcels.loc[((parcels.capacity_type!='sch') & (~parcels.site_id.isnull()))]
+
+# Pull Run to match results
+run_match_sql = '''
+SELECT o.[parcel_id]
+    ,[unit_change]
+    ,[year_simulation]
+    ,[capacity_type]
+    ,[run_id]
+    ,g.[jcpa]
+    FROM [urbansim].[urbansim].[urbansim_lite_output] o
+    JOIN [urbansim].[ref].[vi_parcel_geo_names] g
+    ON o.parcel_id = g.parcel_id
+    where run_id = %s
+'''
+run_match_sql = run_match_sql % scenarios['run_to_match']
+run_match_df = pd.read_sql(run_match_sql, mssql_engine)
+run_match_df.capacity_type = run_match_df.capacity_type.astype(str)
+
+target_match_sql = '''
+SELECT jcpa
+    ,[year_simulation]
+    ,sum([unit_change]) as unit_change
+    FROM [urbansim].[urbansim].[urbansim_lite_output] o
+    JOIN [ref].[vi_parcel_geo_names] g
+    on g.parcel_id = o.parcel_id
+    where run_id = %s
+    group by jcpa, year_simulation
+'''
+target_match_sql = target_match_sql % scenarios['run_to_match']
+target_match_df = pd.read_sql(target_match_sql, mssql_engine)
 
 # Store all the above tables in a .h5 file for use with orca. These are called via datasources.py, or directly retrieved
 # in certain portions of utils.py and bulk_insert.py.
@@ -383,3 +413,5 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('dev_lu_table', dev_lu_df, format='table')
     store.put('adu_allocation', adu_allocation_df, format='table')
     store.put('adu_allocation2', adu_allocation_df2, format='table')
+    store.put('run_match_output', run_match_df, format='table')
+    store.put('target_match', target_match_df, format='table')
