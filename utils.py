@@ -134,11 +134,13 @@ def largest_remainder_allocation(regional_targets, target_units):
         results[indices[0:remainder]] += 1
 
     if remainder < 0:
+        print('fix this')
+        exit()
         # If there is an over-allocation of units, deducts the extra(s) from region cpa=1920 (Valley Center).
         # This is because the Unincorporated County expects to fill up later than other cities.
-        idx = regional_targets.index[regional_targets.geo_id == 1920]
-        results[idx] = results[idx] + remainder
-        print('\n\nNegative remainder: %d' % remainder)
+        # idx = regional_targets.index[regional_targets.geo_id == 1920]
+        # results[idx] = results[idx] + remainder
+        # print('\n\nNegative remainder: %d' % remainder)
     regional_targets['targets'] = results.astype(int).tolist()
 
     return regional_targets
