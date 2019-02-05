@@ -23,7 +23,6 @@ def negative_parcel_reducer(hu_forecast, year):
 def feasibility(year):
     utils.run_feasibility(year)
 
-
 @orca.step('subregional_share')
 def subregional_share(year,households):
     utils.run_subregional_share(year,households)
@@ -47,8 +46,3 @@ def summary(year):
 @orca.step('write_to_sql')
 def write_to_sql(parcel_tables, year):
     bulk_insert.run_insert(parcel_tables, year)
-
-
-@orca.step('match_prior_run')
-def match_prior_run(run_match_output, target_match, regional_controls, households, hu_forecast):
-    utils.run_matching(run_match_output, target_match, regional_controls, households, hu_forecast)

@@ -12,7 +12,7 @@ scenario:
     # parcel sgoa at 2030 version 111
     # parcel sgoa at 2025 version 110
     # version 125 removed del mar resort
-    parcel_phase_yr: 156 # 150 (403) #112
+    parcel_phase_yr: 155 # 150 (403) #112
 
     # additional capacity units for simulation
     additional_capacity_version: 111 #109 (403)
@@ -21,8 +21,6 @@ scenario:
     sched_dev_version: 149 #102
 
     adu_control: 5 #2
-
-    run_to_match: 403
 
     # 102 is used for models running with the 509k housing units number
     # 106 is used for models running with the 534k housing units number

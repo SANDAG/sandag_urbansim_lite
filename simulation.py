@@ -16,29 +16,26 @@ start_time = time.monotonic()
 db_connection_string = get_connection_string('data\config.yml', 'mssql_db')
 mssql_engine = create_engine(db_connection_string)
 
-print("\n\nAttempt to match former run?")
-#match_results = input("\nChoose y or n: ")
-match_results = "y"
-if match_results == 'y':
-    orca.run(["match_prior_run"])
+# Generate run_id and record information about run_id details
+print("\n\nWrite results to db?")
+write_results_to_db = input("\nChoose y or n: ")
+# write_results_to_db = "n"
+if write_results_to_db == 'y':
+      run_id = utils.add_run_to_db()
+
 
 # Run the urbansim model iterations (see subsections for details)
 orca.run([
-    "feasibility",
-    "scheduled_development_events",
-    "residential_developer",
-    "summary"
-    ], iter_vars=range(2017, 2051))
+      "feasibility",
+      "scheduled_development_events",
+      "residential_developer",
+      "summary",
+      ], iter_vars=range(2017, 2051))
 
-# Generate run_id and record information about run_id details
-# print("\n\nWrite results to db?")
-# write_results_to_db = input("\nChoose y or n: ")
-write_results_to_db = "n"
-if write_results_to_db == 'y':
-    run_id = utils.add_run_to_db()
+# for adding control percents
 
 if write_results_to_db == 'y':
-    utils.write_results(run_id)
+      utils.write_results(run_id)
 
 # Save the end time to track how long the program takes to run from start to finish
 end_time = time.monotonic()

@@ -2,7 +2,8 @@ import orca
 import pandas as pd
 import bulk_insert
 
-# The .h5 file to match run_id=400 is at M:\RES\estimates & forecast\SR14 Forecast\UrbanSim\DS_ID_18\urbansim_v400.h5
+
+# The .h5 file to match run_id=400 is saved at M:\RES\estimates & forecast\SR14 Forecast\UrbanSim\DS_ID_18\urbansim_v400.h5
 # This is the .h5 used to create datasource 18, see [urbansim].[urbansim].[urbansim_lite_output_runs] for run details.
 orca.add_injectable("store", pd.HDFStore('.\\data\\urbansim.h5', mode="r"))
 
@@ -11,7 +12,6 @@ orca.add_injectable("store", pd.HDFStore('.\\data\\urbansim.h5', mode="r"))
 def parcels(store):
     df = store['parcels']
     return df
-
 
 # for subregional percentage controls
 @orca.table('controls', cache=True)
@@ -79,20 +79,7 @@ def adu_allocation(store):
     df = store['adu_allocation']
     return df
 
-
 @orca.table('adu_allocation2', cache=True)
 def adu_allocation(store):
     df = store['adu_allocation2']
-    return df
-
-
-@orca.table('run_match_output', cache=True)
-def run_match_output(store):
-    df = store['run_match_output']
-    return df
-
-
-@orca.table('target_match', cache=True)
-def target_match(store):
-    df = store['target_match']
     return df
