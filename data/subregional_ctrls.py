@@ -8,6 +8,7 @@ mssql_engine = create_engine(db_connection_string)
 
 versions = utils.yaml_to_dict('../data/scenario_config.yaml', 'scenario')
 
+# This file produces subregional controls based on the SR13 final allocation totals.
 
 # note: including sr13 sched dev in sr13 capacities in order to match development pattern
 # regardless of whether development pattern from sched dev or not.
