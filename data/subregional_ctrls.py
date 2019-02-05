@@ -23,10 +23,9 @@ SELECT [yr], [version_id], [housing_units_add] as sr14hu
   WHERE version_id = %s'''
 
 units_needed_sql = units_needed_sql % versions['target_housing_units_version']
-hu_df =  pd.read_sql(units_needed_sql, mssql_engine)
+hu_df = pd.read_sql(units_needed_sql, mssql_engine)
 total_units_needed = int(hu_df['sr14hu'].sum())
 print(total_units_needed)
-# 468866 total units needed (was 396,354)
 
 sr13_sql = '''	
 select x.mgra, sum([hs]) AS hs, increment, city, cpa, x.luz as luz_id,site
@@ -41,140 +40,44 @@ sr13_df = pd.read_sql(sr13_sql, mssql_engine)
 # len(sr13_df.mgra.unique())
 # 23,002 mgras
 
-# print(sr13_df.loc[sr13_df.mgra==10184])
-#       hs  increment  city   cpa  luz_id  site
-# mgra
-# 10184  39       2012    19  1901     198     0
-# 10184  39       2015    19  1901     198     0
-# 10184  45       2020    19  1901     198     0
-# 10184  45       2025    19  1901     198     0
-# 10184  45       2030    19  1901     198     0
-
-### check results against:
-### file:///M:\RES\GIS\Spacecore\sr14GISinput\LandUseInputs\SR13_SR14_CapacityAllocationRatio.xlsx
+# check results against:
+# file:///M:\RES\GIS\Spacecore\sr14GISinput\LandUseInputs\SR13_SR14_CapacityAllocationRatio.xlsx
 sr13summary = pd.DataFrame({'hs_sum': sr13_df.groupby(['increment']).hs.sum()}).reset_index()
 sr13summary['chg'] = sr13summary.hs_sum.diff().fillna(0).astype(int)
 sr13summary['chg%'] = (sr13summary.hs_sum.pct_change().fillna(0) * 100).round(2)
-sr13summary.set_index('increment',inplace=True)
+sr13summary.set_index('increment', inplace=True)
 print(sr13summary)
 
-#             hs_sum    chg  chg%
-# increment
-# 2012       1165818      0  0.00
-# 2015       1194908  29090  2.50
-# 2020       1249684  54776  4.58
-# 2025       1301870  52186  4.18
-# 2030       1348802  46932  3.60
-# 2035       1394783  45981  3.41
-# 2040       1434653  39870  2.86
-# 2045       1466366  31713  2.21
-# 2050       1491935  25569  1.74
-
 # sr13summary.chg.sum()
-# total change 326,117
 
 sr13_df['jcid'] = sr13_df.city
 sr13_df.loc[(sr13_df.city == 14) | (sr13_df.city == 19), 'jcid'] = sr13_df['cpa']
 
-sr13_jcid_df = pd.DataFrame({'hs_sum': sr13_df.groupby(['jcid','increment']).
-                               hs.sum()}).reset_index()
-# print(sr13_jcid_df.loc[sr13_jcid_df.jcid==1901])
-#     jcid  increment  hs_sum
-# 1901       2012    6565
-# 1901       2015    6419
-# 1901       2020    7319
-# 1901       2025    7834
-# 1901       2030    8255
-# 1901       2035    8636
-# 1901       2040    8802
-# 1901       2045    9158
-# 1901       2050    9495
+sr13_jcid_df = pd.DataFrame({'hs_sum': sr13_df.groupby(['jcid', 'increment']).hs.sum()}).reset_index()
 
 # len(sr13_jcid_df.jcid.unique())
 # 103
 
-sr13_pivot = sr13_jcid_df.pivot\
-(index='jcid', columns='increment', values='hs_sum').\
-reset_index().rename_axis(None, axis=1)
-sr13_pivot.set_index('jcid',inplace=True)
-
-# print(sr13_pivot.loc[1901:1905])
-#       2012  2015  2020  2025  2030  2035  2040  2045  2050
-# jcid
-# 1901  6565  6419  7319  7834  8255  8636  8802  9158  9495
-# 1902  2199  2201  2328  2343  2466  2635  2635  2640  2646
-# 1903  3582  3586  3783  3797  3815  3869  3881  3892  3908
-# 1904  3565  3699  3726  3793  3952  4118  4215  4314  5117
-
+sr13_pivot = sr13_jcid_df.pivot(index='jcid', columns='increment',
+                                values='hs_sum').reset_index().rename_axis(None, axis=1)
+# sr13_pivot.set_index('jcid', inplace=True)
 
 sr13_chg = sr13_pivot.diff(axis=1)
 
-# print(sr13_chg.loc[1901:1905])
-#       2012   2015   2020   2025   2030   2035   2040   2045   2050
-# jcid
-# 1901   NaN -146.0  900.0  515.0  421.0  381.0  166.0  356.0  337.0
-# 1902   NaN    2.0  127.0   15.0  123.0  169.0    0.0    5.0    6.0
-# 1903   NaN    4.0  197.0   14.0   18.0   54.0   12.0   11.0   16.0
-# 1904   NaN  134.0   27.0   67.0  159.0  166.0   97.0   99.0  803.0
-
-
-sr13_chg.drop([2012], axis=1,inplace=True)
+sr13_chg.drop([2012], axis=1, inplace=True)
 sr13_chgst = sr13_chg.stack().to_frame()
-sr13_chgst.reset_index(inplace=True,drop=False)
-# print(sr13_chgst.loc[sr13_chgst.jcid==1901])
-# jcid  level_1      0
-# 1901     2015 -146.0
-# 1901     2020  900.0
-# 1901     2025  515.0
-# 1901     2030  421.0
-# 1901     2035  381.0
-# 1901     2040  166.0
-# 1901     2045  356.0
-# 1901     2050  337.0
+sr13_chgst.reset_index(inplace=True, drop=False)
 
-sr13_chgst.rename(columns={'level_1': 'yr_to',0:'hu_change'},inplace=True)
+sr13_chgst.rename(columns={'level_1': 'yr_to', 0: 'hu_change'}, inplace=True)
 sr13_chgst['yr_from'] = sr13_chgst['yr_to'] - 5
 sr13_chgst.loc[sr13_chgst.yr_from == 2010, 'yr_from'] = 2012
-sr13_chgst = sr13_chgst[['jcid','yr_from','yr_to','hu_change']].copy()
-# sr13_chgst.set_index('jcid',inplace=True)
-# print(sr13_chgst.loc[sr13_chgst.index==1901])
-#       yr_from  yr_to  hu_change
-# jcid
-# 1901     2012   2015     -146.0
-# 1901     2015   2020      900.0
-# 1901     2020   2025      515.0
-# 1901     2025   2030      421.0
-# 1901     2030   2035      381.0
-# 1901     2035   2040      166.0
-# 1901     2040   2045      356.0
-# 1901     2045   2050      337.0
+sr13_chgst = sr13_chgst[['jcid', 'yr_from', 'yr_to', 'hu_change']].copy()
 
 parcel_sql = '''
     SELECT p.parcel_id,p.capacity_2 AS capacity
       FROM urbansim.urbansim.parcel p 
       WHERE capacity_2 > 0 and site_id IS NULL'''
-hs = pd.read_sql(parcel_sql,mssql_engine)
-# print("\n   capacity: {:,}".format(int(hs.capacity.sum())))
-# capacity: 361,644
-# print("\n   parcels with capacity: {:,}".format(len(hs)))
-# parcels with capacity: 50,369
-# hs.head()
-#            site_id      name  cap_jurisdiction_id  jurisdiction_id  mgra_id  \
-# parcel_id
-# 5117537        NaN  Carlsbad                    1                1    18057
-# 5117616        NaN  Carlsbad                    1                1    18090
-# 337513         NaN  Carlsbad                    1                1    14337
-# 337514         NaN  Carlsbad                    1                1    14337
-# 337515         NaN  Carlsbad                    1                1    14337
-#            luz_id  capacity_base_yr
-# parcel_id
-# 5117537        15                 2
-# 5117616        15                 1
-# 337513         11                 3
-# 337514         11                 2
-# 337515         11                 2
-#
-
+hs = pd.read_sql(parcel_sql, mssql_engine)
 
 # assigned_parcel_sql = '''
 # SELECT  a.parcel_id, a.du as capacity, a.type
@@ -194,9 +97,10 @@ FROM [isam].[xpef04].[parcel2015_mgra_jur_cpa]
 WHERE  i=1'''
 lookup_df = pd.read_sql(lookup_sql, mssql_engine)
 lookup_df['jcpa'] = lookup_df['jur_id']
-lookup_df.loc[lookup_df.jur_id==14,'jcpa'] = lookup_df['cpa_id']
-lookup_df.loc[lookup_df.jur_id==19,'jcpa'] = lookup_df['cpa_id']
-#update to jcpa view
+lookup_df.loc[lookup_df.jur_id == 14, 'jcpa'] = lookup_df['cpa_id']
+lookup_df.loc[lookup_df.jur_id == 19, 'jcpa'] = lookup_df['cpa_id']
+
+# update to jcpa view
 cocpa_names_sql = '''
     SELECT zone as cpa_id, name as cocpa
     FROM data_cafe.ref.geography_zone WHERE geography_type_id = 20'''
@@ -205,367 +109,84 @@ cicpa_names_sql = '''
     SELECT zone as cpa_id, name as cicpa
     FROM data_cafe.ref.geography_zone WHERE geography_type_id = 15'''
 cicpa_names = pd.read_sql(cicpa_names_sql, mssql_engine)
-#jur_name
-jur_name_sql = '''SELECT [jurisdiction_id] as jur_id,[name] as jur_name FROM [urbansim].[ref].[jurisdiction]'''
-jur_name = pd.read_sql(jur_name_sql,mssql_engine)
-lookup_df = pd.merge(lookup_df,cocpa_names,on='cpa_id',how='left')
-lookup_df = pd.merge(lookup_df,cicpa_names,on='cpa_id',how='left')
-lookup_df = pd.merge(lookup_df,jur_name,on='jur_id',how='left')
-lookup_df['jcpa_name'] = lookup_df['jur_name']
-lookup_df.loc[lookup_df.jur_id==14,'jcpa_name'] = lookup_df['cicpa']
-lookup_df.loc[lookup_df.jur_id==19,'jcpa_name'] = lookup_df['cocpa']
-lookup_df.drop(columns=['cocpa', 'cicpa','jur_name','jur_id','cpa_id'],inplace=True)
 
-sr14units = pd.merge(hs,lookup_df,on='parcel_id')
+# jur_name
+jur_name_sql = '''SELECT [jurisdiction_id] as jur_id,[name] as jur_name FROM [urbansim].[ref].[jurisdiction]'''
+jur_name = pd.read_sql(jur_name_sql, mssql_engine)
+lookup_df = pd.merge(lookup_df, cocpa_names, on='cpa_id', how='left')
+lookup_df = pd.merge(lookup_df, cicpa_names, on='cpa_id', how='left')
+lookup_df = pd.merge(lookup_df, jur_name, on='jur_id', how='left')
+lookup_df['jcpa_name'] = lookup_df['jur_name']
+lookup_df.loc[lookup_df.jur_id == 14, 'jcpa_name'] = lookup_df['cicpa']
+lookup_df.loc[lookup_df.jur_id == 19, 'jcpa_name'] = lookup_df['cocpa']
+lookup_df.drop(columns=['cocpa', 'cicpa', 'jur_name', 'jur_id', 'cpa_id'], inplace=True)
+
+sr14units = pd.merge(hs, lookup_df, on='parcel_id')
 sr14units.rename(columns={"jcpa": "jcid"}, inplace=True)
 sr14units.fillna(0, inplace=True)
 
-# sr14units.loc[sr14units.parcel_id==0].head()
-#        parcel_id  site_id name  cap_jurisdiction_id  jurisdiction_id  mgra_id  \
-# 50369        0.0      0.0    0                  0.0              0.0      0.0
-# 50370        0.0      0.0    0                  0.0              0.0      0.0
-# 50371        0.0      0.0    0                  0.0              0.0      0.0
-# 50372        0.0      0.0    0                  0.0              0.0      0.0
-# 50373        0.0      0.0    0                  0.0              0.0      0.0
-#        luz_id  capacity_base_yr  mgra_13  cocpa_2016  cicpa_13    jcid
-# 50369     0.0               0.0  19897.0      1909.0       0.0  1909.0
-# 50370     0.0               0.0   1566.0         0.0    1444.0  1444.0
-# 50371     0.0               0.0     46.0         0.0    1442.0  1442.0
-# 50372     0.0               0.0   5788.0         0.0    1435.0  1435.0
-# 50373     0.0               0.0  11453.0         0.0    1431.0  1431.0
-
-######################################################################################
 # check for missing jcid (where jcid = 0)
 # sr14units.loc[sr14units.jcid==0]
-#            site_id            name  cap_jurisdiction_id  jurisdiction_id  \
-# parcel_id
-# 5038426.0      0.0  Unincorporated                 19.0             19.0
-#            mgra_id  luz_id  capacity_base_yr  mgra_13  cocpa_2016  cicpa_13  \
-# parcel_id
-# 5038426.0  19415.0    18.0               5.0      0.0         0.0       0.0
-#            jcid
-# parcel_id
-# 5038426.0   0.0
-
 
 sr14units['jcid'] = sr14units['jcid'].astype(int)
 
-sr14capacity = pd.DataFrame({'sr14c': sr14units.groupby(['jcid']).
-                               capacity.sum()}).reset_index()
+sr14capacity = pd.DataFrame({'sr14c': sr14units.groupby(['jcid']).capacity.sum()}).reset_index()
 sr14capacity['jcid'] = sr14capacity['jcid'].astype(int)
 
+sr13capacity = pd.DataFrame({'sr13c': sr13_chgst.groupby(['jcid']).hu_change.sum()}).reset_index()
 
-# sr14capacity.set_index('jcid',inplace=True)
-# print(sr14capacity.loc[1901:1910])
-#        sr14c
-# jcid
-# 1901  3732.0
-# 1902   500.0
-# 1903   438.0
-# 1904  7454.0
-# 1906  3469.0
-# 1907  3606.0
-# 1908  2792.0
-# 1909  9626.0
-
-
-sr13capacity = pd.DataFrame({'sr13c': sr13_chgst.groupby(['jcid']).
-                               hu_change.sum()}).reset_index()
-# sr13capacity.set_index('jcid',inplace=True)
-# print(sr13capacity.loc[1901:1910])
-#         sr13c
-# jcid
-# 1901   2930.0
-# 1902    447.0
-# 1903    326.0
-# 1904   1552.0
-# 1906   1619.0
-# 1907  11555.0
-# 1908   1291.0
-# 1909   7166.0
-
-sx = pd.merge(sr13capacity,sr14capacity,left_on='jcid',right_on='jcid',how = 'outer')
+sx = pd.merge(sr13capacity, sr14capacity, left_on='jcid', right_on='jcid', how='outer')
 print(sx.sr13c.sum() - sx.sr14c.sum())
-# sx.set_index('jcid',inplace=True)
-# print(sx.loc[1901:1910])
-#         sr13c   sr14c
-# jcid
-# 1901   2930.0  3732.0
-# 1902    447.0   500.0
-# 1903    326.0   438.0
-# 1904   1552.0  7454.0
-# 1906   1619.0  3469.0
-# 1907  11555.0  3606.0
-# 1908   1291.0  2792.0
-# 1909   7166.0  9626.0
 
 sx['adj_jcid_cap'] = sx['sr14c']/sx['sr13c']
 
-
-# sx.set_index('jcid',inplace=True)
-# print(sx.loc[1901:1910])
-#         sr13c   sr14c  adj_jcid_cap
-# jcid
-# 1901   2930.0  3732.0      1.273720
-# 1902    447.0   500.0      1.118568
-# 1903    326.0   438.0      1.343558
-# 1904   1552.0  7454.0      4.802835
-# 1906   1619.0  3469.0      2.142681
-# 1907  11555.0  3606.0      0.312073
-# 1908   1291.0  2792.0      2.162665
-# 1909   7166.0  9626.0      1.343288
-
-
 # sr13 yearly
 sr13a = sr13_chgst.reindex(sr13_chgst.index.repeat(sr13_chgst.yr_to - sr13_chgst.yr_from)).reset_index(drop=True)
-# print(sr13a.loc[sr13a.index==1901].head())
-#       yr_from  yr_to  hu_change
-# jcid
-# 1901     2012   2015     -146.0
-# 1901     2012   2015     -146.0
-# 1901     2012   2015     -146.0
-# 1901     2015   2020      900.0
-# 1901     2015   2020      900.0
-# 1901     2015   2020      900.0
 
 sr13a['yrs'] = sr13a.yr_to - sr13a.yr_from
 sr13a['units'] = (sr13a['hu_change']/sr13a['yrs'])
 sr13a['yr'] = sr13a.yr_from + 1
-# print(sr13a.loc[sr13a.index==1901])
-#       yr_from  yr_to  hu_change  yrs       units    yr
-# jcid
-# 1901     2012   2015     -146.0    3  -48.666667  2013
-# 1901     2012   2015     -146.0    3  -48.666667  2013
-# 1901     2012   2015     -146.0    3  -48.666667  2013
-# 1901     2015   2020      900.0    5  180.000000  2016
-# 1901     2015   2020      900.0    5  180.000000  2016
-# 1901     2015   2020      900.0    5  180.000000  2016
-# 1901     2015   2020      900.0    5  180.000000  2016
-# 1901     2015   2020      900.0    5  180.000000  2016
 
 # modify the year column to increment by one, rather than repeat by period
-while any(sr13a.duplicated()): # checks for duplicate rows
-    sr13a['ym'] = sr13a.duplicated() # create a boolean column = True if row is a repeat
+while any(sr13a.duplicated()):  # checks for duplicate rows
+    sr13a['ym'] = sr13a.duplicated()  # create a boolean column = True if row is a repeat
     sr13a.loc[sr13a.ym == True, 'yr'] = sr13a.yr + 1
 del sr13a['ym']
-# print(sr13a.loc[sr13a.jcid==1901])
-#       yr_from  yr_to  hu_change  yrs       units    yr
-# jcid
-# 1901     2012   2015     -146.0    3  -48.666667  2013
-# 1901     2012   2015     -146.0    3  -48.666667  2014
-# 1901     2012   2015     -146.0    3  -48.666667  2015
-# 1901     2015   2020      900.0    5  180.000000  2016
-# 1901     2015   2020      900.0    5  180.000000  2017
-# 1901     2015   2020      900.0    5  180.000000  2018
-# 1901     2015   2020      900.0    5  180.000000  2019
-# 1901     2015   2020      900.0    5  180.000000  2020
 
 sr13a = sr13a.loc[sr13a.yr > 2016].copy()
 
-sr13a.loc[(sr13a.hu_change<0),'hu_change'] = 0
-sr13a.loc[(sr13a.units<0),'units'] = 0
+sr13a.loc[(sr13a.hu_change < 0), 'hu_change'] = 0
+sr13a.loc[(sr13a.units < 0), 'units'] = 0
 
-sr13aa = pd.merge(sr13a[['jcid','yr','units']],sx,left_on='jcid',right_on='jcid',how = 'outer')
+sr13aa = pd.merge(sr13a[['jcid', 'yr', 'units']], sx, left_on='jcid', right_on='jcid', how='outer')
 
-# sr13aa.set_index('jcid',inplace=True)
-# print(sr13aa.loc[1901])
-#         yr  units   sr13c   sr14c  adj_jcid_cap
-# jcid
-# 1901  2017  180.0  2930.0  3732.0       1.27372
-# 1901  2018  180.0  2930.0  3732.0       1.27372
-# 1901  2019  180.0  2930.0  3732.0       1.27372
-# 1901  2020  180.0  2930.0  3732.0       1.27372
-# 1901  2021  103.0  2930.0  3732.0       1.27372
-# 1901  2022  103.0  2930.0  3732.0       1.27372
-# 1901  2023  103.0  2930.0  3732.0       1.27372
-# 1901  2024  103.0  2930.0  3732.0       1.27372
-# 1901  2025  103.0  2930.0  3732.0       1.27372
-# 1901  2026   84.2  2930.0  3732.0       1.27372#
-
-# sr13aa.loc[((sr13aa.jcid==2)),'adj_jcid_cap'] = 0.28
-# sr13aa.loc[((sr13aa.jcid==2) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.4
-# sr13aa.loc[((sr13aa.jcid==5) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.75
-# sr13aa.loc[((sr13aa.jcid==8)),'adj_jcid_cap'] = 1
-# sr13aa.loc[((sr13aa.jcid==11) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.65
-# sr13aa.loc[((sr13aa.jcid==12) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.9
-# sr13aa.loc[((sr13aa.jcid==13) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.7
-# sr13aa.loc[((sr13aa.jcid==13) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.6
-# sr13aa.loc[((sr13aa.jcid==15) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.5
-# sr13aa.loc[((sr13aa.jcid==16) & (sr13aa.yr<2030)),'adj_jcid_cap'] = 0.6
-# sr13aa.loc[((sr13aa.jcid==16) & (sr13aa.yr.isin([2030,2031,2032,2033,2034]))),'adj_jcid_cap'] = 0 # sched dev 100 units
-# sr13aa.loc[((sr13aa.jcid==1402)),'adj_jcid_cap'] = 0.6
-# sr13aa.loc[((sr13aa.jcid==1404) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.8 # 14023
-# sr13aa.loc[((sr13aa.jcid==1406) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.6
-# sr13aa.loc[((sr13aa.jcid==1408)),'adj_jcid_cap'] = 0.55
-# sr13aa.loc[((sr13aa.jcid==1410)),'adj_jcid_cap'] = 0.65
-# sr13aa.loc[((sr13aa.jcid==1412) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.2
-# sr13aa.loc[((sr13aa.jcid==1414) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.7
-# sr13aa.loc[((sr13aa.jcid==1418)),'adj_jcid_cap'] = 0.8
-# sr13aa.loc[((sr13aa.jcid==1420) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.96
-# sr13aa.loc[((sr13aa.jcid==1423)),'adj_jcid_cap'] = 0.68
-# sr13aa.loc[((sr13aa.jcid==1425) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
-# sr13aa.loc[((sr13aa.jcid==1426)),'adj_jcid_cap'] = 0.60
-# sr13aa.loc[((sr13aa.jcid==1427)),'adj_jcid_cap'] = 0.7
-# sr13aa.loc[((sr13aa.jcid==1428) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 2.5
-# sr13aa.loc[((sr13aa.jcid==1438) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
-# sr13aa.loc[((sr13aa.jcid==1441) & (sr13aa.yr<=2035)),'adj_jcid_cap'] = 0.3
-# sr13aa.loc[((sr13aa.jcid==1441) & (sr13aa.yr>2035)),'adj_jcid_cap'] = 0.8
-# sr13aa.loc[((sr13aa.jcid==1456) & (sr13aa.yr>2035)),'adj_jcid_cap'] = 1.8
-# sr13aa.loc[((sr13aa.jcid==1457) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 2
-# sr13aa.loc[((sr13aa.jcid==1458) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.60
-# sr13aa.loc[((sr13aa.jcid==1459)),'adj_jcid_cap'] = 0.55
-# sr13aa.loc[((sr13aa.jcid==1902)),'adj_jcid_cap'] = 0.9
-# sr13aa.loc[((sr13aa.jcid==1909)),'adj_jcid_cap'] = 0.96
-# sr13aa.loc[((sr13aa.jcid==1911)),'adj_jcid_cap'] = 2.7
-# sr13aa.loc[((sr13aa.jcid==1915) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.75
-# sr13aa.loc[((sr13aa.jcid==1919) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 0.65 #0.6
-# sr13aa.loc[((sr13aa.jcid==1951)),'adj_jcid_cap'] = 2.5
-# sr13aa.loc[((sr13aa.jcid==1952)),'adj_jcid_cap'] = 1.1
-# sr13aa.loc[((sr13aa.jcid==1953) & (sr13aa.yr<2036)),'adj_jcid_cap'] = 1.2
-
-
-# adjustments
-# j = 1
-# y = 2036
-# sr13aa.loc[((sr13aa.jcid==j))].head()
-# sr13aa.loc[((sr13aa.jcid==j) & (sr13aa.yr<y)),'adj_jcid_cap'] =  #2163
 sr13aa['units_adj1'] = sr13aa['units'] * sr13aa['adj_jcid_cap']
 # sr13aa.loc[((sr13aa.jcid==j) & (sr13aa.yr<y))].units_adj1.sum()
 
-sr13tosr14cap = pd.DataFrame({'unitsum1': sr13aa.groupby(['yr']).
-                               units_adj1.sum()}).reset_index()
-sr14hu_sr13hu = pd.merge(sr13tosr14cap,hu_df,left_on='yr',right_on='yr',how = 'outer')
+sr13tosr14cap = pd.DataFrame({'unitsum1': sr13aa.groupby(['yr']).units_adj1.sum()}).reset_index()
+sr14hu_sr13hu = pd.merge(sr13tosr14cap, hu_df, left_on='yr', right_on='yr', how='outer')
 sr14hu_sr13hu['adj_forecast_hs'] = sr14hu_sr13hu['sr14hu']/sr14hu_sr13hu['unitsum1']
-sr13tosr14 = pd.merge(sr13aa,sr14hu_sr13hu[['yr','unitsum1','adj_forecast_hs']],left_on='yr',right_on='yr',how = 'outer')
+sr13tosr14 = pd.merge(sr13aa, sr14hu_sr13hu[['yr', 'unitsum1', 'adj_forecast_hs']],
+                      left_on='yr', right_on='yr', how='outer')
 sr13tosr14['units_adj2'] = (sr13tosr14['units_adj1'] * sr13tosr14['adj_forecast_hs'])
 
-#sr13tosr14.loc[((sr13tosr14.jcid==j) & (sr13tosr14.yr<y))].units_adj1.sum()
+# sr13tosr14.loc[((sr13tosr14.jcid==j) & (sr13tosr14.yr<y))].units_adj1.sum()
 
-# remaining units
-# summary = pd.DataFrame({'units': sr13tosr14.loc[sr13tosr14.yr<2036].groupby(["jcid","sr14c"])
-#                                           .units_adj2.sum()}).reset_index()
-#
-# summary['remaining'] = summary['sr14c'] - summary['units']
-# summary.sort_values(by='remaining')
-# sr13tosr14.loc[((sr13tosr14.jcid==j) & (sr13tosr14.yr<y))].units_adj2.sum()
+sr14checkunits = pd.DataFrame({'units_for_sr14': sr13tosr14.groupby(['yr']).units_adj2.sum()}).reset_index()
 
-
-# sr13b.set_index('yr',inplace=True)
-# sr13b.head()
-#            unitsum
-# yr
-# 2017  12117.082355
-# 2018  12117.082355
-# 2019  12117.082355
-# 2020  12117.082355
-# 2021  11094.686480
-# 2022  11094.686480
-# 2023  11094.686480
-# 2024  11094.686480
-# 2025  11094.686480
-# 2026  10376.368588#
-
-# note: 10437.2 * 5 = 52186 (matches sr13summary for 2025 = 52186)
-
-
-
-# sr13b.set_index('yr',inplace=True)
-# sr13b.head()
-#         unitsum   sr14hu
-# yr
-# 2017  12117.082355  10947.0
-# 2018  12117.082355  11642.0
-# 2019  12117.082355  12433.0
-# 2020  12117.082355  12196.0
-# 2021  11094.686480  11910.0
-# 2022  11094.686480  13363.0
-# 2023  11094.686480  15211.0
-# 2024  11094.686480  17067.0
-# 2025  11094.686480  19862.0
-# 2026  10376.368588  24597.0
-
-
-# sr13b['adj_forecast_hs'] = sr13b['sr14hu']/sr13b['unitsum']
-#            unitsum   sr14hu    adj_forecast_hs
-# yr
-# 2017  12117.082355  10947.0  0.903435
-# 2018  12117.082355  11642.0  0.960792
-# 2019  12117.082355  12433.0  1.026072
-# 2020  12117.082355  12196.0  1.006513
-# 2021  11094.686480  11910.0  1.073487
-# 2022  11094.686480  13363.0  1.204450
-# 2023  11094.686480  15211.0  1.371017
-# 2024  11094.686480  17067.0  1.538304
-# 2025  11094.686480  19862.0  1.790226
-# 2026  10376.368588  24597.0  2.370482
-
-
-
-
-# sr13ab.set_index('jcid',inplace=True)
-# print(sr13ab.loc[1901])
-#         yr  units  units_adj1  adj_forecast_hs  units_adj2
-# jcid
-# 1901  2017  180.0  229.269625         0.903435  207.130273
-# 1901  2018  180.0  229.269625         0.960792  220.280501
-# 1901  2019  180.0  229.269625         1.026072  235.247163
-# 1901  2020  180.0  229.269625         1.006513  230.762840
-# 1901  2021  103.0  131.193174         1.073487  140.834147
-# 1901  2022  103.0  131.193174         1.204450  158.015676
-# 1901  2023  103.0  131.193174         1.371017  179.868027
-# 1901  2024  103.0  131.193174         1.538304  201.814977
-# 1901  2025  103.0  131.193174         1.790226  234.865476
-# 1901  2026   84.2  107.247235         2.370482  254.22769
-
-sr14checkunits = pd.DataFrame({'units_for_sr14': sr13tosr14.groupby(['yr']).
-                     units_adj2.sum()}).reset_index()
-
-sr14checkunits = pd.merge(sr14checkunits,hu_df,left_on='yr',right_on='yr',how = 'outer')
-
-# sr14checkunits.head()
-#       units_for_sr14   sr14hu
-# yr
-# 2017         10947.0  10947.0
-# 2018         11642.0  11642.0
-# 2019         12433.0  12433.0
-# 2020         12196.0  12196.0
-# 2021         11910.0  11910.0
-# 2022         13363.0  13363.0
-# 2023         15211.0  15211.0
-# 2024         17067.0  17067.0
-# 2025         19862.0  19862.0
-# 2026         24597.0  24597.0
+sr14checkunits = pd.merge(sr14checkunits, hu_df, left_on='yr', right_on='yr', how='outer')
 
 sr14checkunits['diff'] = sr14checkunits.units_for_sr14 - sr14checkunits.sr14hu
 # print(sr14checkunits.loc[sr14checkunits['diff'] > 0.1])
-# Empty DataFrame
-# Columns: [yr, units_for_sr14, sr14hu, diff]
-# Index: []
 
-ctrls = pd.merge(sr13tosr14,sr14checkunits[['yr','units_for_sr14']],left_on='yr',right_on='yr',how = 'outer')
+ctrls = pd.merge(sr13tosr14, sr14checkunits[['yr', 'units_for_sr14']], left_on='yr', right_on='yr', how='outer')
 
 ctrls['control'] = ctrls['units_adj2']/ctrls['units_for_sr14']
-controlsummary = pd.DataFrame({'totunits':ctrls.groupby(['jcid','sr14c']).units_adj2.sum()}).reset_index()
+controlsummary = pd.DataFrame({'totunits': ctrls.groupby(['jcid', 'sr14c']).units_adj2.sum()}).reset_index()
 # sr13summary = pd.DataFrame({'hs_sum': sr13_df.groupby(['increment']).hs.sum()}).reset_index()
-ctrls.drop(['units','unitsum1', 'units_adj1','adj_forecast_hs'], axis=1,inplace=True)
+ctrls.drop(['units', 'unitsum1', 'units_adj1', 'adj_forecast_hs'], axis=1, inplace=True)
 
-# ctrls.set_index('jcid',inplace=True)
-# print(ctrls.loc[ctrls.jcid==1901])
-#         yr  units_adj2  units_for_sr14   control
-# jcid
-# 1901  2017  207.130273         10947.0  0.018921
-# 1901  2018  220.280501         11642.0  0.018921
-# 1901  2019  235.247163         12433.0  0.018921
-# 1901  2020  230.762840         12196.0  0.018921
-# 1901  2021  140.834147         11910.0  0.011825
-# 1901  2022  158.015676         13363.0  0.011825
-# 1901  2023  179.868027         15211.0  0.011825
-# 1901  2024  201.814977         17067.0  0.011825
-# 1901  2025  234.865476         19862.0  0.011825
-# 1901  2026  254.227693         24597.0  0.010336
-
-ctrls.fillna(0,inplace=True)
-
+ctrls.fillna(0, inplace=True)
 
 # Retrieves maximum existing run_id from the table. If none exists, creates run_id = 1.
 version_id_sql = '''
@@ -574,7 +195,7 @@ version_id_sql = '''
 '''
 
 version_id_df = pd.read_sql(version_id_sql, mssql_engine)
-v= int(version_id_df.values) + 1
+v = int(version_id_df.values) + 1
 
 ctrls['subregional_crtl_id'] = v
 print('version_id:')
@@ -586,30 +207,14 @@ ctrls['scenario_desc'] = 'capacity_2'
 ctrls['control_type'] = 'percentage'
 
 ctrls.loc[ctrls.control < 0, 'control'] = 0
-ctrls = ctrls.loc[ctrls.yr!=0].copy()
+ctrls = ctrls.loc[ctrls.yr != 0].copy()
 
-controlto1 = pd.DataFrame({'ctrlsum1':ctrls.groupby(['yr']).control.sum()}).reset_index()
+controlto1 = pd.DataFrame({'ctrlsum1': ctrls.groupby(['yr']).control.sum()}).reset_index()
 
-controls  = ctrls[['subregional_crtl_id','yr','geo','geo_id','control','control_type','max_units','scenario_desc']].copy()
-
-
-# print(controls.loc[controls.geo_id==1901].head())
-#      scenario    yr          geo  geo_id   control control_type max_units  \
-# 79          3  2017  jur_and_cpa    1901  0.016431   percentage      None
-# 182         3  2018  jur_and_cpa    1901  0.016431   percentage      None
-# 285         3  2019  jur_and_cpa    1901  0.016431   percentage      None
-# 388         3  2020  jur_and_cpa    1901  0.016431   percentage      None
-# 491         3  2021  jur_and_cpa    1901  0.009869   percentage      None
-#
-#               scenario_desc
-# 79   jurisdictions and CPAs
-# 182  jurisdictions and CPAs
-# 285  jurisdictions and CPAs
-# 388  jurisdictions and CPAs
-# 491  jurisdictions and CPAs
+controls = ctrls[['subregional_crtl_id', 'yr', 'geo', 'geo_id', 'control', 'control_type', 'max_units',
+                  'scenario_desc']].copy()
 
 # to write to csv
 # controls.to_csv('out/subregional_control_175.csv')
-controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,if_exists='append')
-
-################################################################################
+controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,
+                if_exists='append')
