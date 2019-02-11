@@ -76,7 +76,7 @@ city_update_df['parcel_id'] = city_update_df.parcel_id.astype('int64')
 #parcels_df.reset_index(inplace=True)
 
 # parcels_df = pd.concat([parcels_df,city_update_df],sort=False).drop_duplicates(['parcel_id'],keep='last').sort_values('parcel_id')
-parcels_df = pd.concat([parcels_df,city_update_df],sort=False)
+parcels_df = pd.concat([parcels_df,city_update_df]) #,sort=False)
 
 
 # parcels_df.loc[parcels_df.parcel_id.isin([3171,5637,16465,130255,130551,131043,302369,307671,736938,4100124,5282707,5300214])]

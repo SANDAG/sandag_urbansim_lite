@@ -217,5 +217,5 @@ controls = ctrls[['subregional_crtl_id', 'yr', 'geo', 'geo_id', 'control', 'cont
 
 # to write to csv
 # controls.to_csv('out/subregional_control_175.csv')
-controls.to_sql(name='urbansim_lite_subregional_control', con=mssql_engine, schema='urbansim', index=False,
+controls.to_sql(name='urbansim_lite_subreg_control', con=mssql_engine, schema='urbansim', index=False,
                 if_exists='append')
