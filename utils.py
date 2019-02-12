@@ -423,6 +423,7 @@ def run_feasibility(year):
     # Select parcels that have more capacity than is used.
     # Note: 'capacity' is not subtracted from the built parcels, so 'capacity' should always be >= 'capacity_used'.
     feasible_parcels = parcels.loc[parcels['capacity'] > parcels['capacity_used']].copy()
+    feasible_parcels.loc[feasible_parcels.capacity_type.isin(['cc','mc','tc','tco','uc']), 'phase_yr'] = 2051
     feasible_parcels.phase_yr = feasible_parcels.phase_yr.fillna(2017)
     # Restrict feasible parcels based on assigned phase years (not feasible before phase year occurs).
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
@@ -1035,7 +1036,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         if year == 2017:
             chosen = parcel_picker2017(parcels_in_geo, target_units_for_geo, geo_name, year)
         else:
-            parcels_in_geo = parcels_in_geo.loc[parcels_in_geo['capacity_type'] != 'sch'].copy()
+            parcels_in_geo = parcels_in_geo.loc[parcels_in_geo['capacity_type'].isin(['jur', 'upd'])].copy()
             chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
 
         # Activates if subregion_max has a numeric value (non-Null). If the subregion_max was built, remove parcels in
