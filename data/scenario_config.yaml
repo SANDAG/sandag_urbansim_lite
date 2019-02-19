@@ -1,31 +1,46 @@
 scenario:
 
-    # database scenario to use in simulation
-    # was 17
-    subregional_ctrl_id: 213 #209 (403) #6 #207 #6 # 174 #17
-    subregional_targets_id: 112 #111 # For the 1st year estimates, should not need to change
+    # This file controls which SQL tables are pulled into the model using version ids.
 
-    # target housing units for simulation
-    target_housing_units_version: 112 #111 #109
+    # This controls the subregional allocation / control percentages
+    # From [urbansim].[urbansim].[urbansim_lite_subreg_control].[subregional_crtl_id]
+    # Note the typo in the SQL server column name
+    # To [urbansim].[urbansim].[urbansim_lite_output_runs].[subregional_controls]
+    subregional_ctrl_id: 213
 
-    #Specifies phase year version in urbansim.urbansim_lite_parcel_control, used in set_parcel_phase_year.py
-    # parcel sgoa at 2030 version 111
-    # parcel sgoa at 2025 version 110
-    # version 125 removed del mar resort
-    parcel_phase_yr: 155 # 150 (403) #112
+    # This provides 2017 estimates by jurisdiction (used to set exact targets)
+    # From [urbansim].[urbansim].[urbansim_target_hu_jur].[version_id]
+    # Not reported out to [urbansim].[urbansim].[urbansim_lite_output_runs]
+    subregion_estimates_id: 112
+    # These estimates should not change, however Dmitry ties the version_id to target_housing_units_version
 
-    # additional capacity units for simulation
-    additional_capacity_version: 111 #109 (403)
+    # Annual target housing units for simulation (region-wide)
+    # From [urbansim].[urbansim].[urbansim_target_housing_units].[version_id]
+    # To [urbansim].[urbansim].[urbansim_lite_output_runs].[target_housing_units]
+    target_housing_units_version: 112
 
-    # [urbansim].[scheduled_development_priority]
-    sched_dev_version: 149 #102
+    # Specifies phase years for parcels by capacity_type
+    # From [urbansim].[urbansim].[urbansim_lite_parcel_control].[phase_yr_version_id]
+    # To [urbansim].[urbansim].[urbansim_lite_output_runs].[phase_yr]
+    parcel_phase_yr: 155
 
-    adu_control: 5 #2
+    # Determines which version of additional capacity is used
+    # From [urbansim].[urbansim].[additional_capacity].[version_id]
+    # To [urbansim].[urbansim].[urbansim_lite_output_runs].[additional_capacity]
+    additional_capacity_version: 111
 
+    # Pulls scheduled development parcels. Need to switch back to base table
+    # From [urbansim].[urbansim].[scheduled_development_priority].[sched_version_id]
+    # To [urbansim].[urbansim].[urbansim_lite_output_runs].[scheduled_development]
+    # Should no longer be needed
+    sched_dev_version: 149
+
+    # Assigns annual adu percentage target (from regional targets)
+    # From [urbansim].[urbansim].[urbansim_lite_adu_control].[version_id]
+    # To [urbansim].[urbansim].[urbansim_lite_output_runs].[adu_control]
+    adu_control: 5
+
+    # If part of a former run is being matched exactly, declare which run_id
+    # From [urbansim].[urbansim].[urbansim_lite_output].[run_id]
+    # Not reported out to [urbansim].[urbansim].[urbansim_lite_output_runs]
     run_to_match: 403
-
-    # 102 is used for models running with the 509k housing units number
-    # 106 is used for models running with the 534k housing units number
-
-    # urbansim_target_housing_units = 109
-    # additional_capacity = parcel_phase_yr = 107

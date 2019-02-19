@@ -166,25 +166,15 @@ SELECT s.[parcel_id]
     ,0 AS partial_build
     ,s.[priority]
 FROM [urbansim].[urbansim].[parcel] AS p
-INNER JOIN [urbansim].[urbansim].[scheduled_development_priority] as s
+INNER JOIN [urbansim].[urbansim].[scheduled_development_parcel] as s
 ON p.[parcel_id] = s.[parcel_id]
-WHERE s.[sched_version_id] = %s
+WHERE s.[capacity_3] > 0
 ORDER BY s.[parcel_id]
 '''
-sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']
+# sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']  # Only used for 'priority' table
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine)
 parcels_df = pd.concat([parcels_df, sched_dev_df])
-# SQL statement for geography area names. Changing the geography_type_id will result in different name groups:
-# LUZ = 64, City CPAs = 147, County CPAs = 148, Jurisdictions = 150. We don't use this currently.
-jurisdictions_names_sql = '''
-SELECT [zone]
-    ,[name]
-FROM [data_cafe].[ref].[geography_zone]
-WHERE [geography_type_id] = 150
-ORDER BY [zone]
-'''
-jurisdictions_df = pd.read_sql(jurisdictions_names_sql, mssql_engine)
-jurisdictions_df['name'] = jurisdictions_df['name'].astype(str)
+
 
 # SQL statement for the target units per year table.
 households_sql = '''
@@ -247,7 +237,7 @@ SELECT [yr]
   WHERE [version_id] = %s
   ORDER BY [yr], [jurisdiction_id]
 '''
-subregional_targets_sql = subregional_targets_sql % scenarios['subregional_targets_id']
+subregional_targets_sql = subregional_targets_sql % scenarios['subregion_estimates_id']
 subregional_targets_df = pd.read_sql(subregional_targets_sql, mssql_engine)
 
 regional_controls_df = pd.merge(regional_controls_df, subregional_targets_df, how='left', on=['yr', 'jurisdiction_id'])
@@ -330,18 +320,6 @@ adu_allocation_sql = adu_allocation_sql % scenarios['adu_control']
 adu_allocation_df = pd.read_sql(adu_allocation_sql, mssql_engine)
 
 
-# SQL statement for the target ADU units per year table.
-adu_allocation_sql = '''
-SELECT [yr]
-    ,[allocation]
-    ,[jcpa]
-FROM [urbansim].[urbansim].[urbansim_lite_adu_control]
-WHERE [version_id] = 2
-ORDER BY [yr]
-'''
-# adu_allocation_sql = adu_allocation_sql % scenarios['adu_control']
-adu_allocation_df2 = pd.read_sql(adu_allocation_sql, mssql_engine)
-
 # Combine capacity parcel table with additional geography and plu information.
 parcels = pd.merge(parcels_df, geography_view_df, how='left', on='parcel_id')
 parcels.parcel_id = parcels.parcel_id.astype(int)
@@ -406,12 +384,10 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('hu_forecast', hu_forecast_df)
     store.put('controls', controls)
     store.put('regional_controls', regional_controls_df, format='table')
-    store.put('jurisdictions', jurisdictions_df, format='table')
     store.put('devyear', devyear_df, format='table')
     store.put('negative_parcels', negative_parcels_df, format='table')
     store.put('all_parcels', all_parcels, format='table')
     store.put('dev_lu_table', dev_lu_df, format='table')
     store.put('adu_allocation', adu_allocation_df, format='table')
-    store.put('adu_allocation2', adu_allocation_df2, format='table')
     store.put('run_match_output', run_match_df, format='table')
     store.put('target_match', target_match_df, format='table')
