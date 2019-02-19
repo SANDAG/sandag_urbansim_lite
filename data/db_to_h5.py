@@ -31,7 +31,6 @@ SELECT [parcel_id]
     ,'jur' AS capacity_type
     ,0 AS capacity_used
     ,0 AS partial_build
-    ,0 AS priority
 FROM [urbansim].[urbansim].[parcel]
 WHERE [capacity_2] > 0 and ([site_id] IS NULL or site_id = 15008)
 ORDER BY parcel_id
@@ -59,7 +58,6 @@ SELECT a.[parcel_id]
     ,'upd' AS capacity_type
     ,0 as capacity_used
     ,0 as partial_build
-    ,0 AS priority
 FROM [urbansim].[urbansim].[additional_capacity] AS a
 JOIN [urbansim].[parcel] AS p 
 ON p.[parcel_id] = a.[parcel_id]
@@ -129,7 +127,6 @@ SELECT a.[parcel_id]
     ,a.[type] AS capacity_type
     ,0 as capacity_used
     ,0 as partial_build
-    ,0 AS priority
 FROM [urbansim].[urbansim].[additional_capacity] AS a
 JOIN [urbansim].[parcel] AS p 
 ON p.[parcel_id] = a.[parcel_id]
@@ -164,7 +161,6 @@ SELECT s.[parcel_id]
     ,'sch' AS capacity_type
     ,0 as capacity_used
     ,0 AS partial_build
-    ,s.[priority]
 FROM [urbansim].[urbansim].[parcel] AS p
 INNER JOIN [urbansim].[urbansim].[scheduled_development_parcel] as s
 ON p.[parcel_id] = s.[parcel_id]
@@ -192,20 +188,21 @@ households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
 hu_forecast_df = pd.DataFrame(columns=['parcel_id', 'units_added', 'year_built', 'source', 'capacity_type'])
 controls = pd.DataFrame(columns=['jur_or_cpa_id','cap_jurisdiction_id', 'capacity', 'tot', 'share', 'yr',
                                  'housing_units_add', 'capacity_used', 'rem'])
-# SQL statement for parcels with negative capacity (excludes scheduled development).
-# As of 06/06/2018, there are no parcels with a negative capacity.
-negative_capacity_parcels = '''
-SELECT [parcel_id]
-    ,[site_id]
-    ,[capacity_2]
-    ,NULL AS yr
-    ,'neg_cap' AS capacity_type
-FROM [urbansim].[urbansim].[parcel]
-WHERE [capacity_2] < 0 AND [site_id] IS NULL
-ORDER BY [parcel_id]
-'''
-negative_parcels_df = pd.read_sql(negative_capacity_parcels, mssql_engine)
-negative_parcels_df.capacity_type = negative_parcels_df.capacity_type.astype(str)
+
+# # SQL statement for parcels with negative capacity (excludes scheduled development).
+# # As of 06/06/2018, there are no parcels with a negative capacity.
+# negative_capacity_parcels = '''
+# SELECT [parcel_id]
+#     ,[site_id]
+#     ,[capacity_2]
+#     ,NULL AS yr
+#     ,'neg_cap' AS capacity_type
+# FROM [urbansim].[urbansim].[parcel]
+# WHERE [capacity_2] < 0 AND [site_id] IS NULL
+# ORDER BY [parcel_id]
+# '''
+# negative_parcels_df = pd.read_sql(negative_capacity_parcels, mssql_engine)
+# negative_parcels_df.capacity_type = negative_parcels_df.capacity_type.astype(str)
 
 
 # SQL statement for sub-regional allocations.
@@ -285,14 +282,14 @@ ORDER BY [parcel_id]
 '''
 gplu_df = pd.read_sql(gplu_sql, mssql_engine)
 
-# SQL statement to match land use codes to development type.
-dev_lu_sql = '''
-SELECT [development_type_id] AS dev_type_sim
-    ,[lu_code] as lu_sim
-FROM [urbansim].[ref].[development_type_lu_code]
-ORDER BY [development_type_id]
-'''
-dev_lu_df = pd.read_sql(dev_lu_sql, mssql_engine)
+# # SQL statement to match land use codes to development type.
+# dev_lu_sql = '''
+# SELECT [development_type_id] AS dev_type_sim
+#     ,[lu_code] as lu_sim
+# FROM [urbansim].[ref].[development_type_lu_code]
+# ORDER BY [development_type_id]
+# '''
+# dev_lu_df = pd.read_sql(dev_lu_sql, mssql_engine)
 
 # SQL statement for cpa and taz information by parcel. This is used to add additional geography information.
 geography_view_sql = '''
@@ -328,20 +325,20 @@ parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels = pd.merge(parcels, gplu_df,  how='left', on='parcel_id')
 parcels.sort_index(inplace=True)
 
-# Combine all parcel table with additional geography and plu information.
-all_parcels = pd.merge(all_parcels_df, geography_view_df, how='left', on='parcel_id')
-all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
-all_parcels.capacity_type = all_parcels.capacity_type.astype(str)
-all_parcels = all_parcels.loc[~all_parcels.jur_or_cpa_id.isnull()].copy()
-all_parcels.jur_or_cpa_id = all_parcels.jur_or_cpa_id.astype(int)
-all_parcels = pd.merge(all_parcels, gplu_df, how='left', on='parcel_id')
-all_parcels.sort_index(inplace=True)
+# # Combine all parcel table with additional geography and plu information.
+# all_parcels = pd.merge(all_parcels_df, geography_view_df, how='left', on='parcel_id')
+# all_parcels.parcel_id = all_parcels.parcel_id.astype(int)
+# all_parcels.capacity_type = all_parcels.capacity_type.astype(str)
+# all_parcels = all_parcels.loc[~all_parcels.jur_or_cpa_id.isnull()].copy()
+# all_parcels.jur_or_cpa_id = all_parcels.jur_or_cpa_id.astype(int)
+# all_parcels = pd.merge(all_parcels, gplu_df, how='left', on='parcel_id')
+# all_parcels.sort_index(inplace=True)
 
-# Combine scheduled development parcel table with additional geography information.
-sched_dev = pd.merge(sched_dev_df, geography_view_df, how='left', on='parcel_id')
-sched_dev.jur_or_cpa_id = sched_dev.jur_or_cpa_id.astype(int)
-sched_dev.parcel_id = sched_dev.parcel_id.astype(int)
-sched_dev.capacity_type = sched_dev.capacity_type.astype(str)
+# # Combine scheduled development parcel table with additional geography information.
+# sched_dev = pd.merge(sched_dev_df, geography_view_df, how='left', on='parcel_id')
+# sched_dev.jur_or_cpa_id = sched_dev.jur_or_cpa_id.astype(int)
+# sched_dev.parcel_id = sched_dev.parcel_id.astype(int)
+# sched_dev.capacity_type = sched_dev.capacity_type.astype(str)
 
 # parcels.loc[((parcels.capacity_type!='sch') & (~parcels.site_id.isnull()))]
 
@@ -362,32 +359,21 @@ run_match_sql = run_match_sql % scenarios['run_to_match']
 run_match_df = pd.read_sql(run_match_sql, mssql_engine)
 run_match_df.capacity_type = run_match_df.capacity_type.astype(str)
 
-target_match_sql = '''
-SELECT jcpa
-    ,[year_simulation]
-    ,sum([unit_change]) as unit_change
-    FROM [urbansim].[urbansim].[urbansim_lite_output] o
-    JOIN [ref].[vi_parcel_geo_names] g
-    on g.parcel_id = o.parcel_id
-    where run_id = %s
-    group by jcpa, year_simulation
-'''
-target_match_sql = target_match_sql % scenarios['run_to_match']
-target_match_df = pd.read_sql(target_match_sql, mssql_engine)
+# target_match_df = run_match_df.groupby(['jcpa', 'year_simulation'])['unit_change'].sum().reset_index()
 
 # Store all the above tables in a .h5 file for use with orca. These are called via datasources.py, or directly retrieved
 # in certain portions of utils.py and bulk_insert.py.
 with pd.HDFStore('urbansim.h5', mode='w') as store:
-    store.put('scheduled_development', sched_dev, format='table')
+    # store.put('scheduled_development', sched_dev, format='table')
     store.put('parcels', parcels, format='table')
     store.put('households', households_df, format='table')
     store.put('hu_forecast', hu_forecast_df)
     store.put('controls', controls)
     store.put('regional_controls', regional_controls_df, format='table')
     store.put('devyear', devyear_df, format='table')
-    store.put('negative_parcels', negative_parcels_df, format='table')
-    store.put('all_parcels', all_parcels, format='table')
-    store.put('dev_lu_table', dev_lu_df, format='table')
+    # store.put('negative_parcels', negative_parcels_df, format='table')
+    # store.put('all_parcels', all_parcels, format='table')
+    # store.put('dev_lu_table', dev_lu_df, format='table')
     store.put('adu_allocation', adu_allocation_df, format='table')
     store.put('run_match_output', run_match_df, format='table')
-    store.put('target_match', target_match_df, format='table')
+    # store.put('target_match', target_match_df, format='table')

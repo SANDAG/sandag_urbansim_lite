@@ -13,6 +13,7 @@ scenario:
     # Not reported out to [urbansim].[urbansim].[urbansim_lite_output_runs]
     subregion_estimates_id: 112
     # These estimates should not change, however Dmitry ties the version_id to target_housing_units_version
+    # We may be moving up the base year, which could change this or render it unneeded
 
     # Annual target housing units for simulation (region-wide)
     # From [urbansim].[urbansim].[urbansim_target_housing_units].[version_id]
