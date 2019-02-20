@@ -90,9 +90,3 @@ def adu_allocation(store):
 def run_match_output(store):
     df = store['run_match_output']
     return df
-
-
-@orca.table('target_match', cache=True)
-def target_match(store):
-    df = store['target_match']
-    return df

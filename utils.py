@@ -557,8 +557,8 @@ def parcel_picker2017(parcels_to_choose, target_number_of_units, name_of_geo, ye
             shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)  # type: pd.DataFrame
 
             capacity_sch = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'sch')].copy()
-            capacity_site = capacity_sch.groupby(['site_id', 'phase_yr', 'priority', 'jur_or_cpa_id']).\
-                agg({'remaining_capacity': 'sum', 'partial_build': 'sum'}).reset_index()
+            capacity_site = capacity_sch.groupby(['site_id', 'phase_yr', 'jur_or_cpa_id']).\
+                agg({'remaining_capacity': 'sum', 'partial_build': 'sum'}).reset_index()  # 'priority'
 
             # Subset parcels that are partially completed from the year before
             previously_picked = shuffled_parcels.loc[(shuffled_parcels.partial_build > 0) &
@@ -575,8 +575,8 @@ def parcel_picker2017(parcels_to_choose, target_number_of_units, name_of_geo, ye
             # chosen ahead of sched dev for chula vista
 
             if len(capacity_site):
-                capacity_site.sort_values(by=['partial_build', 'priority', 'site_id'], ascending=[False, True, True],
-                                          inplace=True)
+                capacity_site.sort_values(by=['partial_build', 'site_id'], ascending=[False, True, True],
+                                          inplace=True)  # 'priority'
                 capacity_site['units_for_year'] = np.ceil(capacity_site.remaining_capacity / years_left).astype(int)
                 capacity_site.loc[capacity_site['units_for_year'] < 250, 'units_for_year'] = 250
                 capacity_site.loc[capacity_site['units_for_year'].notnull(), 'units_for_year'] = \
@@ -1270,13 +1270,14 @@ def summary(year):
     orca.add_table("parcels", parcels)
 
 
-def run_matching(run_match_output, target_match, regional_controls, households, hu_forecast):
+def run_matching(run_match_output, regional_controls, households, hu_forecast):
     # Unwraps the dataframes
-    target_to_match_df = target_match.to_frame()
-    #control_totals_df = regional_controls.to_frame()
+    # control_totals_df = regional_controls.to_frame()
     hh_df = households.to_frame()
     run_match_df = run_match_output.to_frame()
     parcels = orca.get_table('parcels').to_frame()
+
+    # target_match_df = run_match_df.groupby(['jcpa', 'year_simulation'])['unit_change'].sum().reset_index()
 
     # Creates empty dataframe to track added parcels
     sr14cap = pd.DataFrame()
