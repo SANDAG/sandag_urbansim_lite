@@ -6,19 +6,22 @@ scenario:
     # From [urbansim].[urbansim].[urbansim_lite_subreg_control].[subregional_crtl_id]
     # Note the typo in the SQL server column name
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[subregional_controls]
-    subregional_ctrl_id: 213
+    subregional_ctrl_id: 501
 
     # This provides 2017 estimates by jurisdiction (used to set exact targets)
     # From [urbansim].[urbansim].[urbansim_target_hu_jur].[version_id]
     # Not reported out to [urbansim].[urbansim].[urbansim_lite_output_runs]
-    subregion_estimates_id: 112
+    subregion_estimates_id: 999 #112
+    # UPDATE: Model now begins in 2018.
+    # We do not have first-year estimates in 2018 currently. 999 is a placeholder for None.
+    # OLD (for when 2017 was the first model year):
     # These estimates should not change, however Dmitry ties the version_id to target_housing_units_version
     # We may be moving up the base year, which could change this or render it unneeded
 
     # Annual target housing units for simulation (region-wide)
     # From [urbansim].[urbansim].[urbansim_target_housing_units].[version_id]
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[target_housing_units]
-    target_housing_units_version: 112
+    target_housing_units_version: 113 #112
 
     # Specifies phase years for parcels by capacity_type
     # From [urbansim].[urbansim].[urbansim_lite_parcel_control].[phase_yr_version_id]

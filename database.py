@@ -6,7 +6,7 @@ import yaml
 
 def get_connection_string(cfg_file, cfg_section):
     with open(cfg_file, 'r') as db_config_file:
-        return _get_connection_string_from_stream(yaml.load(db_config_file), cfg_section)
+        return _get_connection_string_from_stream(yaml.load(db_config_file, Loader=yaml.FullLoader), cfg_section)
 
 
 def _get_connection_string_from_stream(in_stream, cfg_section):

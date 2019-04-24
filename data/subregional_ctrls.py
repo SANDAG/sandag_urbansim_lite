@@ -61,7 +61,7 @@ sr13_jcid_df = pd.DataFrame({'hs_sum': sr13_df.groupby(['jcid', 'increment']).hs
 
 sr13_pivot = sr13_jcid_df.pivot(index='jcid', columns='increment',
                                 values='hs_sum').reset_index().rename_axis(None, axis=1)
-# sr13_pivot.set_index('jcid', inplace=True)
+sr13_pivot.set_index('jcid', inplace=True)
 
 sr13_chg = sr13_pivot.diff(axis=1)
 
@@ -120,7 +120,7 @@ lookup_df = pd.merge(lookup_df, jur_name, on='jur_id', how='left')
 lookup_df['jcpa_name'] = lookup_df['jur_name']
 lookup_df.loc[lookup_df.jur_id == 14, 'jcpa_name'] = lookup_df['cicpa']
 lookup_df.loc[lookup_df.jur_id == 19, 'jcpa_name'] = lookup_df['cocpa']
-lookup_df.drop(columns=['cocpa', 'cicpa', 'jur_name', 'jur_id', 'cpa_id'], inplace=True)
+lookup_df.drop(['cocpa', 'cicpa', 'jur_name', 'jur_id', 'cpa_id'], axis=1, inplace=True)
 
 sr14units = pd.merge(hs, lookup_df, on='parcel_id')
 sr14units.rename(columns={"jcpa": "jcid"}, inplace=True)
@@ -217,5 +217,5 @@ controls = ctrls[['subregional_crtl_id', 'yr', 'geo', 'geo_id', 'control', 'cont
 
 # to write to csv
 # controls.to_csv('out/subregional_control_175.csv')
-controls.to_sql(name='urbansim_lite_subreg_control', con=mssql_engine, schema='urbansim', index=False,
-                if_exists='append')
+# controls.to_sql(name='urbansim_lite_subreg_control', con=mssql_engine, schema='urbansim', index=False,
+#                 if_exists='append')

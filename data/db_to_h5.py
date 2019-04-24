@@ -14,6 +14,35 @@ scenarios = utils.yaml_to_dict('scenario_config.yaml', 'scenario')
 # Failure to do so can result in inconsistent outputs, even if all other input requirements are the same.
 
 # SQL statement for parcels with jurisdiction-provided capacity (excludes scheduled development).
+new_parcel_sql = '''
+SELECT 
+    r.[parcel_id]
+    ,[mgra_id]
+    ,[cap_jurisdiction_id]
+    ,[jurisdiction_id]
+    ,[luz_id]
+    ,[site_id]
+    ,r.[capacity]
+    ,[du_2017] AS residential_units
+    ,[development_type_id_2017] AS dev_type_2017
+    ,[development_type_id_2015] AS dev_type_2015
+    ,[lu_2015]
+    ,[lu_2017]
+    ,[lu_2017] AS lu_sim
+    ,'jur' AS capacity_type
+    ,0 AS capacity_used
+    ,0 AS partial_build
+FROM [urbansim].[urbansim].[parcel] AS p
+RIGHT JOIN [urbansim].[urbansim].[urbansim_reduced_capacity] AS r
+ON p.parcel_id = r.parcel_id
+WHERE version_id = 1
+ORDER BY parcel_id
+'''
+new_parcels_df = pd.read_sql(new_parcel_sql, mssql_engine)
+new_parcels_df['site_id'] = new_parcels_df.site_id.astype(float)
+# parcels_df.set_index('parcel_id',inplace=True)
+new_parcels_df['parcel_id'] = new_parcels_df.parcel_id.astype('int64')
+
 parcel_sql = '''
 SELECT [parcel_id]
     ,[mgra_id]
@@ -70,18 +99,12 @@ city_update_df['site_id'] = city_update_df.site_id.astype(float)
 city_update_df['parcel_id'] = city_update_df.parcel_id.astype('int64')
 # city_update_df.set_index('parcel_id',inplace=True)
 
-#parcels_df.update(city_update_df)
-#parcels_df.reset_index(inplace=True)
+# parcels_df.update(city_update_df)
+# parcels_df.reset_index(inplace=True)
 
-# parcels_df = pd.concat([parcels_df,city_update_df],sort=False).drop_duplicates(['parcel_id'],keep='last').sort_values('parcel_id')
-parcels_df = pd.concat([parcels_df,city_update_df]) #,sort=False)
-
-
-# parcels_df.loc[parcels_df.parcel_id.isin([3171,5637,16465,130255,130551,131043,302369,307671,736938,4100124,5282707,5300214])]
-# parcels_df.loc[parcels_df.parcel_id==130255]
-
-parcels_df.loc[parcels_df.parcel_id.isin([ 3171,5637,16465,130255,130551,131043,302369,307671,736938,4100124,5282707,5300214])][['parcel_id','capacity']]
-
+# parcels_df = pd.concat([parcels_df,city_update_df], sort=False).drop_duplicates(['parcel_id'], keep='last')
+# .sort_values('parcel_id')
+parcels_df = pd.concat([parcels_df, city_update_df])  # ,sort=False)
 
 # SQL statement for all parcels (excludes scheduled development).
 all_parcel_sql = '''
@@ -170,7 +193,7 @@ ORDER BY s.[parcel_id]
 # sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']  # Only used for 'priority' table
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine)
 parcels_df = pd.concat([parcels_df, sched_dev_df])
-
+new_parcels_df = pd.concat([new_parcels_df, sched_dev_df])
 
 # SQL statement for the target units per year table.
 households_sql = '''
@@ -186,7 +209,7 @@ households_df['total_housing_units'] = households_df.housing_units_add.cumsum()
 
 # output table.
 hu_forecast_df = pd.DataFrame(columns=['parcel_id', 'units_added', 'year_built', 'source', 'capacity_type'])
-controls = pd.DataFrame(columns=['jur_or_cpa_id','cap_jurisdiction_id', 'capacity', 'tot', 'share', 'yr',
+controls = pd.DataFrame(columns=['jur_or_cpa_id', 'cap_jurisdiction_id', 'capacity', 'tot', 'share', 'yr',
                                  'housing_units_add', 'capacity_used', 'rem'])
 
 # # SQL statement for parcels with negative capacity (excludes scheduled development).
@@ -244,7 +267,7 @@ regional_controls_df.jurisdiction_id = regional_controls_df.jurisdiction_id.asty
 for year in regional_controls_df.yr.unique().tolist():
     for jur in [14, 19]:
         control_adjustments = regional_controls_df.loc[(regional_controls_df.jurisdiction_id == jur) &
-                                                   (regional_controls_df.yr == year)].copy()
+                                                       (regional_controls_df.yr == year)].copy()
         adjust = (1 / control_adjustments.control.sum())
         control_adjustments['control'] = control_adjustments.control * adjust
         try:
@@ -301,8 +324,8 @@ SELECT [parcel_id]
 ORDER BY [parcel_id]
 '''
 geography_view_df = pd.read_sql(geography_view_sql, mssql_engine)
-geography_view_df.loc[geography_view_df.jur_or_cpa_id==0,'jur_or_cpa_id'] = geography_view_df['jur_id']
-geography_view_df.drop(['jur_id'], axis=1,inplace=True)
+geography_view_df.loc[geography_view_df.jur_or_cpa_id == 0, 'jur_or_cpa_id'] = geography_view_df['jur_id']
+geography_view_df.drop(['jur_id'], axis=1, inplace=True)
 
 # SQL statement for the target ADU units per year table.
 adu_allocation_sql = '''
@@ -316,6 +339,8 @@ ORDER BY [yr]
 adu_allocation_sql = adu_allocation_sql % scenarios['adu_control']
 adu_allocation_df = pd.read_sql(adu_allocation_sql, mssql_engine)
 
+# Overwrite parcels with new_parcels
+parcels_df = new_parcels_df.copy()
 
 # Combine capacity parcel table with additional geography and plu information.
 parcels = pd.merge(parcels_df, geography_view_df, how='left', on='parcel_id')
