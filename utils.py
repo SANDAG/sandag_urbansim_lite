@@ -140,7 +140,7 @@ def largest_remainder_allocation(regional_targets, target_units):
         # This is because the Unincorporated County expects to fill up later than other cities.
         # idx = regional_targets.index[regional_targets.geo_id == 1920]
         # results[idx] = results[idx] + remainder
-        # print('\n\nNegative remainder: %d' % remainder)
+        # print(f'\n\nNegative remainder: {remainder}')
     regional_targets['targets'] = results.astype(int).tolist()
 
     return regional_targets
@@ -219,11 +219,11 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
         Does not return an object, but does update the scheduled_development and hu_forecast tables in orca.
     """
 
-    print('\n Adding scheduled developments in year: %d' % year)
+    print(f'\n Adding scheduled developments in year: {year}')
 
     # Find the target number of units to be built in the current simulation year.
     target_units = int(households.to_frame().at[year, 'housing_units_add'])
-    print('\n Number of households in year: %d' % target_units)
+    print(f'\n Number of households in year: {target_units}')
     # adu_share_df = orca.get_table('adu_allocation').to_frame()
     # adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * target_units, 0))
     # target_units = target_units - adu_share
@@ -326,7 +326,7 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
 
         sr14cap = sr14cap.append(sch_picked[['parcel_id', 'capacity_type', 'units_added']], sort=True)
 
-    print('Sched Dev units: {}'.format(sr14cap.units_added.sum()))
+    print(f'Sched Dev units: {sr14cap.units_added.sum()}')
 
     if len(sr14cap) > 0:
         sr14cap['year_built'] = year
@@ -434,7 +434,7 @@ def run_feasibility(year):
     feasible_parcels = feasible_parcels.loc[feasible_parcels['phase_yr'] <= year].copy()
     orca.add_table("feasibility", feasible_parcels)
 
-    print('Feasible Units: {}'.format(feasible_parcels.capacity.sum() - feasible_parcels.capacity_used.sum()))
+    print(f'Feasible Units: {feasible_parcels.capacity.sum() - feasible_parcels.capacity_used.sum()}')
 
 
 def adu_picker(feasible_parcels_df, adu_share):
@@ -549,7 +549,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
         # warning and then builds all available units in the sub-region (if there are any). Otherwise it proceeds to
         # randomized selection of parcels (the 'else' statement).
         if parcels_to_choose.remaining_capacity.sum() < target_number_of_units:
-            print("WARNING: NOT ENOUGH UNITS TO MATCH DEMAND FOR", name_of_geo, "IN YEAR", year_simulation)
+            print(f"WARNING: NOT ENOUGH UNITS TO MATCH DEMAND FOR {name_of_geo} IN YEAR {year_simulation}")
 
             # This checks if there are any units available to build. If so, they are all used up. If not, the function
             # ends and returns an empty dataframe.
@@ -629,8 +629,7 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
 
             parcels_picked.set_index('parcel_id', inplace=True)
             if original_target != parcels_picked['units_added'].sum():
-                print('{0} UNITS PRODUCED INSTEAD OF TARGET {1}!'.format(parcels_picked['units_added'].sum(),
-                                                                         original_target))
+                print(f"{parcels_picked['units_added'].sum()} UNITS PRODUCED INSTEAD OF TARGET {original_target}!")
     return parcels_picked
 
 
@@ -679,7 +678,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # Check that the target percentages sum to 1 (100%). If not, print statement and cancel the run.
     # This would need to be modified if sub-regional targets were changed away from percentage-based values.
     if round(control_totals_by_year.control.sum(), 1) != 1.0:
-        print("Control percentages for %d do not total 100: Cancelling model run." % year)
+        print(f"Control percentages for {year} do not total 100: Cancelling model run.")
         exit()
 
     # Pull the current year housing targets (current_hh) and the cumulative target for the end of the year (net_hh).
@@ -785,7 +784,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # if adu_unit_count > 0:
     #     sr14cap = sr14cap.append(adu_builds[['parcel_id', 'capacity_type', 'units_added', 'source']], sort=True)
     #     sr14cap.set_index('parcel_id', inplace=True)
-    #     print('ADU units added: {}'.format(adu_unit_count))
+    #     print(f'ADU units added: {adu_unit_count}')
     #     # adu_builds.extra.fillna(0, inplace=True)
     #     # extra_units = int(adu_builds.extra.sum())
     #     # subregional_targets.loc[subregional_targets.geo_id == 1404, 'targets'] =subregional_targets.loc[subregional_targets.geo_id == 1404].targets.iloc[0] - extra_units
@@ -820,10 +819,10 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # if year < 2050:
     #     feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu']  # remove adu parcels
     # Print statements to see the current values of the above numbers.
-    print("Number of households: {:,}".format(net_hh))
-    print("Number of units: {:,}".format(num_units))
-    print("Target of new units = {:,} total".format(current_hh))
-    print("{:,} feasible parcels before running developer (excludes sched dev)".format(len(feasible_parcels_df)))
+    print(f"Number of households: {net_hh:,}")
+    print(f"Number of units: {num_units:,}")
+    print(f"Target of new units = {current_hh:,} total")
+    print(f"{len(feasible_parcels_df):,} feasible parcels before running developer (excludes sched dev)")
 
     # Use the sub-regional percentages and target units to determine integer sub-regional targets by running the
     # largest_remainder_allocation function.
@@ -867,7 +866,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
             target_units_for_geo = int(target_units_for_geo)
 
         geo_name = str(jur)
-        print("Jurisdiction %s target units: %d" % (geo_name, target_units_for_geo))
+        print(f"Jurisdiction {geo_name} target units: {target_units_for_geo}")
         # num_units_already = int(hu_forecast_df.loc[((hu_forecast_df.year_built ==year) & ())][supply_fname].sum())
         # Only use feasible parcels in the current sub-region when selecting parcels for the sub-region.
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
@@ -986,7 +985,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
                 target_units_for_geo = int(
                     remaining_targets.loc[remaining_targets['geo_id'] == jur].targets.values[0])
             geo_name = str(jur)
-            print("Jurisdiction %s target units: %d" % (geo_name, target_units_for_geo))
+            print(f"Jurisdiction {geo_name} target units: {target_units_for_geo}")
 
             # Only use feasible parcels in the current sub-region when selecting parcels for the sub-region.
             parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
@@ -1045,7 +1044,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
             sr14cap["year_built"] = year
 
         # Display how many parcels were selected and how many units were added on them (not including sched dev)
-        print("Adding {:,} parcels with {:,} {}".format(len(sr14cap), int(sr14cap[supply_fname].sum()), supply_fname))
+        print(f"Adding {len(sr14cap):,} parcels with {int(sr14cap[supply_fname].sum()):,} {supply_fname}")
 
         # Merge the existing hu_forecast with current-year units built (sr14cap).
         sr14cap.reset_index(inplace=True, drop=False)
@@ -1089,31 +1088,31 @@ def summary(year):
     all_built = hu_forecast_year.units_added.sum()
 
     # Print statements to see the current values of the above numbers.
-    print(' %d units built as Scheduled Development in %d' % (sched_dev_built, year))
-    print(' %d units built as ADU in %d' % (adus_built, year))
-    print(' %d units built as Stochastic Units in %d' % (subregional_control_built, year))
-    print(' %d units built as Total Remaining in %d' % (entire_region_built, year))
-    print(' %d total housing units in %d' % (all_built, year))
-    print(' {0} was the target number of units for {1}.'.format(target_for_year, year))
+    print(f' {sched_dev_built} units built as Scheduled Development in {year}')
+    print(f' {adus_built} units built as ADU in {year}')
+    print(f' {subregional_control_built} units built as Stochastic Units in {year}')
+    print(f' {entire_region_built} units built as Total Remaining in {year}')
+    print(f' {all_built} total housing units in {year}')
+    print(f' {target_for_year} was the target number of units for {year}.')
     if all_built != target_for_year:
-        print('WARNING! TARGET {0} =/= ACTUAL {1} IN {2}!.'.format(target_for_year, all_built, year))
+        print(f'WARNING! TARGET {target_for_year} =/= ACTUAL {all_built} IN {year}!.')
         exit()
 
     # Subset scheduled development parcels.
     sch_units = (hu_forecast_year.loc[(hu_forecast_year.capacity_type == 'sch')]).units_added.sum()
-    print('  {} sch units.'.format(sch_units))
+    print(f'  {sch_units} sch units.')
 
     # Subset parcels from jur / upd.
     jur_units = (hu_forecast_year.loc[(hu_forecast_year.capacity_type.isin(['jur', 'upd']))]).units_added.sum()
-    print('  {} jur/upd units.'.format(jur_units))
+    print(f'  {jur_units} jur/upd units.')
 
     # Subset parcels from sgoa.
     sgoa_units = (hu_forecast_year.loc[(hu_forecast_year.capacity_type.isin(['cc','mc','tc','tco','uc']))]).units_added.sum()
-    print('  {} sgoa units.'.format(sgoa_units))
+    print(f'  {sgoa_units} sgoa units.')
 
     # Subset ADU parcels.
     adu_units = (hu_forecast_year.loc[(hu_forecast_year.capacity_type == 'adu')]).units_added.sum()
-    print('  {} adu units.'.format(adu_units))
+    print(f'  {adu_units} adu units.')
 
 
     # Combine parcels by capacity type. This is relevant primarily if a parcel was selected both for stochastic
@@ -1160,7 +1159,7 @@ def run_matching(run_match_output, regional_controls, households, hu_forecast):
     #     num_total = num_total + 1
     #     compatible_value = matched_geos.loc[(matched_geos.yr == yr) & (matched_geos.geo_id == geo_id)].diffs.values[0]
     #     if (num_total % 600) == 0:
-    #         print('{0}% done...'.format(round(num_total/24.45, 3)))
+    #         print(f'{round(num_total/24.45, 3)}% done...')
     #     if compatible_value >= 0:
     #         full_match_geo = run_match_df.loc[(run_match_df.year_simulation == yr) &
     #                                           (run_match_df.jcpa == geo_id)].copy()
@@ -1192,7 +1191,9 @@ def run_matching(run_match_output, regional_controls, households, hu_forecast):
         parcels = parcel_table_update_units(parcels, matched_builds)
         orca.add_table("parcels", parcels)
 
-    #print('The current scenario will match {0} geo/year combinations (of {1}) exactly.\n{2} geo/years match but will need additional units.\n{3} geo/years now have reduced targets below the run to match.'.format(num_match,num_total,num_high,num_low))
+    print(f'The current scenario will match {num_match} geo/year combinations (of {num_total}) exactly.\n'
+          f'{num_high} geo/years match but will need additional units.\n'
+          f'{num_low} geo/years now have reduced targets below the run to match.')
     #exit()
 
     #unmatched_geos = matched_geos.loc[~(matched_geos.diffs == 0)]
