@@ -6,12 +6,12 @@ scenario:
     # From [urbansim].[urbansim].[urbansim_lite_subreg_control].[subregional_crtl_id]
     # Note the typo in the SQL server column name
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[subregional_controls]
-    subregional_ctrl_id: 501
+    subregional_ctrl_id: 502
 
     # This provides 2017 estimates by jurisdiction (used to set exact targets)
     # From [urbansim].[urbansim].[urbansim_target_hu_jur].[version_id]
     # Not reported out to [urbansim].[urbansim].[urbansim_lite_output_runs]
-    subregion_estimates_id: 999 #112
+    subregion_estimates_id: 999
     # UPDATE: Model now begins in 2018.
     # We do not have first-year estimates in 2018 currently. 999 is a placeholder for None.
     # OLD (for when 2017 was the first model year):
@@ -21,7 +21,7 @@ scenario:
     # Annual target housing units for simulation (region-wide)
     # From [urbansim].[urbansim].[urbansim_target_housing_units].[version_id]
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[target_housing_units]
-    target_housing_units_version: 113 #112
+    target_housing_units_version: 114
 
     # Specifies phase years for parcels by capacity_type
     # From [urbansim].[urbansim].[urbansim_lite_parcel_control].[phase_yr_version_id]
@@ -31,20 +31,20 @@ scenario:
     # Determines which version of additional capacity is used
     # From [urbansim].[urbansim].[additional_capacity].[version_id]
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[additional_capacity]
-    additional_capacity_version: 111
+    additional_capacity_version: 108
 
     # Pulls scheduled development parcels. Need to switch back to base table
     # From [urbansim].[urbansim].[scheduled_development_priority].[sched_version_id]
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[scheduled_development]
     # Should no longer be needed
-    sched_dev_version: 149
+    sched_dev_version: 999
 
     # Assigns annual adu percentage target (from regional targets)
     # From [urbansim].[urbansim].[urbansim_lite_adu_control].[version_id]
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[adu_control]
-    adu_control: 5
+    adu_control: 999
 
     # If part of a former run is being matched exactly, declare which run_id
     # From [urbansim].[urbansim].[urbansim_lite_output].[run_id]
     # Not reported out to [urbansim].[urbansim].[urbansim_lite_output_runs]
-    run_to_match: 403
+    run_to_match: 999
