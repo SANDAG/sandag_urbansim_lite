@@ -50,5 +50,5 @@ def write_to_sql(parcel_tables, year):
 
 
 @orca.step('match_prior_run')
-def match_prior_run(run_match_output, regional_controls, households, hu_forecast):
-    utils.run_matching(run_match_output, regional_controls, households, hu_forecast)
+def match_prior_run(run_match_output, hu_forecast):
+    utils.run_matching(run_match_output, hu_forecast)

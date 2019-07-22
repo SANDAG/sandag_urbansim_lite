@@ -1136,10 +1136,8 @@ def summary(year):
     orca.add_table("parcels", parcels)
 
 
-def run_matching(run_match_output, regional_controls, households, hu_forecast):
+def run_matching(run_match_output, hu_forecast):
     # Unwraps the dataframes
-    # control_totals_df = regional_controls.to_frame()
-    # hh_df = households.to_frame()
     run_match_df = run_match_output.to_frame()
     parcels = orca.get_table('parcels').to_frame()
 
