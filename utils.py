@@ -237,7 +237,7 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
     built_this_yr = hu_forecast_df.loc[hu_forecast.year_built == year].copy()
     built_this_yr['parcel_id'] = built_this_yr.parcel_id.astype(int)
     built_this_yr = pd.merge(built_this_yr, parcels[['parcel_id', 'capacity_type', 'jur_or_cpa_id']], how='left',
-                              left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
+                             left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
     units_built_matching = built_this_yr.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
 
     # Determine if ADUs are expected in the given year, and 'under-produce' scheduled developments to allow for the
@@ -259,9 +259,12 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
 
         if len(units_built_matching) > 0:
             if jur in units_built_matching.jur_or_cpa_id.tolist():
-                units_built_already = units_built_matching.loc[units_built_matching.jur_or_cpa_id==jur].units_added.values[0]
-            else: units_built_already = 0
-        else: units_built_already = 0
+                units_built_already = units_built_matching.loc[units_built_matching.jur_or_cpa_id ==
+                                                               jur].units_added.values[0]
+            else:
+                units_built_already = 0
+        else:
+            units_built_already = 0
         # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
         # because the minimum of a number and NaN would be NaN. (Usually subregion_max will be a null value).
         if pd.isnull(subregional_targets.loc[subregional_targets['geo_id'] == jur].target_units.values[0]):
@@ -687,7 +690,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
 
     units_built_sum = hu_forecast_df.loc[hu_forecast_df.year_built == year].units_added.sum()
 
-    #subregional_targets = largest_remainder_allocation(control_totals_by_year, target_without_adu)
+    # subregional_targets = largest_remainder_allocation(control_totals_by_year, target_without_adu)
     rem_current_hh = current_hh - units_built_sum
     subregional_targets = largest_remainder_allocation(control_totals_by_year, rem_current_hh)
 
@@ -697,7 +700,8 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     # adu_share_df = orca.get_table('adu_allocation').to_frame()
     # feasible_adu = feasible_parcels_df.loc[feasible_parcels_df.capacity_type == 'adu'].copy()
     # feasible_totals = feasible_parcels_df.groupby(['jur_or_cpa_id'], as_index=False)['capacity'].sum()
-    # adu_totals = feasible_parcels_df.loc[feasible_parcels_df.capacity_type == 'adu'].groupby(['jur_or_cpa_id'], as_index=False)['capacity'].sum()
+    # adu_totals = feasible_parcels_df.loc[feasible_parcels_df.capacity_type == 'adu'].groupby(
+    #     ['jur_or_cpa_id'], as_index=False)['capacity'].sum()
     # adu_percent = pd.merge(feasible_totals, adu_totals, how='left', on=['jur_or_cpa_id'])
     # adu_percent['adu_portion'] = adu_percent.capacity_y / adu_percent.capacity_x
     #
@@ -767,7 +771,8 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     #         adu_prog = adu_picker(feasible_adu_geo, geo_adu_target)
     #         if len(adu_prog) > 0:
     #             adu_target2 = adu_target2 - adu_prog.units_added.sum()
-    #             adu_builds = adu_builds.append(adu_prog[['parcel_id', 'capacity_type', 'units_added', 'source']], sort=True)
+    #             adu_builds = adu_builds.append(adu_prog[['parcel_id', 'capacity_type', 'units_added', 'source']],
+    #                                            sort=True)
     #
     # # Run the adu_picker before determining other builds for the year. Doing this first allows for better control of
     # # how many ADUs are chosen in each year rather than allowing them to be randomly selected from the pool of
@@ -787,7 +792,8 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     #     print(f'ADU units added: {adu_unit_count}')
     #     # adu_builds.extra.fillna(0, inplace=True)
     #     # extra_units = int(adu_builds.extra.sum())
-    #     # subregional_targets.loc[subregional_targets.geo_id == 1404, 'targets'] =subregional_targets.loc[subregional_targets.geo_id == 1404].targets.iloc[0] - extra_units
+    #     # subregional_targets.loc[subregional_targets.geo_id == 1404, 'targets'] = \
+    #     #     subregional_targets.loc[subregional_targets.geo_id == 1404].targets.iloc[0] - extra_units
     #     feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(adu_builds.parcel_id.tolist())]
 
     # num_units will have the sum of all units built since the start of the simulation, including the ADU units for the
@@ -816,8 +822,9 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     feasible_parcels_df.set_index('parcel_id', inplace=True)
     feasible_parcels_df.units_added = feasible_parcels_df.units_added.fillna(0)
 
+    # remove adu parcels
     # if year < 2050:
-    #     feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu']  # remove adu parcels
+    #     feasible_parcels_df = feasible_parcels_df.loc[feasible_parcels_df.capacity_type != 'adu']
     # Print statements to see the current values of the above numbers.
     print(f"Number of households: {net_hh:,}")
     print(f"Number of units: {num_units:,}")
@@ -850,7 +857,8 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         subregion_max = subregional_targets.loc[subregional_targets['geo_id'] == jur].max_units.values[0]
         # if len(units_built_sch_adu) > 0:
         #     if jur in units_built_sch_adu.jur_or_cpa_id.tolist():
-        #         units_built_already = units_built_sch_adu.loc[units_built_sch_adu.jur_or_cpa_id==jur].units_added.values[0]
+        #         units_built_already = units_built_sch_adu.loc[units_built_sch_adu.jur_or_cpa_id ==
+        #                                                       jur].units_added.values[0]
         #     else: units_built_already = 0
         # else: units_built_already = 0
         # Selects the lower value of subregion_targets and subregion_max, but does not count 'NaN' as the lower value,
@@ -872,7 +880,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         parcels_in_geo = feasible_parcels_df.loc[feasible_parcels_df['jur_or_cpa_id'] == jur].copy()
 
         # Run the parcel_picker function to select parcels and build units for the sub-region.
-        #target_units_for_geo = int(target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur]))
+        # target_units_for_geo = int(target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur]))
 
         parcels_in_geo = parcels_in_geo.loc[parcels_in_geo['capacity_type'].isin(['jur', 'upd'])].copy()
         chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
@@ -1107,13 +1115,13 @@ def summary(year):
     print(f'  {jur_units} jur/upd units.')
 
     # Subset parcels from sgoa.
-    sgoa_units = (hu_forecast_year.loc[(hu_forecast_year.capacity_type.isin(['cc','mc','tc','tco','uc']))]).units_added.sum()
+    sgoa_units = (hu_forecast_year.loc[(hu_forecast_year.capacity_type.isin(['cc', 'mc', 'tc', 'tco', 'uc']
+                                                                            ))]).units_added.sum()
     print(f'  {sgoa_units} sgoa units.')
 
     # Subset ADU parcels.
     adu_units = (hu_forecast_year.loc[(hu_forecast_year.capacity_type == 'adu')]).units_added.sum()
     print(f'  {adu_units} adu units.')
-
 
     # Combine parcels by capacity type. This is relevant primarily if a parcel was selected both for stochastic
     # development and for regional_overflow needs.
@@ -1140,14 +1148,14 @@ def run_matching(run_match_output, regional_controls, households, hu_forecast):
     # Creates empty dataframe to track added parcels
     # sr14cap = pd.DataFrame(columns=['parcel_id', 'capacity_type', 'units_added'])
 
-    # target_comparison_df = pd.DataFrame()
+    # target_comp_df = pd.DataFrame()
     # for year in control_totals_df.yr.unique().tolist():
     #     control_totals_by_year = control_totals_df.loc[control_totals_df.yr == year].copy()
     #     current_hh = int(hh_df.at[year, 'housing_units_add'])
     #     subregional_targets = largest_remainder_allocation(control_totals_by_year, current_hh)
-    #     target_comparison_df = target_comparison_df.append(subregional_targets[['geo_id', 'yr', 'targets']], sort=True)
+    #     target_comp_df = target_comp_df.append(subregional_targets[['geo_id', 'yr', 'targets']], sort=True)
     #
-    # matched_geos = pd.merge(target_to_match_df, target_comparison_df, how='left', left_on=['jcpa', 'year_simulation'],
+    # matched_geos = pd.merge(target_to_match_df, target_comp_df, how='left', left_on=['jcpa', 'year_simulation'],
     #                         right_on=['geo_id', 'yr'])
     # matched_geos['diffs'] = matched_geos.targets - matched_geos.unit_change
     #
@@ -1163,7 +1171,8 @@ def run_matching(run_match_output, regional_controls, households, hu_forecast):
     #     if compatible_value >= 0:
     #         full_match_geo = run_match_df.loc[(run_match_df.year_simulation == yr) &
     #                                           (run_match_df.jcpa == geo_id)].copy()
-    #         sr14cap = sr14cap.append(full_match_geo[['parcel_id', 'unit_change', 'year_simulation', 'capacity_type']], sort=True)
+    #         sr14cap = sr14cap.append(full_match_geo[['parcel_id', 'unit_change', 'year_simulation', 'capacity_type']],
+    #                                  sort=True)
     #     if compatible_value == 0:
     #         num_match = num_match + 1
     #     elif compatible_value > 0:
@@ -1191,9 +1200,9 @@ def run_matching(run_match_output, regional_controls, households, hu_forecast):
         parcels = parcel_table_update_units(parcels, matched_builds)
         orca.add_table("parcels", parcels)
 
-    print(f'The current scenario will match {num_match} geo/year combinations (of {num_total}) exactly.\n'
-          f'{num_high} geo/years match but will need additional units.\n'
-          f'{num_low} geo/years now have reduced targets below the run to match.')
-    #exit()
+    # print(f'The current scenario will match {num_match} geo/year combinations (of {num_total}) exactly.\n'
+    #       f'{num_high} geo/years match but will need additional units.\n'
+    #       f'{num_low} geo/years now have reduced targets below the run to match.')
+    # exit()
 
-    #unmatched_geos = matched_geos.loc[~(matched_geos.diffs == 0)]
+    # unmatched_geos = matched_geos.loc[~(matched_geos.diffs == 0)]
