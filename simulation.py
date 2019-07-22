@@ -1,13 +1,11 @@
-import models
 import utils
-import bulk_insert
 import orca
 from sqlalchemy import create_engine
 from database import get_connection_string
 from datetime import timedelta
 import time
-#import pandas as pd
-#import numpy as np
+# import models
+# import bulk_insert
 
 # Save the start time to track how long the program takes to run from start to finish
 start_time = time.monotonic()
@@ -49,8 +47,3 @@ hu_forecast_out.to_csv('data/new_units.csv')
 
 # Display total model run time
 print("Total time to run Simulation:", timedelta(seconds=round(end_time - start_time, 2)))
-# Typical times (as of 06/06/2018):
-# # With no SQL parcel tables: 1.5-2 minutes
-# # With SQL cap_parcel table: 4-5 minutes
-# # With SQL all_parcel table: 40-45 minutes
-# # With SQL cap_parcel and all_parcel tables: 45-50 minutes

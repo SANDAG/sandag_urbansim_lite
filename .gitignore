@@ -55,6 +55,7 @@ desktop.ini
 *.ppt
 *.pptx
 pysandag-master/
+sandag_urbansim_lite_env/
 .ipynb_checkpoints
 *.pdf
 *.pbix

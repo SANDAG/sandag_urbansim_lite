@@ -322,7 +322,7 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
             shuffled_parcels['units_added'] = shuffled_parcels['units_added'].fillna(0).astype(int)
             shuffled_parcels['remaining_capacity'] = shuffled_parcels['remaining_capacity'] - shuffled_parcels[
                 'units_added']
-            shuffled_parcels = shuffled_parcels.drop(['units_added'], axis=1)
+            # shuffled_parcels = shuffled_parcels.drop(['units_added'], axis=1)
             sch_picked['capacity_type'] = 'sch'
         else:
             sch_picked = pd.DataFrame(columns=['parcel_id', 'capacity_type', 'units_added'])
@@ -563,11 +563,8 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
         else:
             years_left = 2051 - year_simulation
             # Randomize the order of available parcels
-            shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)  # type: pd.DataFrame
-
-            # capacity_sch = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'sch')].copy()
-            # capacity_site = capacity_sch.groupby(['site_id', 'phase_yr', 'priority', 'jur_or_cpa_id']).\
-            #     agg({'remaining_capacity': 'sum', 'partial_build': 'sum'}).reset_index()
+            shuffled_parcels = parcels_to_choose.sample(frac=1,
+                                                        random_state=50).reset_index(drop=False)  # type: pd.DataFrame
 
             # Subset parcels that are partially completed from the year before
             previously_picked = shuffled_parcels.loc[(shuffled_parcels.partial_build > 0) &
@@ -811,7 +808,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
     built_this_yr2.rename(columns={"index": "parcel_id"}, inplace=True)
     built_this_yr2 = pd.merge(built_this_yr2, parcels[['parcel_id', 'capacity_type', 'jur_or_cpa_id']], how='left',
                               left_on=['parcel_id', 'capacity_type'], right_on=['parcel_id', 'capacity_type'])
-    units_built_sch_adu = built_this_yr2.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
+    # units_built_sch_adu = built_this_yr2.groupby(['jur_or_cpa_id'], as_index=False)['units_added'].sum()
 
     # This updates the feasible_parcel_df with units already built for the year and tracks how many units were added
     # to prevent over-building if a parcel is reselected in this loop. If the parcel had not been selected already,
