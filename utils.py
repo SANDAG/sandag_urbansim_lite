@@ -444,68 +444,29 @@ def adu_picker(feasible_parcels_df, adu_share):
     """
     Selects additional dwelling unit parcels to build each year (1 additional unit on an existing residential parcel).
 
-    :param year:
-        The iteration year of the simulation.
-    :param current_hh:
-        The integer target total units, after scheduled development units are accounted for.
     :param feasible_parcels_df:
         The dataframe generated in feasibility (contains parcels that are available to build on).
-    :param subregional_targets:
+    :param adu_share:
+        The number of ADU units to be built
     :return:
         dataframe: the selected ADU table.
     """
 
-    # As of 06/06/2018, the external table used for these targets was generated manually. In the future, this would
-    # ideally be constructed algorithmically. The goal is to take the total 'planned' number of ADUs from the cities of
-    # San Diego, Chula Vista, Oceanside and El Cajon and build ~half of those from 2019-2034. This should be only 1-2%
-    # of yearly targets, based on current estimates. After 2035 all ADUs from all regions are feasible, but we want to
-    # build a consistent proportion of them per year (~5-10% of yearly targets). (Currently we use 0% in 2017-2018,
-    # 2% 2019-2034, and 10% 2035-2050. In 2050 it becomes 13% to absorb the remaining ADUs.)
+    # This function has been changed dramatically. Where it originally did much of the ADU calculations and some other
+    # processing, we now simply pass the feasible parcels (and draw out those that are ADUs) and find the target
+    # number needed. This function assumes we want a specific ADU buildout like we had in datasource_id = 17.
 
-    # Bring in the ADU allocation table and determine the share of units for the year.
-    # Note: Due to the priority system used in scheduled development, both sections should be double checked that they
-    # match here or the model can over/under produce.
-    # adu_share_df = orca.get_table('adu_allocation').to_frame()
-    # adu_share = int(round(adu_share_df.loc[adu_share_df['yr'] == year].allocation * current_hh, 0))
+    # The newest version as of July 2019 will simply add ADUs to feasible parcels and remove them before remaining
+    # units are allocated in the second pass.
 
     # Only choose from feasible parcels with ADU capacity_type.
     adu_parcels = feasible_parcels_df.loc[(feasible_parcels_df.capacity_type == 'adu')].copy()
-
-    # Randomize the parcels to be selected, and select the target number.
-    # try:
-    #     # shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
-    #     adu_select_list = pd.DataFrame()
-    #     while len(adu_select_list) < adu_share:
-    #         for geo in adu_parcels.jur_or_cpa_id.unique().tolist():
-    #             adu_grab = adu_parcels.loc[adu_parcels['jur_or_cpa_id'] == geo].head(1)
-    #             adu_parcels = adu_parcels[~adu_parcels.index.isin(adu_grab.index)]
-    #             adu_select_list = pd.concat([adu_select_list, adu_grab], sort=True)
-    #
-    # except ValueError:
-    #     adu_select_list = adu_parcels
-    # picked_adu_parcels = adu_select_list.head(adu_share).copy()
 
     try:
         shuffled_adu = adu_parcels.sample(frac=1, random_state=50).reset_index(drop=False)
     except ValueError:
         shuffled_adu = adu_parcels
     picked_adu_parcels = shuffled_adu.head(adu_share).copy()
-
-    # adu_jcpa = pd.DataFrame({'adu_sum':  picked_adu_parcels.
-    #                          groupby(['jur_or_cpa_id']).capacity.sum()}).reset_index()
-    #
-    # targets_w_adus = pd.merge(subregional_targets, adu_jcpa, how='left', left_on='geo_id', right_on='jur_or_cpa_id')
-    #
-    # targets_w_adus['rem'] = targets_w_adus['targets'] - targets_w_adus['adu_sum']
-    #
-    # jcpas_w_overage = targets_w_adus.loc[targets_w_adus.rem < 0].jur_or_cpa_id.tolist()
-    #
-    # for jur in jcpas_w_overage:
-    #     extra_units = int(abs(targets_w_adus.loc[targets_w_adus.geo_id == jur].rem.iloc[0]))
-    #     parcels_to_drop = (
-    #         picked_adu_parcels.loc[picked_adu_parcels['jur_or_cpa_id'] == jur].head(extra_units)).parcel_id.tolist()
-    #     picked_adu_parcels.loc[picked_adu_parcels.parcel_id.isin(parcels_to_drop), 'extra'] = 1
-    #     # picked_adu_parcels = picked_adu_parcels[~picked_adu_parcels.parcel_id.isin(parcels_to_drop)].copy()
 
     # Assigns build information to the parcels built. Source 5 is ADU.
     picked_adu_parcels['source'] = 5
@@ -536,6 +497,8 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
     'all' cycle allows for a level of randomized selection that we believe is reasonable to assume in any given year.
     :param year_simulation:
         The iteration year of the simulation.
+    :param rem:
+        0 for first pass of parcel picking, 1 during remainder loop(s); used for adu allocation.
     :return:
         dataframe: the parcels selected for the region, and the number of units added to those parcels.
     """
