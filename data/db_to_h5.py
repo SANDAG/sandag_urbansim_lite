@@ -35,7 +35,7 @@ SELECT
 FROM [urbansim].[urbansim].[parcel] AS p
 RIGHT JOIN [urbansim].[urbansim].[urbansim_reduced_capacity] AS r
 ON p.parcel_id = r.parcel_id
-WHERE version_id = 2
+WHERE version_id = 4
 ORDER BY parcel_id
 '''
 new_parcels_df = pd.read_sql(new_parcel_sql, mssql_engine)
@@ -153,7 +153,7 @@ SELECT a.[parcel_id]
 FROM [urbansim].[urbansim].[additional_capacity] AS a
 JOIN [urbansim].[parcel] AS p 
 ON p.[parcel_id] = a.[parcel_id]
-WHERE [version_id] = %s and type !='upd'
+WHERE [version_id] = %s and type = 'adu'
 ORDER BY a.[parcel_id]
 '''
 assigned_parcel_sql = assigned_parcel_sql % scenarios['additional_capacity_version']
@@ -163,6 +163,7 @@ assigned_df['site_id'] = assigned_df.site_id.astype(float)
 # Add the additional capacity information to the two parcel tables (excludes scheduled development).
 parcels_df = pd.concat([parcels_df, assigned_df])
 all_parcels_df = pd.concat([all_parcels_df, assigned_df])
+new_parcels_df = pd.concat([new_parcels_df, assigned_df])
 
 # SQL statement for scheduled development parcels.
 # As of 06/06/2018 scheduled_development is being built on a priority system, rather than by scheduled date. Each

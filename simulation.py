@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from database import get_connection_string
 from datetime import timedelta
 import time
-# import models
+import models
 # import bulk_insert
 
 # Save the start time to track how long the program takes to run from start to finish

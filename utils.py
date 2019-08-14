@@ -513,7 +513,7 @@ def adu_picker(feasible_parcels_df, adu_share):
     return picked_adu_parcels
 
 
-def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_simulation):
+def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_simulation, rem):
     """
     Chooses parcels to build by region, and how much to build on them, for the simulation.
 
@@ -570,30 +570,34 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             previously_picked = shuffled_parcels.loc[(shuffled_parcels.partial_build > 0) &
                                                      (shuffled_parcels.capacity_type != 'sch')]
 
-            # Subset parcels with jurisdiction-provided capacity and that aren't partially built
-            capacity_jur = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'jur') &
-                                                (shuffled_parcels.partial_build == 0)]
-
-            # Subset ADU parcels
-            adu_parcels = shuffled_parcels.loc[shuffled_parcels.capacity_type == 'adu']
+            # # Subset parcels with jurisdiction-provided capacity and that aren't partially built
+            # capacity_jur = shuffled_parcels.loc[(shuffled_parcels.capacity_type == 'jur') &
+            #                                     (shuffled_parcels.partial_build == 0)]
 
             # Non-Scheduled Development Parcels
-            priority_parcels = pd.concat([previously_picked, capacity_jur], sort=True)  # type: pd.DataFrame
+            priority_parcels = pd.concat([previously_picked  #, capacity_jur
+                                          ], sort=True)  # type: pd.DataFrame
 
             # Remove the subset parcels above from the rest of the shuffled parcels. In effect this should leave
             # only parcels with an SGOA capacity_type in the shuffled parcels dataframe.
             shuffled_parcels = shuffled_parcels[
                 ~shuffled_parcels['parcel_id'].isin(priority_parcels.parcel_id.values.tolist())]
-            shuffled_parcels = shuffled_parcels[
-                ~shuffled_parcels['parcel_id'].isin(adu_parcels.parcel_id.values.tolist())]
 
-            # This places the SGOA parcels and ADU parcels after the prioritized parcels.
-            if year_simulation < 2048:
-                priority_then_random = pd.concat([priority_parcels, shuffled_parcels,
-                                                  adu_parcels], sort=True)  # type: pd.DataFrame
+            if rem == 1:
+                # # Subset ADU parcels
+                adu_parcels = shuffled_parcels.loc[shuffled_parcels.capacity_type == 'adu']
+                shuffled_parcels = shuffled_parcels[
+                    ~shuffled_parcels['parcel_id'].isin(adu_parcels.parcel_id.values.tolist())]
+
+                # This places the ADU parcels after the prioritized parcels.
+                if year_simulation < 2048:
+                    priority_then_random = pd.concat([priority_parcels, shuffled_parcels, adu_parcels
+                                                      ], sort=True)  # type: pd.DataFrame
+                else:
+                    priority_then_random = pd.concat([priority_parcels, shuffled_parcels, adu_parcels
+                                                      ], sort=True)  # type: pd.DataFrame
             else:
-                priority_then_random = pd.concat([priority_parcels, shuffled_parcels,
-                                                  adu_parcels], sort=True)  # type: pd.DataFrame
+                priority_then_random = pd.concat([priority_parcels, shuffled_parcels], sort=True)  # type: pd.DataFrame
 
             # This section prohibits building very large projects in one year. If a parcel has over 250 or 500
             # available capacity, is capped at 250 or 500, respectively, units when selected. This generally assumes
@@ -879,8 +883,8 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         # Run the parcel_picker function to select parcels and build units for the sub-region.
         # target_units_for_geo = int(target_units_for_geo - len(adu_builds.loc[adu_builds.jur_or_cpa_id == jur]))
 
-        parcels_in_geo = parcels_in_geo.loc[parcels_in_geo['capacity_type'].isin(['jur', 'upd'])].copy()
-        chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
+        parcels_in_geo = parcels_in_geo.loc[parcels_in_geo['capacity_type'].isin(['jur', 'adu'])].copy()
+        chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year, 0)
 
         # Activates if subregion_max has a numeric value (non-Null). If the subregion_max was built, remove parcels in
         # the subregion from feasibility so they won't be picked at the end during 'regional overflow' (when additional
@@ -897,6 +901,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         # expected stochastic development for a sub-region.
         if len(chosen):
             chosen['source'] = np.where(chosen['capacity_type'] == 'sch', 1, 2)
+            chosen['source'] = np.where(chosen['capacity_type'] == 'adu', 5, chosen['source'])
             # Add the selected parcels and units to the sr14cap dataframe.
             sr14cap = sr14cap.append(chosen[['capacity_type', 'units_added', 'source']], sort=True)
             if year < 2040:
@@ -997,7 +1002,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
             parcels_in_geo = parcels_in_geo.loc[parcels_in_geo.capacity_type != 'sch'].copy()
 
             # Run the parcel_picker function to select parcels and build units for the sub-region.
-            chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year)
+            chosen = parcel_picker(parcels_in_geo, target_units_for_geo, geo_name, year, 1)
 
             # Activates if subregion_max has a numeric value (non-Null). If the subregion_max was built, remove parcels
             # in the subregion from feasibility so they won't be picked at the end during 'regional overflow' (when
@@ -1036,7 +1041,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
                                                        other=feasible_parcels_df['units_added'], inplace=True)
             feasible_parcels_df = feasible_parcels_df.drop(['units_added'], 1)
             feasible_parcels_df = feasible_parcels_df.loc[~feasible_parcels_df.index.isin(sr14cap.index.tolist())]
-            chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year)
+            chosen = parcel_picker(feasible_parcels_df, remaining_units, "all", year, 1)
             if len(chosen):
                 chosen['source'] = 3
                 # Add the selected parcels and units to the sr14cap dataframe.
@@ -1053,6 +1058,7 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
 
         # Merge the existing hu_forecast with current-year units built (sr14cap).
         sr14cap.reset_index(inplace=True, drop=False)
+        sr14cap.rename(columns={"index": "parcel_id"}, inplace=True)
         all_hu_forecast = pd.concat([hu_forecast.to_frame(hu_forecast.local_columns),
                                      sr14cap[hu_forecast.local_columns]], sort=True)  # type: pd.DataFrame
         all_hu_forecast.reset_index(drop=True, inplace=True)

@@ -6,7 +6,7 @@ scenario:
     # From [urbansim].[urbansim].[urbansim_lite_subreg_control].[subregional_crtl_id]
     # Note the typo in the SQL server column name
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[subregional_controls]
-    subregional_ctrl_id: 502
+    subregional_ctrl_id: 504
 
     # This provides 2017 estimates by jurisdiction (used to set exact targets)
     # From [urbansim].[urbansim].[urbansim_target_hu_jur].[version_id]
@@ -21,7 +21,7 @@ scenario:
     # Annual target housing units for simulation (region-wide)
     # From [urbansim].[urbansim].[urbansim_target_housing_units].[version_id]
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[target_housing_units]
-    target_housing_units_version: 114
+    target_housing_units_version: 116
 
     # Specifies phase years for parcels by capacity_type
     # From [urbansim].[urbansim].[urbansim_lite_parcel_control].[phase_yr_version_id]
@@ -31,7 +31,7 @@ scenario:
     # Determines which version of additional capacity is used
     # From [urbansim].[urbansim].[additional_capacity].[version_id]
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[additional_capacity]
-    additional_capacity_version: 108
+    additional_capacity_version: 111
 
     # Pulls scheduled development parcels. Need to switch back to base table
     # From [urbansim].[urbansim].[scheduled_development_priority].[sched_version_id]
