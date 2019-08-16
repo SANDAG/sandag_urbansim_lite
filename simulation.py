@@ -28,6 +28,12 @@ orca.run([
     "summary"
     ], iter_vars=range(2018, 2051))
 
+# Save the end time to track how long the program takes to run from start to finish
+end_time = time.monotonic()
+
+# Display total model run time
+print("Total time to run Simulation:", timedelta(seconds=round(end_time - start_time, 2)))
+
 # Generate run_id and record information about run_id details
 print("\n\nWrite results to db?")
 write_results_to_db = input("\nChoose y or n: ")
