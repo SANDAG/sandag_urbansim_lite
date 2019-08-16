@@ -35,7 +35,7 @@ SELECT
 FROM [urbansim].[urbansim].[parcel] AS p
 RIGHT JOIN [urbansim].[urbansim].[urbansim_reduced_capacity] AS r
 ON p.parcel_id = r.parcel_id
-WHERE version_id = 4
+WHERE version_id = 5
 ORDER BY parcel_id
 '''
 new_parcels_df = pd.read_sql(new_parcel_sql, mssql_engine)
