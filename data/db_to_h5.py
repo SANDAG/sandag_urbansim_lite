@@ -436,7 +436,7 @@ if scenarios['housing_scenario'] > 0:
 
     # Find rolling 5-year averages, centered on that year, allowing for less observations at the beginning and end
     control_adjustments['rolling_avg'] = control_adjustments.groupby('geo_id').rolling(
-        window=3, center=True, min_periods=1)['control'].mean().reset_index(drop=True)
+        window=5, center=True, min_periods=1)['control'].mean().reset_index(drop=True)
 
     # 1. Find difference between rolling average and current value
     # 2. Find the magnitude of that difference relative to the rolling average (less than 1)
