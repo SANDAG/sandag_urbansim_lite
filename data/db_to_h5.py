@@ -196,6 +196,36 @@ sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine)
 parcels_df = pd.concat([parcels_df, sched_dev_df])
 new_parcels_df = pd.concat([new_parcels_df, sched_dev_df])
 
+# 5 Big Move Scenario Testing
+if scenarios['housing_scenario'] == 0:
+    scenario_parcel_df = new_parcels_df.copy()
+else:
+    scenario_parcel_sql = '''
+    SELECT s.[parcel_id]
+        ,p.[mgra_id]
+        ,p.[cap_jurisdiction_id]
+        ,p.[jurisdiction_id]
+        ,p.[luz_id]
+        ,NULL as site_id
+        ,s.[scen_cap] as capacity
+        ,[du_2017] AS residential_units
+        ,[development_type_id_2017] AS dev_type_2017
+        ,[development_type_id_2015] AS dev_type_2015
+        ,[lu_2015]
+        ,[lu_2017]
+        ,[lu_2017] AS lu_sim
+        ,'jur' AS capacity_type
+        ,0 AS capacity_used
+        ,0 AS partial_build
+    FROM [urbansim].[urbansim].[parcel] AS p
+    RIGHT JOIN [urbansim].[urbansim].[urbansim_density_scenarios] AS s
+    ON p.parcel_id = s.parcel_id
+    WHERE s.scenario_id = %s
+    ORDER BY parcel_id
+    '''
+    scenario_parcel_sql = scenario_parcel_sql % scenarios['housing_scenario']
+    scenario_parcel_df = pd.read_sql(scenario_parcel_sql, mssql_engine)
+
 # SQL statement for the target units per year table.
 households_sql = '''
 SELECT [yr]
@@ -341,7 +371,8 @@ adu_allocation_sql = adu_allocation_sql % scenarios['adu_control']
 adu_allocation_df = pd.read_sql(adu_allocation_sql, mssql_engine)
 
 # Overwrite parcels with new_parcels
-parcels_df = new_parcels_df.copy()
+# This should result in the 'new parcels' table if the scenario is 0.
+parcels_df = scenario_parcel_df.copy()
 
 # Combine capacity parcel table with additional geography and plu information.
 parcels = pd.merge(parcels_df, geography_view_df, how='left', on='parcel_id')
@@ -350,6 +381,92 @@ parcels.capacity_type = parcels.capacity_type.astype(str)
 parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels = pd.merge(parcels, gplu_df,  how='left', on='parcel_id')
 parcels.sort_index(inplace=True)
+
+if scenarios['housing_scenario'] > 0:
+    # This section will adjust the control totals for scenario testing
+    core_cols = ['yr', 'geo_id', 'control']
+    control_adjustments = regional_controls_df[core_cols].copy()
+    control_adjustments.sort_values(by=['geo_id', 'yr'], inplace=True)
+
+    # Alter 0s to be median control total for that JCPA across all years (may still be 0)
+    median_control_df = control_adjustments.groupby(['geo_id'], as_index=False)['control'].median()
+    median_control_df.rename(columns={"control": "median_control"}, inplace=True)
+    control_adjustments = pd.merge(control_adjustments, median_control_df, how='left', on=['geo_id'])
+    control_adjustments['control'].where(control_adjustments.control != 0, other=control_adjustments.median_control,
+                                         inplace=True)
+
+    # Determine sum of capacity by jurisdiction using final parcel table
+    slim_df = parcels[['cap_jurisdiction_id', 'capacity', 'jur_or_cpa_id']].copy()
+    slim_df.rename(columns={"cap_jurisdiction_id": "jur_id", "capacity": "cap", "jur_or_cpa_id": "jcpa"}, inplace=True)
+    unit_scaling = slim_df.groupby(['jcpa'], as_index=False)['cap'].sum()
+    control_adjustments = pd.merge(control_adjustments, unit_scaling, how='left', left_on=['geo_id'], right_on=['jcpa'])
+    control_adjustments.cap.fillna(0, inplace=True)
+    control_adjustments['jcpa'] = control_adjustments.geo_id
+
+    # If there is capacity but the control is still 0, set control to be:
+    # (JCPA total capacity / number of model years) / That year's target units
+    # The first (inner) division assumes that a JCPA would equally distribute it's capacity across all years
+    # The second (outer) division returns that value as a percentage of the year's total target
+    control_adjustments = pd.merge(control_adjustments, households_df[['housing_units_add']], how='left',
+                                   left_on=['yr'], right_index=True)
+    num_yr = len(control_adjustments.yr.unique().tolist())
+    control_adjustments['control'].where(control_adjustments.control != 0,
+                                         other=((control_adjustments.cap / num_yr) /
+                                                control_adjustments.housing_units_add),
+                                         inplace=True)
+
+    # Where there is no capacity, set the control to 0
+    control_adjustments['control'].where(control_adjustments.cap > 0, other=0, inplace=True)
+    # At this point everything with cap should have a control percentage and all others should have 0s
+
+    # Scale targets to reflect available capacity in the jurisdiction
+    # # Multiply existing controls by annual target units to give the jcpa-by-year target units
+    control_adjustments['target_1'] = control_adjustments.control * control_adjustments.housing_units_add
+
+    # # Determine ratio of actual capacity to the initial target capacity, then scale controls by this amount
+    # # If there was too much projected capacity this value will be below 1, thus reducing the control percentage
+    target_scaling = control_adjustments.groupby(['jcpa'], as_index=False, observed=True)['target_1'].sum()
+    target_scaling = pd.merge(target_scaling, unit_scaling, how='left', on=['jcpa'])
+    target_scaling['scale_factor'] = target_scaling.cap / target_scaling.target_1
+    control_adjustments = pd.merge(control_adjustments[core_cols], target_scaling[['jcpa', 'scale_factor']], how='left',
+                                   left_on=['geo_id'], right_on=['jcpa'])
+    control_adjustments.scale_factor.fillna(0, inplace=True)
+    control_adjustments['control'] = control_adjustments.control * control_adjustments.scale_factor
+    control_adjustments.drop(['jcpa', 'scale_factor'], axis=1, inplace=True)
+
+    # Find rolling 5-year averages, centered on that year, allowing for less observations at the beginning and end
+    control_adjustments['rolling_avg'] = control_adjustments.groupby('geo_id').rolling(
+        window=3, center=True, min_periods=1)['control'].mean().reset_index(drop=True)
+
+    # 1. Find difference between rolling average and current value
+    # 2. Find the magnitude of that difference relative to the rolling average (less than 1)
+    # 3. Use the square of the difference to scale the original value toward the mean
+    # End result: Values very different from the rolling average will be moved closer, but not all the way toward the
+    # rolling average. Values that are very close will not be heavily adjusted.
+    # control_adjustments['ra_diff'] = (control_adjustments.rolling_avg - control_adjustments.control)
+    # # THIS NEEDS FIXING
+    # control_adjustments['rad_mag'] = (control_adjustments.ra_diff / control_adjustments.rolling_avg)
+    # control_adjustments['new_control'] = (control_adjustments.control +
+    #                                       (control_adjustments.ra_diff * (control_adjustments.rad_mag ** 2)))
+    # control_adjustments['control'].where(control_adjustments.new_control.isnull(),
+    #                                      other=control_adjustments.new_control, inplace=True)
+
+    # Set controls to rolling avg
+    control_adjustments['control'] = control_adjustments['rolling_avg']
+
+    # Readjust single-year targets to sum to 1
+    control_scaling = control_adjustments.groupby(['yr'], as_index=False)['control'].sum()
+    control_scaling['adjustment'] = 1 / control_scaling.control
+    control_adjustments = pd.merge(control_adjustments[core_cols], control_scaling[['yr', 'adjustment']], how='left',
+                                   left_on=['yr'], right_on=['yr'])
+    control_adjustments['control'] = control_adjustments.control * control_adjustments.adjustment
+    control_adjustments['control'].where(control_adjustments.control.notnull(), other=0, inplace=True)
+
+    # Replace original controls file
+    control_adjustments.drop(['adjustment'], axis=1, inplace=True)
+    regional_controls_df = pd.merge(regional_controls_df, control_adjustments, how='inner', on=['yr', 'geo_id'])
+    regional_controls_df.drop(['control_x'], axis=1, inplace=True)
+    regional_controls_df.rename(columns={"control_y": "control"}, inplace=True)
 
 # # Combine all parcel table with additional geography and plu information.
 # all_parcels = pd.merge(all_parcels_df, geography_view_df, how='left', on='parcel_id')
