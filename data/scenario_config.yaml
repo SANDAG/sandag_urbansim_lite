@@ -6,7 +6,7 @@ scenario:
     # From [urbansim].[urbansim].[urbansim_lite_subreg_control].[subregional_crtl_id]
     # Note the typo in the SQL server column name
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[subregional_controls]
-    subregional_ctrl_id: 505
+    subregional_ctrl_id: 506
 
     # This provides 2017 estimates by jurisdiction (used to set exact targets)
     # From [urbansim].[urbansim].[urbansim_target_hu_jur].[version_id]
@@ -21,7 +21,7 @@ scenario:
     # Annual target housing units for simulation (region-wide)
     # From [urbansim].[urbansim].[urbansim_target_housing_units].[version_id]
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[target_housing_units]
-    target_housing_units_version: 117
+    target_housing_units_version: 118
 
     # Specifies phase years for parcels by capacity_type
     # From [urbansim].[urbansim].[urbansim_lite_parcel_control].[phase_yr_version_id]
@@ -62,4 +62,4 @@ scenario:
     # I am expecting scenarios 1 and 2 to use 'all new' capacity provided by Grace Chung.
     # Scenario 3 might use a mix of existing and new capacity, but may have a specific unit target
         # instead of using a control percentage. One goal would be to examine RHNA allocation effect.
-    housing_scenario: 1
+    housing_scenario: 0
