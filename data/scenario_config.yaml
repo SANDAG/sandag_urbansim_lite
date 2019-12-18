@@ -6,7 +6,7 @@ scenario:
     # From [urbansim].[urbansim].[urbansim_lite_subreg_control].[subregional_crtl_id]
     # Note the typo in the SQL server column name
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[subregional_controls]
-    subregional_ctrl_id: 506
+    subregional_ctrl_id: 505
 
     # This provides 2017 estimates by jurisdiction (used to set exact targets)
     # From [urbansim].[urbansim].[urbansim_target_hu_jur].[version_id]
@@ -21,7 +21,7 @@ scenario:
     # Annual target housing units for simulation (region-wide)
     # From [urbansim].[urbansim].[urbansim_target_housing_units].[version_id]
     # To [urbansim].[urbansim].[urbansim_lite_output_runs].[target_housing_units]
-    target_housing_units_version: 118
+    target_housing_units_version: 117
 
     # Specifies phase years for parcels by capacity_type
     # From [urbansim].[urbansim].[urbansim_lite_parcel_control].[phase_yr_version_id]
@@ -50,16 +50,9 @@ scenario:
     run_to_match: 999
 
     # For Scenario Testing:
-    # As of 10/10/19 we are expecting to have 3 sceanrios to test, each which may need customization
+    # As of 10/10/19 we are expecting to have scenarios to test, each which may need customization
     # in the process of allocating units to the jurisdictions.
     # The plan is to put these into db_to_h5.py as "if" statements that check the value below:
     # Scenario 0: Baseline, no special changes
-    # Scenario 1: "MoHub Low VMT" - this scenario will only build in low VMT MGRAs
-    # Scenario 2: "New Downtowns" - this scenario will foucs housing into Sorrento Valley, Kearny Mesa,
-        # and select "Tier 2" Employment Centers. (Putting housing near existing jobs)
-    # # Scenario 3 postponed as of 17-Oct-2019
-    # Scenario 3: TBD - Will take into account existing jobs, housing and transit regionally.
-    # I am expecting scenarios 1 and 2 to use 'all new' capacity provided by Grace Chung.
-    # Scenario 3 might use a mix of existing and new capacity, but may have a specific unit target
-        # instead of using a control percentage. One goal would be to examine RHNA allocation effect.
-    housing_scenario: 0
+    # Other scenario: Use [urbansim].[urbansim].[urbansim_density_scenarios] where scenario_id = <below value>
+    housing_scenario: 101
