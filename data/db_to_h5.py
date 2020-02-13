@@ -35,7 +35,7 @@ SELECT
 FROM [urbansim].[urbansim].[parcel] AS p
 RIGHT JOIN [urbansim].[urbansim].[urbansim_reduced_capacity] AS r
 ON p.parcel_id = r.parcel_id
-WHERE version_id = 8
+WHERE version_id = 9
 ORDER BY parcel_id
 '''
 # version_id = 5 was used for XPEF23, which is used as datasource_id = 30
