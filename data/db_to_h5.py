@@ -374,7 +374,7 @@ adu_allocation_df = pd.read_sql(adu_allocation_sql, mssql_engine)
 
 # Overwrite parcels with new_parcels
 # This should result in the 'new parcels' table if the scenario is 0.
-# parcels_df = scenario_parcel_df.copy()
+parcels_df = scenario_parcel_df.copy()
 
 # Combine capacity parcel table with additional geography and plu information.
 parcels = pd.merge(parcels_df, geography_view_df, how='left', on='parcel_id')
