@@ -914,7 +914,10 @@ def run_developer(households, hu_forecast, reg_controls, supply_fname, feasibili
         slim_df.rename(columns={"cap_jurisdiction_id": "jur_id", "remaining_capacity": "cap", "jur_or_cpa_id": "jcpa"},
                        inplace=True)
         # slim_df.replace(['cc', 'mc', 'tc', 'tco', 'uc'], 'sgoa', inplace=True)
-        adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur', 'sch'])].copy()
+        if (year > 2040) & (slim_df.loc[slim_df.capacity_type == 'sch'].cap.sum() > remaining_units):
+            adjust_df = slim_df.loc[slim_df.capacity_type == 'sch'].copy()
+        else:
+            adjust_df = slim_df.loc[slim_df.capacity_type.isin(['jur', 'sch'])].copy()
         if adjust_df.cap.sum() < remaining_units:
             chosen = feasible_parcels_df.loc[feasible_parcels_df.capacity_type.isin(['jur'])][['capacity_type',
                                                                                                'remaining_capacity']]
