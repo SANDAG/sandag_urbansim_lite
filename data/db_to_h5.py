@@ -329,6 +329,16 @@ parcel_dev_control_sql = parcel_dev_control_sql % scenarios['parcel_phase_yr']
 devyear_df = pd.read_sql(parcel_dev_control_sql, mssql_engine, index_col='parcel_id')
 devyear_df['capacity_type'] = devyear_df['capacity_type'].astype(str)
 
+# SQL Statement for sched_dev completion years
+sched_dev_comp_sql = '''
+SELECT
+    siteid as site_id
+    ,year(compdate) as compyear
+FROM [urbansim].[ref].[scheduled_development_site]
+WHERE compdate IS NOT NULL
+'''
+sched_dev_comp_df = pd.read_sql(sched_dev_comp_sql, mssql_engine)
+
 # SQL statement to retrieve General Plan Land Use information for each parcel.
 gplu_sql = '''
 SELECT [parcel_id]
@@ -522,3 +532,4 @@ with pd.HDFStore('urbansim.h5', mode='w') as store:
     store.put('adu_allocation', adu_allocation_df, format='table')
     store.put('run_match_output', run_match_df, format='table')
     # store.put('target_match', target_match_df, format='table')
+    store.put('compyear', sched_dev_comp_df, format='table')

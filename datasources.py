@@ -90,3 +90,9 @@ def adu_allocation(store):
 def run_match_output(store):
     df = store['run_match_output']
     return df
+
+
+@orca.table('compyear', cache=True)
+def compyear(store):
+    df = store['compyear']
+    return df
