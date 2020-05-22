@@ -198,8 +198,8 @@ sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine)
 parcels_df = pd.concat([parcels_df, sched_dev_df])
 new_parcels_df = pd.concat([new_parcels_df, sched_dev_df])
 
-# 5 Big Move Scenario Testing
-if scenarios['housing_scenario'] == 0:
+# SCS Scenario
+if scenarios['scs_scenario'] == 0:
     scenario_parcel_df = new_parcels_df.copy()
 else:
     scenario_parcel_sql = '''
@@ -208,24 +208,26 @@ else:
         ,p.[cap_jurisdiction_id]
         ,p.[jurisdiction_id]
         ,p.[luz_id]
-        ,NULL as site_id
-        ,s.[scen_cap] as capacity
-        ,[du_2017] AS residential_units
-        ,[development_type_id_2017] AS dev_type_2017
-        ,[development_type_id_2015] AS dev_type_2015
-        ,[lu_2015]
-        ,[lu_2017]
-        ,[lu_2017] AS lu_sim
-        ,'jur' AS capacity_type
+        ,s.[scs_site_id] as site_id
+        ,s.[scenario_cap] as capacity
+        ,p.[du_2017] AS residential_units
+        ,p.[development_type_id_2017] AS dev_type_2017
+        ,p.[development_type_id_2015] AS dev_type_2015
+        ,p.[lu_2015]
+        ,p.[lu_2017]
+        ,p.[lu_2017] AS lu_sim
+        ,CASE WHEN s.[scs_site_id] IS NOT NULL THEN 'sch'
+            ELSE 'jur' END AS capacity_type
         ,0 AS capacity_used
         ,0 AS partial_build
-    FROM [urbansim].[urbansim].[parcel] AS p
-    RIGHT JOIN [urbansim].[urbansim].[urbansim_density_scenarios] AS s
-    ON p.parcel_id = s.parcel_id
+        ,s.[cap_priority]
+    FROM [urbansim].[urbansim].[parcel] as p
+    RIGHT JOIN [urbansim].[urbansim].[scs_scenario_parcels] as s
+        ON p.parcel_id = s.parcel_id
     WHERE s.scenario_id = %s
-    ORDER BY parcel_id
+    ORDER BY s.parcel_id
     '''
-    scenario_parcel_sql = scenario_parcel_sql % scenarios['housing_scenario']
+    scenario_parcel_sql = scenario_parcel_sql % scenarios['scs_scenario']
     scenario_parcel_df = pd.read_sql(scenario_parcel_sql, mssql_engine)
 
 # SQL statement for the target units per year table.
@@ -330,14 +332,25 @@ devyear_df = pd.read_sql(parcel_dev_control_sql, mssql_engine, index_col='parcel
 devyear_df['capacity_type'] = devyear_df['capacity_type'].astype(str)
 
 # SQL Statement for sched_dev completion years
-sched_dev_comp_sql = '''
-SELECT
-    siteid as site_id
-    ,year(compdate) as compyear
-FROM [urbansim].[ref].[scheduled_development_site]
-WHERE compdate IS NOT NULL
-'''
-sched_dev_comp_df = pd.read_sql(sched_dev_comp_sql, mssql_engine)
+if scenarios['scs_scenario'] == 0:
+    sched_dev_comp_sql = '''
+    SELECT
+        siteid as site_id
+        ,year(compdate) as compyear
+    FROM [urbansim].[ref].[scheduled_development_site]
+    WHERE compdate IS NOT NULL
+    '''
+    sched_dev_comp_df = pd.read_sql(sched_dev_comp_sql, mssql_engine)
+else:
+    sched_dev_comp_sql = '''
+    SELECT 
+        [site_id]
+        ,year(min([compdate])) as compyear
+    FROM [urbansim].[urbansim].[scs_scheduled_development]
+    GROUP BY site_id
+    '''
+    sched_dev_comp_df = pd.read_sql(sched_dev_comp_sql, mssql_engine)
+
 
 # SQL statement to retrieve General Plan Land Use information for each parcel.
 gplu_sql = '''
@@ -394,7 +407,7 @@ parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels = pd.merge(parcels, gplu_df,  how='left', on='parcel_id')
 parcels.sort_index(inplace=True)
 
-if scenarios['housing_scenario'] > 0:
+if scenarios['scs_scenario'] > 0:
     # This section will adjust the control totals for scenario testing
     core_cols = ['yr', 'geo_id', 'control']
     control_adjustments = regional_controls_df[core_cols].copy()

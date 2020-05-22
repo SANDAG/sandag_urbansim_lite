@@ -56,3 +56,10 @@ scenario:
     # Scenario 0: Baseline, no special changes
     # Other scenario: Use [urbansim].[urbansim].[urbansim_density_scenarios] where scenario_id = <below value>
     housing_scenario: 0
+
+    # For SCS Scenarios:
+    # As of May 2020 we are running the 'SANDAG SCS Forecast' which will be used for our 'preferred' plans relative
+    # to the baseline forecast.
+    # Scenario 0: Baseline, not a SCS Forecast.
+    # SCS scenarios: Use [urbansim].[urbansim].[scs_scenario_parcels] where scenario_id = <below value>
+    scs_scenario: 1
