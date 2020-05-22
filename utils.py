@@ -634,6 +634,12 @@ def parcel_picker(parcels_to_choose, target_number_of_units, name_of_geo, year_s
             # Randomize the order of available parcels
             shuffled_parcels = parcels_to_choose.sample(frac=1, random_state=50).reset_index(drop=False)
 
+            if 'cap_priority' in shuffled_parcels.columns:
+                scs_p1_parcels = shuffled_parcels.loc[(shuffled_parcels.cap_priority == 1)]
+                scs_p2_parcels = shuffled_parcels.loc[(shuffled_parcels.cap_priority == 2)]
+                scs_p3_parcels = shuffled_parcels.loc[(shuffled_parcels.cap_priority == 3)]
+                shuffled_parcels = pd.concat([scs_p1_parcels, scs_p2_parcels, scs_p3_parcels], sort=True)
+
             # Subset parcels that are partially completed from the year before
             previously_picked = shuffled_parcels.loc[(shuffled_parcels.partial_build > 0) &
                                                      (shuffled_parcels.capacity_type != 'sch')]
