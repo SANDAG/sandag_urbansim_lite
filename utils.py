@@ -266,12 +266,17 @@ def run_scheduled_development(hu_forecast, households, feasibility, reg_controls
 
     req_site_targets = pd.merge(req_site_targets, compyear_df, how='left', on=['site_id'])
     req_site_targets.compyear = req_site_targets.compyear.fillna(2051)
+    req_site_targets.startyear = req_site_targets.startyear.fillna(2017)
     req_site_targets['years_left'] = req_site_targets.compyear - year
     #req_site_targets.loc[req_site_targets['years_left'] <= 0, 'years_left'] = 3
 
     req_site_targets['units_for_year'] = np.ceil(req_site_targets.remaining_capacity / req_site_targets.years_left)
     req_site_targets.loc[req_site_targets['units_for_year'] < 250, 'units_for_year'] = 250
-    req_site_targets.loc[req_site_targets['units_for_year'] > 500, 'units_for_year'] = 500
+    if 'cap_priority' not in parcels.columns:
+        # This if statement removes the 500 unit yearly cap for the SCS forecast
+        # This works because the 'cap_priority' column only appears in the scs forecast parcel table
+        req_site_targets.loc[req_site_targets['units_for_year'] > 500, 'units_for_year'] = 500
+    req_site_targets.loc[req_site_targets['startyear'] > year, 'units_for_year'] = 0
 
     # We were given specific requests that these sites build out at the following rates
     req_site_targets.loc[req_site_targets['site_id'] == 19002, 'units_for_year'] = 200
@@ -532,8 +537,17 @@ def run_feasibility(year):
     devyear.reset_index(inplace=True, drop=False)
     parcels = pd.merge(parcels, devyear, how='left', left_on=['parcel_id', 'capacity_type'],
                        right_on=['parcel_id', 'capacity_type'])
-    parcels.set_index('parcel_id', inplace=True)
 
+
+    if 'cap_priority' in parcels.columns:
+        # This if statement only applies during the SCS Forecast
+        # This works because the 'cap_priority' column only appears in the scs forecast parcel table
+        compyear = orca.get_table('compyear').to_frame()
+        compyear.reset_index(inplace=True, drop=True)
+        parcels = pd.merge(parcels, compyear, how='left', on=['site_id'])
+        parcels['phase_yr'].where(parcels.site_id.isnull(), other=parcels['startyear'], inplace=True)
+
+    parcels.set_index('parcel_id', inplace=True)
     # Select parcels that have more capacity than is used.
     # Note: 'capacity' is not subtracted from the built parcels, so 'capacity' should always be >= 'capacity_used'.
     feasible_parcels = parcels.loc[parcels['capacity'] > parcels['capacity_used']].copy()

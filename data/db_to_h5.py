@@ -336,6 +336,7 @@ if scenarios['scs_scenario'] == 0:
     sched_dev_comp_sql = '''
     SELECT
         siteid as site_id
+        ,year(startdate) as startyear
         ,year(compdate) as compyear
     FROM [urbansim].[ref].[scheduled_development_site]
     WHERE compdate IS NOT NULL
@@ -345,6 +346,7 @@ else:
     sched_dev_comp_sql = '''
     SELECT 
         [site_id]
+        ,year(min([startdate])) as startyear
         ,year(min([compdate])) as compyear
     FROM [urbansim].[urbansim].[scs_scheduled_development]
     GROUP BY site_id
