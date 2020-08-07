@@ -201,14 +201,15 @@ new_parcels_df = pd.concat([new_parcels_df, sched_dev_df])
 # SCS Scenario
 if scenarios['scs_scenario'] == 0:
     scenario_parcel_df = new_parcels_df.copy()
-else:
+elif scenarios['scs_scenario'] == 2:
     scenario_parcel_sql = '''
-    SELECT s.[parcel_id]
+     SELECT s.[parcel_id]
         ,p.[mgra_id]
         ,p.[cap_jurisdiction_id]
         ,p.[jurisdiction_id]
         ,p.[luz_id]
-        ,s.[scs_site_id] as site_id
+        ,CASE WHEN s.scenario_id = %s AND s.scs_site_id = 15035 AND year(f.compdate) = 2040 THEN 15036
+            ELSE s.[scs_site_id] END as site_id
         ,s.[scenario_cap] as capacity
         ,p.[du_2017] AS residential_units
         ,p.[development_type_id_2017] AS dev_type_2017
@@ -222,12 +223,46 @@ else:
         ,0 AS partial_build
         ,s.[cap_priority]
     FROM [urbansim].[urbansim].[parcel] as p
+    INNER JOIN (SELECT parcel_id, compdate FROM [urbansim].[urbansim].[scs_parcel] WHERE scenario_id = %s) f
+        ON f.parcel_id = p.parcel_id
     RIGHT JOIN [urbansim].[urbansim].[scs_scenario_parcels] as s
         ON p.parcel_id = s.parcel_id
     WHERE s.scenario_id = %s
     ORDER BY s.parcel_id
     '''
-    scenario_parcel_sql = scenario_parcel_sql % scenarios['scs_scenario']
+    scenario_parcel_sql = scenario_parcel_sql % (scenarios['scs_scenario'], scenarios['scs_scenario'],
+                                                 scenarios['scs_scenario'])
+    scenario_parcel_df = pd.read_sql(scenario_parcel_sql, mssql_engine)
+else:
+    scenario_parcel_sql = '''
+         SELECT s.[parcel_id]
+            ,p.[mgra_id]
+            ,p.[cap_jurisdiction_id]
+            ,p.[jurisdiction_id]
+            ,p.[luz_id]
+            ,s.[scs_site_id] as site_id
+            ,s.[scenario_cap] as capacity
+            ,p.[du_2017] AS residential_units
+            ,p.[development_type_id_2017] AS dev_type_2017
+            ,p.[development_type_id_2015] AS dev_type_2015
+            ,p.[lu_2015]
+            ,p.[lu_2017]
+            ,p.[lu_2017] AS lu_sim
+            ,CASE WHEN s.[scs_site_id] IS NOT NULL THEN 'sch'
+                ELSE 'jur' END AS capacity_type
+            ,0 AS capacity_used
+            ,0 AS partial_build
+            ,s.[cap_priority]
+        FROM [urbansim].[urbansim].[parcel] as p
+        INNER JOIN (SELECT parcel_id, compdate FROM [urbansim].[urbansim].[scs_parcel] WHERE scenario_id = %s) f
+            ON f.parcel_id = p.parcel_id
+        RIGHT JOIN [urbansim].[urbansim].[scs_scenario_parcels] as s
+            ON p.parcel_id = s.parcel_id
+        WHERE s.scenario_id = %s
+        ORDER BY s.parcel_id
+        '''
+    scenario_parcel_sql = scenario_parcel_sql % (scenarios['scs_scenario'], scenarios['scs_scenario'],
+                                                 scenarios['scs_scenario'])
     scenario_parcel_df = pd.read_sql(scenario_parcel_sql, mssql_engine)
 
 # SQL statement for the target units per year table.
@@ -303,7 +338,10 @@ for year in regional_controls_df.yr.unique().tolist():
     for jur in [14, 19]:
         control_adjustments = regional_controls_df.loc[(regional_controls_df.jurisdiction_id == jur) &
                                                        (regional_controls_df.yr == year)].copy()
-        adjust = (1 / control_adjustments.control.sum())
+        if control_adjustments.control.sum() == 0:
+            adjust = 0
+        else:
+            adjust = (1 / control_adjustments.control.sum())
         control_adjustments['control'] = control_adjustments.control * adjust
         try:
             target_units = int(control_adjustments.target_units.values[0])
@@ -317,7 +355,7 @@ for year in regional_controls_df.yr.unique().tolist():
         regional_controls_df = regional_controls_df.drop('targets', axis=1)
 
 regional_controls_df = regional_controls_df.drop('jurisdiction_id', axis=1)
-
+regional_controls_df.control = regional_controls_df.control.fillna(0)
 # SQL statement for parcel control table. This is used to phase specific parcels.
 parcel_dev_control_sql = '''
 SELECT [parcel_id]
@@ -341,6 +379,32 @@ if scenarios['scs_scenario'] == 0:
     FROM [urbansim].[ref].[scheduled_development_site]
     WHERE compdate IS NOT NULL
     '''
+    sched_dev_comp_df = pd.read_sql(sched_dev_comp_sql, mssql_engine)
+elif scenarios['scs_scenario'] == 2:
+    sched_dev_comp_sql = '''
+    SELECT 
+        CASE WHEN (scs_site_id = 15035 AND compyear = 2040) THEN 15036
+            ELSE scs_site_id END as site_id
+        ,CASE WHEN phase_yr > 2050 THEN 2045
+            WHEN (scs_site_id = 15035 AND compyear = 2025) THEN 2021
+            ELSE phase_yr END as startyear
+        ,CASE WHEN (scs_site_id = 15035 AND compyear = 2025) THEN compyear
+            WHEN (compyear < phase_yr + ceiling(cap/250)) THEN (phase_yr + ceiling(cap/250))
+            ELSE compyear END as compyear
+    FROM (SELECT 
+            scs_site_id
+            ,year(startdate) as startyear
+            ,year(compdate) as compyear
+            ,phase_yr
+            ,sum(scenario_cap) as cap
+        FROM [urbansim].[urbansim].[scs_parcel]  x
+        INNER JOIN (SELECT * FROM urbansim.urbansim.urbansim_lite_parcel_control
+            WHERE phase_yr_version_id = %s) y
+            ON x.parcel_id = y.parcel_id
+        WHERE scenario_id = %s AND scs_site_id IS NOT NULL
+    GROUP BY scs_site_id, startdate, compdate, phase_yr) a
+    '''
+    sched_dev_comp_sql = sched_dev_comp_sql % (scenarios['parcel_phase_yr'], scenarios['scs_scenario'])
     sched_dev_comp_df = pd.read_sql(sched_dev_comp_sql, mssql_engine)
 else:
     sched_dev_comp_sql = '''
@@ -409,7 +473,7 @@ parcels.jur_or_cpa_id = parcels.jur_or_cpa_id.astype(int)
 parcels = pd.merge(parcels, gplu_df,  how='left', on='parcel_id')
 parcels.sort_index(inplace=True)
 
-if scenarios['scs_scenario'] > 0:
+if scenarios['scs_scenario'] == 1:
     # This section will adjust the control totals for scenario testing
     core_cols = ['yr', 'geo_id', 'control']
     control_adjustments = regional_controls_df[core_cols].copy()
@@ -470,13 +534,6 @@ if scenarios['scs_scenario'] > 0:
     # 3. Use the square of the difference to scale the original value toward the mean
     # End result: Values very different from the rolling average will be moved closer, but not all the way toward the
     # rolling average. Values that are very close will not be heavily adjusted.
-    # control_adjustments['ra_diff'] = (control_adjustments.rolling_avg - control_adjustments.control)
-    # # THIS NEEDS FIXING
-    # control_adjustments['rad_mag'] = (control_adjustments.ra_diff / control_adjustments.rolling_avg)
-    # control_adjustments['new_control'] = (control_adjustments.control +
-    #                                       (control_adjustments.ra_diff * (control_adjustments.rad_mag ** 2)))
-    # control_adjustments['control'].where(control_adjustments.new_control.isnull(),
-    #                                      other=control_adjustments.new_control, inplace=True)
 
     # Set controls to rolling avg
     control_adjustments['control'] = control_adjustments['rolling_avg']
@@ -494,6 +551,11 @@ if scenarios['scs_scenario'] > 0:
     regional_controls_df = pd.merge(regional_controls_df, control_adjustments, how='inner', on=['yr', 'geo_id'])
     regional_controls_df.drop(['control_x'], axis=1, inplace=True)
     regional_controls_df.rename(columns={"control_y": "control"}, inplace=True)
+elif scenarios['scs_scenario'] == 2:
+    parcels.loc[parcels['parcel_id'].isin([5308189, 185765]), 'jur_or_cpa_id'] = 1909
+    parcels.loc[parcels['parcel_id'].isin([567665, 567666, 272502, 272503, 272504, 5049159]), 'jur_or_cpa_id'] = 7
+
+
 
 # # Combine all parcel table with additional geography and plu information.
 # all_parcels = pd.merge(all_parcels_df, geography_view_df, how='left', on='parcel_id')
