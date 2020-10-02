@@ -21,7 +21,7 @@ SELECT
     ,[cap_jurisdiction_id]
     ,[jurisdiction_id]
     ,[luz_id]
-    ,[site_id]
+    ,s.[site_id]
     ,r.[capacity]
     ,[du_2017] AS residential_units
     ,[development_type_id_2017] AS dev_type_2017
@@ -32,10 +32,14 @@ SELECT
     ,'jur' AS capacity_type
     ,0 AS capacity_used
     ,0 AS partial_build
+    ,CASE WHEN r.capacity = p.capacity_2 THEN 2
+		ELSE 3 END as cap_priority
 FROM [urbansim].[urbansim].[parcel] AS p
 RIGHT JOIN [urbansim].[urbansim].[urbansim_reduced_capacity] AS r
 ON p.parcel_id = r.parcel_id
-WHERE version_id = 10
+LEFT JOIN [urbansim].[urbansim].[scheduled_development_parcel] AS s
+ON p.parcel_id = s.parcel_id
+WHERE version_id = 11 AND s.capacity_3 IS NULL
 ORDER BY parcel_id
 '''
 # version_id = 5 was used for XPEF23, which is used as datasource_id = 30
@@ -152,6 +156,7 @@ SELECT a.[parcel_id]
     ,a.[type] AS capacity_type
     ,0 as capacity_used
     ,0 as partial_build
+    ,3 as cap_priority
 FROM [urbansim].[urbansim].[additional_capacity] AS a
 JOIN [urbansim].[parcel] AS p 
 ON p.[parcel_id] = a.[parcel_id]
@@ -163,8 +168,8 @@ assigned_df = pd.read_sql(assigned_parcel_sql, mssql_engine)
 assigned_df['site_id'] = assigned_df.site_id.astype(float)
 
 # Add the additional capacity information to the two parcel tables (excludes scheduled development).
-parcels_df = pd.concat([parcels_df, assigned_df])
-all_parcels_df = pd.concat([all_parcels_df, assigned_df])
+# parcels_df = pd.concat([parcels_df, assigned_df])
+# all_parcels_df = pd.concat([all_parcels_df, assigned_df])
 new_parcels_df = pd.concat([new_parcels_df, assigned_df])
 
 # SQL statement for scheduled development parcels.
@@ -187,6 +192,7 @@ SELECT s.[parcel_id]
     ,'sch' AS capacity_type
     ,0 as capacity_used
     ,0 AS partial_build
+    ,1 as cap_priority
 FROM [urbansim].[urbansim].[parcel] AS p
 INNER JOIN [urbansim].[urbansim].[scheduled_development_parcel] as s
 ON p.[parcel_id] = s.[parcel_id]
@@ -195,7 +201,7 @@ ORDER BY s.[parcel_id]
 '''
 # sched_dev_sql = sched_dev_sql % scenarios['sched_dev_version']  # Only used for 'priority' table
 sched_dev_df = pd.read_sql(sched_dev_sql, mssql_engine)
-parcels_df = pd.concat([parcels_df, sched_dev_df])
+# parcels_df = pd.concat([parcels_df, sched_dev_df])
 new_parcels_df = pd.concat([new_parcels_df, sched_dev_df])
 
 # SCS Scenario
@@ -372,13 +378,29 @@ devyear_df['capacity_type'] = devyear_df['capacity_type'].astype(str)
 # SQL Statement for sched_dev completion years
 if scenarios['scs_scenario'] == 0:
     sched_dev_comp_sql = '''
-    SELECT
-        siteid as site_id
-        ,year(startdate) as startyear
-        ,year(compdate) as compyear
-    FROM [urbansim].[ref].[scheduled_development_site]
-    WHERE compdate IS NOT NULL
+    SELECT 
+        CASE WHEN (site_id = 15035 AND compyear = 2040) THEN 15036
+            ELSE site_id END as site_id
+        ,CASE WHEN phase_yr > 2050 THEN 2045
+            WHEN (site_id = 15035 AND compyear = 2025) THEN 2021
+            ELSE phase_yr END as startyear
+        ,CASE WHEN (site_id = 15035 AND compyear = 2025) THEN compyear
+            WHEN (compyear < phase_yr + ceiling(cap/250)) THEN (phase_yr + ceiling(cap/250))
+            ELSE compyear END as compyear
+    FROM (SELECT 
+            site_id
+            ,year(startdate) as startyear
+            ,year(compdate) as compyear
+            ,phase_yr
+            ,sum(scenario_cap) as cap
+        FROM [urbansim].[urbansim].[eir_parcel]  x
+        INNER JOIN (SELECT * FROM urbansim.urbansim.urbansim_lite_parcel_control
+            WHERE phase_yr_version_id = %s) y
+            ON x.parcel_id = y.parcel_id
+        WHERE eir_scenario_id = 1 AND site_id IS NOT NULL
+    GROUP BY site_id, startdate, compdate, phase_yr) a
     '''
+    sched_dev_comp_sql = sched_dev_comp_sql % (scenarios['parcel_phase_yr'])
     sched_dev_comp_df = pd.read_sql(sched_dev_comp_sql, mssql_engine)
 elif scenarios['scs_scenario'] == 2:
     sched_dev_comp_sql = '''

@@ -552,6 +552,11 @@ def run_feasibility(year):
         compyear.reset_index(inplace=True, drop=True)
         parcels = pd.merge(parcels, compyear, how='left', on=['site_id'])
         parcels['phase_yr'].where(parcels.site_id.isnull(), other=parcels['startyear'], inplace=True)
+        parcels.loc[(parcels['capacity_type'] == 'adu') & (parcels['cap_jurisdiction_id'].isin([2, 5, 12, 14])),
+                    'phase_yr'] = 2019
+        parcels.loc[(parcels['capacity_type'] == 'adu') & (parcels['cap_jurisdiction_id'].isin([3, 10, 17])),
+                    'phase_yr'] = 2021
+        parcels.loc[(parcels['capacity_type'] == 'adu') & (parcels['phase_yr'].isnull()), 'phase_yr'] = 2036
 
     parcels.set_index('parcel_id', inplace=True)
     # Select parcels that have more capacity than is used.
